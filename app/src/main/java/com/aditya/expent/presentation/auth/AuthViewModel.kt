@@ -55,23 +55,25 @@ class AuthViewModel @Inject constructor(
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
                 
-                Log.d("AUTH", "TOKEN -> $idToken")
+                Log.d("rest re", "GOOGLE ID TOKEN -> $idToken")
 
                 val loginResult = loginWithGoogleUseCase(idToken)
                 
                 if (loginResult.isSuccess) {
                     val user = loginResult.getOrNull()
-                    Log.d("AUTH", "Successfully logged in: ${user?.name}")
-                    user?.let { sessionManager.saveUser(it) }
+                    Log.d("rest re", "Successfully logged in: ${user?.name}")
+                    user?.let { 
+                        sessionManager.saveUser(it)
+                    }
                     _authState.value = AuthState(isSuccess = true)
                 } else {
                     val errorMsg = loginResult.exceptionOrNull()?.message ?: "Backend verification failed"
-                    Log.e("AUTH", "BACKEND AUTH FAILED", loginResult.exceptionOrNull())
+                    Log.e("rest re", "BACKEND AUTH FAILED", loginResult.exceptionOrNull())
                     _authState.value = AuthState(error = errorMsg)
                 }
 
             } catch (e: Exception) {
-                Log.e("AUTH", "GOOGLE AUTH FAILED", e)
+                Log.e("rest re", "GOOGLE AUTH FAILED", e)
                 _authState.value = AuthState(error = e.localizedMessage ?: "Authentication failed")
             }
         }

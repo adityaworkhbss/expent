@@ -133,15 +133,9 @@ fun AuthRoute(viewModel: AuthViewModel) {
         onSignInClick = {
             viewModel.authenticateWithGoogle(
                 context = context,
-                isSignUp = false
-            )
-        },
-        onSignUpClick = {
-            viewModel.authenticateWithGoogle(
-                context = context,
                 isSignUp = true
             )
-        }
+        },
     )
 }
 
@@ -149,8 +143,7 @@ fun AuthRoute(viewModel: AuthViewModel) {
 @Composable
 fun AuthScreen(
     state: AuthState = AuthState(),
-    onSignInClick: () -> Unit = {},
-    onSignUpClick: () -> Unit = {}
+    onSignInClick: () -> Unit = {}
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
@@ -271,25 +264,6 @@ fun AuthScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Secondary Action
-            OutlinedButton(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                onClick = onSignUpClick,
-                enabled = !state.isLoading,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                Text(
-                    text = "Create an Account",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-            }
 
             Spacer(modifier = Modifier.height(40.dp))
 

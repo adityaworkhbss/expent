@@ -33,6 +33,14 @@ class SessionManager @Inject constructor(
         return prefs.getBoolean("onboarding_complete", false)
     }
 
+    fun getOnboardingStep(): Int {
+        return prefs.getInt("onboarding_step", 0)
+    }
+
+    fun setOnboardingStep(step: Int) {
+        prefs.edit().putInt("onboarding_step", step).apply()
+    }
+
     fun clearSession() {
         prefs.edit().clear().apply()
     }

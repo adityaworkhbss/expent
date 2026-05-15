@@ -1,20 +1,25 @@
 package com.aditya.expent.presentation.onboard
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.aditya.expent.domain.model.OnboardCategory
+import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
+import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class OnboardStep {
-    WELCOME,
-    CATEGORIES,
-    PAYMENT_MODES,
-    INCOMING,
-    OUTGOING,
-    FINISH
+enum class OnboardStep(val index: Int) {
+    WELCOME(-1),
+    CATEGORIES(1),
+    PAYMENT_MODES(2),
+    INCOMING(3),
+    OUTGOING(4),
+    FINISH(-1)
 }
 
 data class PaymentMode(
@@ -38,7 +43,7 @@ data class Subscription(
 
 data class OnboardState(
     val currentStep: OnboardStep = OnboardStep.WELCOME,
-    val selectedCategories: List<String> = emptyList(),
+    val selectedCategories: List<OnboardCategory> = emptyList(),
     val salary: String = "",
     val bankBalance: String = "",
     val customIncomes: List<Pair<String, String>> = emptyList(),
@@ -50,40 +55,54 @@ data class OnboardState(
 )
 
 @HiltViewModel
-class OnboardViewModel @Inject constructor() : ViewModel() {
+class OnboardViewModel @Inject constructor(
+    private val sessionManager: SessionManager,
+    private val saveCategoriesUseCase: SaveCategoriesUseCase
+) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
 
+    fun saveCategories() {
+        viewModelScope.launch {
+            saveCategoriesUseCase(state.value.selectedCategories)
+        }
+    }
+
     fun nextStep() {
-        _state.update { 
+        _state.update {
+            // Save current step index before moving to next
+            if (it.currentStep.index != -1) {
+                sessionManager.setOnboardingStep(it.currentStep.index)
+            }
+            
+            if (it.currentStep == OnboardStep.CATEGORIES) {
+                saveCategories()
+            }
+            
             val next = when (it.currentStep) {
-                OnboardStep.WELCOME -> OnboardStep.CATEGORIES
+                OnboardStep.WELCOME -> {
+                    val savedStep = sessionManager.getOnboardingStep()
+                    when (savedStep) {
+                        0 -> OnboardStep.CATEGORIES
+                        1 -> OnboardStep.PAYMENT_MODES
+                        2 -> OnboardStep.INCOMING
+                        3 -> OnboardStep.OUTGOING
+                        else -> OnboardStep.CATEGORIES
+                    }
+                }
                 OnboardStep.CATEGORIES -> OnboardStep.PAYMENT_MODES
                 OnboardStep.PAYMENT_MODES -> OnboardStep.INCOMING
                 OnboardStep.INCOMING -> OnboardStep.OUTGOING
                 OnboardStep.OUTGOING -> OnboardStep.FINISH
                 OnboardStep.FINISH -> OnboardStep.FINISH
             }
+
             it.copy(currentStep = next)
         }
     }
 
-    fun previousStep() {
-        _state.update { 
-            val prev = when (it.currentStep) {
-                OnboardStep.WELCOME -> OnboardStep.WELCOME
-                OnboardStep.CATEGORIES -> OnboardStep.WELCOME
-                OnboardStep.PAYMENT_MODES -> OnboardStep.CATEGORIES
-                OnboardStep.INCOMING -> OnboardStep.PAYMENT_MODES
-                OnboardStep.OUTGOING -> OnboardStep.INCOMING
-                OnboardStep.FINISH -> OnboardStep.OUTGOING
-            }
-            it.copy(currentStep = prev)
-        }
-    }
-
-    fun onCategoriesSelected(categories: List<String>) {
+    fun onCategoriesSelected(categories: List<OnboardCategory>) {
         _state.update { it.copy(selectedCategories = categories) }
     }
 

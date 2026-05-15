@@ -53,6 +53,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.aditya.expent.presentation.component.ExpentDatePicker
 import com.aditya.expent.presentation.theme.ExpentTheme
+import com.aditya.expent.domain.model.OnboardCategory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,13 +67,6 @@ fun OnboardRoute(
         topBar = {
             TopAppBar(
                 title = { },
-                navigationIcon = {
-                    if (state.currentStep != OnboardStep.WELCOME && state.currentStep != OnboardStep.FINISH) {
-                        IconButton(onClick = { viewModel.previousStep() }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 )
@@ -205,24 +199,38 @@ fun WelcomeStep(onNext: () -> Unit) {
 
 @Composable
 fun CategoriesStep(
-    selectedCategories: List<String>,
-    onCategoriesChange: (List<String>) -> Unit,
+    selectedCategories: List<OnboardCategory>,
+    onCategoriesChange: (List<OnboardCategory>) -> Unit,
     onNext: () -> Unit
 ) {
     val predefinedCategories = listOf(
-        "Food", "Transport", "Shopping", "Entertainment", "Health",
-        "Education", "Bills", "Groceries", "Rent", "Travel"
+        OnboardCategory("Food", "EXPENSE"),
+        OnboardCategory("Transport", "EXPENSE"),
+        OnboardCategory("Shopping", "EXPENSE"),
+        OnboardCategory("Entertainment", "EXPENSE"),
+        OnboardCategory("Health", "EXPENSE"),
+        OnboardCategory("Education", "EXPENSE"),
+        OnboardCategory("Bills", "EXPENSE"),
+        OnboardCategory("Groceries", "EXPENSE"),
+        OnboardCategory("Rent", "EXPENSE"),
+        OnboardCategory("Travel", "EXPENSE"),
+        OnboardCategory("Salary", "INCOME"),
+        OnboardCategory("Bonus", "INCOME"),
+        OnboardCategory("Gift", "INCOME")
     )
 
-    val customCategories = remember { mutableStateListOf<String>() }
+    val customCategories = remember { mutableStateListOf<OnboardCategory>() }
 
     LaunchedEffect(Unit) {
-        val initialCustom = selectedCategories.filter { it !in predefinedCategories }
+        val initialCustom = selectedCategories.filter { cat -> 
+            predefinedCategories.none { it.name == cat.name && it.type == cat.type } 
+        }
         customCategories.addAll(initialCustom)
     }
 
     val allCategories = predefinedCategories + customCategories
     var newCategoryText by remember { mutableStateOf("") }
+    var newCategoryType by remember { mutableStateOf("EXPENSE") }
 
     Column(
         modifier = Modifier
@@ -230,7 +238,7 @@ fun CategoriesStep(
             .padding(24.dp)
     ) {
         Text(
-            text = "What do you spend on?",
+            text = "Categories Setup",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -239,7 +247,7 @@ fun CategoriesStep(
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Select categories you want to track or add your own.",
+            text = "Select or add categories for your income and expenses.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -253,7 +261,7 @@ fun CategoriesStep(
             modifier = Modifier.weight(1f)
         ) {
             items(allCategories) { category ->
-                val isSelected = selectedCategories.contains(category)
+                val isSelected = selectedCategories.any { it.name == category.name && it.type == category.type }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -269,59 +277,95 @@ fun CategoriesStep(
                         )
                         .clickable {
                             val newList = if (isSelected) {
-                                selectedCategories - category
+                                selectedCategories.filterNot { it.name == category.name && it.type == category.type }
                             } else {
                                 selectedCategories + category
                             }
                             onCategoriesChange(newList)
                         }
-                        .padding(vertical = 16.dp, horizontal = 12.dp),
+                        .padding(vertical = 12.dp, horizontal = 12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = category,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = category.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        Text(
+                            text = category.type,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) 
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Custom Category Input
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+        // Custom Category Input with Type Selection
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                .padding(12.dp)
         ) {
-            OutlinedTextField(
-                value = newCategoryText,
-                onValueChange = { newCategoryText = it },
-                placeholder = { Text("Add custom category") },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = {
-                    val newCat = newCategoryText.trim()
-                    if (newCat.isNotBlank() && !allCategories.contains(newCat)) {
-                        customCategories.add(newCat)
-                        onCategoriesChange(selectedCategories + newCat)
-                        newCategoryText = ""
-                    }
-                },
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = "Add", 
-                    tint = MaterialTheme.colorScheme.onPrimary
+                OutlinedTextField(
+                    value = newCategoryText,
+                    onValueChange = { newCategoryText = it },
+                    placeholder = { Text("Custom category name") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        val newCatName = newCategoryText.trim()
+                        if (newCatName.isNotBlank() && allCategories.none { it.name == newCatName && it.type == newCategoryType }) {
+                            val newCat = OnboardCategory(newCatName, newCategoryType)
+                            customCategories.add(newCat)
+                            onCategoriesChange(selectedCategories + newCat)
+                            newCategoryText = ""
+                        }
+                    },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                ) {
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "Add", 
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("EXPENSE", "INCOME").forEach { type ->
+                    val isTypeSelected = newCategoryType == type
+                    FilterChip(
+                        selected = isTypeSelected,
+                        onClick = { newCategoryType = type },
+                        label = { Text(type) },
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = if (isTypeSelected) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
+                    )
+                }
             }
         }
 
@@ -1058,7 +1102,10 @@ fun CategoriesStepPreview() {
     ExpentTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             CategoriesStep(
-                selectedCategories = listOf("Food", "Transport"),
+                selectedCategories = listOf(
+                    OnboardCategory("Food", "EXPENSE"),
+                    OnboardCategory("Transport", "EXPENSE")
+                ),
                 onCategoriesChange = {},
                 onNext = {}
             )

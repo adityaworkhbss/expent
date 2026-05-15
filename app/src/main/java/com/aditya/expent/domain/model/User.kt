@@ -4,5 +4,7 @@ data class User(
     val id: String,
     val email: String,
     val name: String,
-    val token: String
+    val accessToken: String,
+    val refreshToken: String,
+    val onboardingStep: Int
 )
