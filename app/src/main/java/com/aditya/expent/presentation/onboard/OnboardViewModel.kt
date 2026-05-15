@@ -11,10 +11,16 @@ import javax.inject.Inject
 enum class OnboardStep {
     WELCOME,
     CATEGORIES,
+    PAYMENT_MODES,
     INCOMING,
     OUTGOING,
     FINISH
 }
+
+data class PaymentMode(
+    val name: String,
+    val type: String
+)
 
 data class RecurringExpense(
     val name: String,
@@ -39,7 +45,8 @@ data class OnboardState(
     val creditCardBill: String = "",
     val nextMonthPendingPayment: String = "",
     val recurringExpenses: List<RecurringExpense> = emptyList(),
-    val subscriptions: List<Subscription> = emptyList()
+    val subscriptions: List<Subscription> = emptyList(),
+    val paymentModes: List<PaymentMode> = emptyList()
 )
 
 @HiltViewModel
@@ -52,7 +59,8 @@ class OnboardViewModel @Inject constructor() : ViewModel() {
         _state.update { 
             val next = when (it.currentStep) {
                 OnboardStep.WELCOME -> OnboardStep.CATEGORIES
-                OnboardStep.CATEGORIES -> OnboardStep.INCOMING
+                OnboardStep.CATEGORIES -> OnboardStep.PAYMENT_MODES
+                OnboardStep.PAYMENT_MODES -> OnboardStep.INCOMING
                 OnboardStep.INCOMING -> OnboardStep.OUTGOING
                 OnboardStep.OUTGOING -> OnboardStep.FINISH
                 OnboardStep.FINISH -> OnboardStep.FINISH
@@ -66,7 +74,8 @@ class OnboardViewModel @Inject constructor() : ViewModel() {
             val prev = when (it.currentStep) {
                 OnboardStep.WELCOME -> OnboardStep.WELCOME
                 OnboardStep.CATEGORIES -> OnboardStep.WELCOME
-                OnboardStep.INCOMING -> OnboardStep.CATEGORIES
+                OnboardStep.PAYMENT_MODES -> OnboardStep.CATEGORIES
+                OnboardStep.INCOMING -> OnboardStep.PAYMENT_MODES
                 OnboardStep.OUTGOING -> OnboardStep.INCOMING
                 OnboardStep.FINISH -> OnboardStep.OUTGOING
             }
@@ -104,5 +113,9 @@ class OnboardViewModel @Inject constructor() : ViewModel() {
 
     fun onCustomIncomesChanged(incomes: List<Pair<String, String>>) {
         _state.update { it.copy(customIncomes = incomes) }
+    }
+
+    fun onPaymentModesChanged(modes: List<PaymentMode>) {
+        _state.update { it.copy(paymentModes = modes) }
     }
 }

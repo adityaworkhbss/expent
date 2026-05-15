@@ -108,6 +108,11 @@ fun OnboardRoute(
                         onCategoriesChange = { viewModel.onCategoriesSelected(it) },
                         onNext = { viewModel.nextStep() }
                     )
+                    OnboardStep.PAYMENT_MODES -> PaymentModesStep(
+                        paymentModes = state.paymentModes,
+                        onPaymentModesChange = { viewModel.onPaymentModesChanged(it) },
+                        onNext = { viewModel.nextStep() }
+                    )
                     OnboardStep.INCOMING -> IncomingStep(
                         salary = state.salary,
                         bankBalance = state.bankBalance,
@@ -329,6 +334,176 @@ fun CategoriesStep(
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
             enabled = selectedCategories.isNotEmpty()
+        ) {
+            Text("Continue", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}
+
+@Composable
+fun PaymentModesStep(
+    paymentModes: List<PaymentMode>,
+    onPaymentModesChange: (List<PaymentMode>) -> Unit,
+    onNext: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf("PAY_NOW") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp)
+    ) {
+        Text(
+            text = "Payment Methods",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Add your bank accounts, credit cards, or wallets.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            paymentModes.forEach { mode ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = mode.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (mode.type == "PAY_NOW") "Debit / Wallet" else "Credit / Pay Later",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = {
+                        onPaymentModesChange(paymentModes.filter { it != mode })
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Added",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add new payment mode form
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Add New Method",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Account Name") },
+                    placeholder = { Text("e.g. HDFC Bank, Amex Card") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("PAY_NOW", "PAY_LATER").forEach { type ->
+                        val isSelected = selectedType == type
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                )
+                                .clickable { selectedType = type }
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (type == "PAY_NOW") "Pay Now" else "Pay Later",
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        if (name.isNotBlank()) {
+                            onPaymentModesChange(paymentModes + PaymentMode(name.trim(), selectedType))
+                            name = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = name.isNotBlank()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Method")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onNext,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            enabled = paymentModes.isNotEmpty()
         ) {
             Text("Continue", style = MaterialTheme.typography.titleMedium)
         }
@@ -885,6 +1060,23 @@ fun CategoriesStepPreview() {
             CategoriesStep(
                 selectedCategories = listOf("Food", "Transport"),
                 onCategoriesChange = {},
+                onNext = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PaymentModesStepPreview() {
+    ExpentTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            PaymentModesStep(
+                paymentModes = listOf(
+                    PaymentMode("HDFC Bank", "PAY_NOW"),
+                    PaymentMode("Amex Card", "PAY_LATER")
+                ),
+                onPaymentModesChange = {},
                 onNext = {}
             )
         }
