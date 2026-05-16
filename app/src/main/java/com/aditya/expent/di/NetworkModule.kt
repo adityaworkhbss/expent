@@ -2,6 +2,7 @@ package com.aditya.expent.di
 
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.AuthInterceptor
+import com.aditya.expent.data.remote.TokenAuthenticator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,13 +19,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
+    fun provideOkHttpClient(
+        authInterceptor: AuthInterceptor,
+        tokenAuthenticator: TokenAuthenticator
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
+            .authenticator(tokenAuthenticator)
             .build()
     }
 

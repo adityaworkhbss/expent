@@ -6,8 +6,10 @@ import com.aditya.expent.data.remote.dto.CategoryRequestDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeRequestDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
+import com.aditya.expent.data.remote.dto.TokenRefreshResponseDto
 import retrofit2.http.Body
 import retrofit2.http.POST
+import retrofit2.http.Header
 
 interface ApiService {
     @POST("auth/google")
@@ -24,4 +26,9 @@ interface ApiService {
     suspend fun savePaymentModes(
         @Body request: List<PaymentModeRequestDto>
     ) : List<PaymentModeResponseDto>
+
+    @POST("auth/refresh")
+    suspend fun refreshToken(
+        @Header("Cookie") refreshTokenCookie: String
+    ): TokenRefreshResponseDto
 }

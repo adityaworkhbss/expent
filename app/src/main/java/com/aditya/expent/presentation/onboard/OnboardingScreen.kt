@@ -15,6 +15,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -113,11 +114,28 @@ fun OnboardRoute(
                         )
                         OnboardStep.INCOMING -> IncomingStep(
                             salary = state.salary,
-                            bankBalance = state.bankBalance,
                             customIncomes = state.customIncomes,
-                            onSalaryChange = { viewModel.onSalaryChanged(it) },
-                            onBankBalanceChange = { viewModel.onBankBalanceChanged(it) },
+                            selectedCategories = state.selectedCategories,
+                            onSalaryAmountChange = { viewModel.onSalaryAmountChanged(it) },
+                            onSalaryCategoryChange = { viewModel.onSalaryCategoryChanged(it) },
+                            onSalaryPeriodChange = { viewModel.onSalaryPeriodChanged(it) },
+                            onSalaryStartDateChange = { viewModel.onSalaryStartDateChanged(it) },
+                            onSalaryEndDateChange = { viewModel.onSalaryEndDateChanged(it) },
                             onCustomIncomesChange = { viewModel.onCustomIncomesChanged(it) },
+                            onNext = { viewModel.nextStep() }
+                        )
+                        OnboardStep.BUDGETING -> BudgetingStep(
+                            budgetLimit = state.budgetLimit,
+                            budgetPeriod = state.budgetPeriod,
+                            budgetCategoryId = state.budgetCategoryId,
+                            budgetStartDate = state.budgetStartDate,
+                            budgetEndDate = state.budgetEndDate,
+                            selectedCategories = state.selectedCategories,
+                            onBudgetLimitChange = { viewModel.onBudgetLimitChanged(it) },
+                            onBudgetPeriodChange = { viewModel.onBudgetPeriodChanged(it) },
+                            onBudgetCategoryChange = { viewModel.onBudgetCategoryChanged(it) },
+                            onBudgetStartDateChange = { viewModel.onBudgetStartDateChanged(it) },
+                            onBudgetEndDateChange = { viewModel.onBudgetEndDateChanged(it) },
                             onNext = { viewModel.nextStep() }
                         )
                         OnboardStep.OUTGOING -> OutgoingStep(
@@ -596,16 +614,26 @@ fun PaymentModesStep(
 
 @Composable
 fun IncomingStep(
-    salary: String,
-    bankBalance: String,
-    customIncomes: List<Pair<String, String>>,
-    onSalaryChange: (String) -> Unit,
-    onBankBalanceChange: (String) -> Unit,
-    onCustomIncomesChange: (List<Pair<String, String>>) -> Unit,
+    salary: RecurringIncome,
+    customIncomes: List<RecurringIncome>,
+    selectedCategories: List<OnboardCategory>,
+    onSalaryAmountChange: (String) -> Unit,
+    onSalaryCategoryChange: (String?) -> Unit,
+    onSalaryPeriodChange: (String) -> Unit,
+    onSalaryStartDateChange: (String) -> Unit,
+    onSalaryEndDateChange: (String) -> Unit,
+    onCustomIncomesChange: (List<RecurringIncome>) -> Unit,
     onNext: () -> Unit
 ) {
     var newIncomeName by remember { mutableStateOf("") }
     var newIncomeAmount by remember { mutableStateOf("") }
+    var newIncomeCategory by remember { mutableStateOf<String?>(null) }
+    var newIncomePeriod by remember { mutableStateOf("MONTHLY") }
+    var newIncomeStartDate by remember { mutableStateOf("") }
+    
+    var showSalaryStartDatePicker by remember { mutableStateOf(false) }
+    var showSalaryEndDatePicker by remember { mutableStateOf(false) }
+    var showNewIncomeDatePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -631,9 +659,9 @@ fun IncomingStep(
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
-            value = salary,
-            onValueChange = onSalaryChange,
-            label = { Text("Monthly Salary") },
+            value = salary.amount,
+            onValueChange = onSalaryAmountChange,
+            label = { Text("Monthly Salary Amount") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -642,14 +670,72 @@ fun IncomingStep(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf("WEEKLY", "MONTHLY").forEach { period ->
+                FilterChip(
+                    selected = salary.periodType == period,
+                    onClick = { onSalaryPeriodChange(period) },
+                    label = { Text(period.lowercase().replaceFirstChar { it.uppercase() }) },
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Salary Category", style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = salary.categoryId == null,
+                onClick = { onSalaryCategoryChange(null) },
+                label = { Text("General") },
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
+            for (category in incomeCategories) {
+                FilterChip(
+                    selected = salary.categoryId == category.name,
+                    onClick = { onSalaryCategoryChange(category.name) },
+                    label = { Text(category.name) },
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedTextField(
-            value = bankBalance,
-            onValueChange = onBankBalanceChange,
-            label = { Text("Current Bank Balance") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            value = salary.startDate,
+            onValueChange = { },
+            label = { Text("Start Date") },
+            readOnly = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            prefix = { Text("$ ") }
+            trailingIcon = {
+                IconButton(onClick = { showSalaryStartDatePicker = true }) {
+                    Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                }
+            }
+        )
+
+        ExpentDatePicker(
+            showDialog = showSalaryStartDatePicker,
+            onDismiss = { showSalaryStartDatePicker = false },
+            onDateSelected = {
+                onSalaryStartDateChange(it)
+                showSalaryStartDatePicker = false
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -672,13 +758,19 @@ fun IncomingStep(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = customIncome.name, 
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "${customIncome.periodType.lowercase().capitalize()} | Category: ${customIncome.categoryId ?: "General"}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
                 Text(
-                    text = customIncome.first, 
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = "$ ${customIncome.second}", 
+                    text = "$ ${customIncome.amount}", 
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleMedium
@@ -691,57 +783,305 @@ fun IncomingStep(
         }
 
         // Add new income form
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                .padding(16.dp)
         ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = newIncomeName,
+                    onValueChange = { newIncomeName = it },
+                    placeholder = { Text("Income Name") },
+                    modifier = Modifier.weight(1.5f),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = newIncomeAmount,
+                    onValueChange = { newIncomeAmount = it },
+                    placeholder = { Text("Amount") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("WEEKLY", "MONTHLY").forEach { period ->
+                    FilterChip(
+                        selected = newIncomePeriod == period,
+                        onClick = { newIncomePeriod = period },
+                        label = { Text(period.lowercase().capitalize()) },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Category", style = MaterialTheme.typography.labelMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = newIncomeCategory == null,
+                    onClick = { newIncomeCategory = null },
+                    label = { Text("General") },
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
+                for (category in incomeCategories) {
+                    FilterChip(
+                        selected = newIncomeCategory == category.name,
+                        onClick = { newIncomeCategory = category.name },
+                        label = { Text(category.name) },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             OutlinedTextField(
-                value = newIncomeName,
-                onValueChange = { newIncomeName = it },
-                placeholder = { Text("Name (e.g. Freelance)") },
-                modifier = Modifier.weight(1.5f),
+                value = newIncomeStartDate,
+                onValueChange = { },
+                placeholder = { Text("Start Date") },
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                singleLine = true
+                trailingIcon = {
+                    IconButton(onClick = { showNewIncomeDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                    }
+                }
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            OutlinedTextField(
-                value = newIncomeAmount,
-                onValueChange = { newIncomeAmount = it },
-                placeholder = { Text("Amount") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true
+
+            ExpentDatePicker(
+                showDialog = showNewIncomeDatePicker,
+                onDismiss = { showNewIncomeDatePicker = false },
+                onDateSelected = {
+                    newIncomeStartDate = it
+                    showNewIncomeDatePicker = false
+                }
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
                 onClick = {
-                    if (newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank()) {
-                        onCustomIncomesChange(customIncomes + Pair(newIncomeName.trim(), newIncomeAmount.trim()))
+                    if (newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank() && newIncomeStartDate.isNotBlank()) {
+                        onCustomIncomesChange(customIncomes + RecurringIncome(
+                            name = newIncomeName.trim(),
+                            amount = newIncomeAmount.trim(),
+                            periodType = newIncomePeriod,
+                            startDate = newIncomeStartDate,
+                            categoryId = newIncomeCategory
+                        ))
                         newIncomeName = ""
                         newIncomeAmount = ""
+                        newIncomeStartDate = ""
+                        newIncomeCategory = null
                     }
                 },
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(
-                    Icons.Default.Add, 
-                    contentDescription = "Add Income", 
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Add Income Source")
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(48.dp))
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            enabled = salary.amount.isNotBlank() && salary.startDate.isNotBlank()
+        ) {
+            Text("Continue", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BudgetingStep(
+    budgetLimit: String,
+    budgetPeriod: String,
+    budgetCategoryId: String?,
+    budgetStartDate: String,
+    budgetEndDate: String,
+    selectedCategories: List<OnboardCategory>,
+    onBudgetLimitChange: (String) -> Unit,
+    onBudgetPeriodChange: (String) -> Unit,
+    onBudgetCategoryChange: (String?) -> Unit,
+    onBudgetStartDateChange: (String) -> Unit,
+    onBudgetEndDateChange: (String) -> Unit,
+    onNext: () -> Unit
+) {
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+    ) {
+        Text(
+            text = "Set a Budget",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Tell us how much you plan to spend to stay on track.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedTextField(
+            value = budgetLimit,
+            onValueChange = onBudgetLimitChange,
+            label = { Text("Budget Limit") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            prefix = { Text("$ ") }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Budget Period", style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val periods = listOf("DAILY", "WEEKLY", "MONTHLY")
+            for (period in periods) {
+                FilterChip(
+                    selected = budgetPeriod == period,
+                    onClick = { onBudgetPeriodChange(period) },
+                    label = { Text(period.lowercase().replaceFirstChar { it.uppercase() }) },
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Category", style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = budgetCategoryId == null,
+                onClick = { onBudgetCategoryChange(null) },
+                label = { Text("Overall") },
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            val expenseCategories = selectedCategories.filter { it.type == "EXPENSE" }
+            for (category in expenseCategories) {
+                FilterChip(
+                    selected = budgetCategoryId == category.name,
+                    onClick = { onBudgetCategoryChange(category.name) },
+                    label = { Text(category.name) },
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedTextField(
+                value = budgetStartDate,
+                onValueChange = { },
+                label = { Text("Start Date") },
+                readOnly = true,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    IconButton(onClick = { showStartDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                    }
+                }
+            )
+
+            OutlinedTextField(
+                value = budgetEndDate,
+                onValueChange = { },
+                label = { Text("End Date (Opt)") },
+                readOnly = true,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    IconButton(onClick = { showEndDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                    }
+                }
+            )
+        }
+
+        ExpentDatePicker(
+            showDialog = showStartDatePicker,
+            onDismiss = { showStartDatePicker = false },
+            onDateSelected = {
+                onBudgetStartDateChange(it)
+                showStartDatePicker = false
+            }
+        )
+
+        ExpentDatePicker(
+            showDialog = showEndDatePicker,
+            onDismiss = { showEndDatePicker = false },
+            onDateSelected = {
+                onBudgetEndDateChange(it)
+                showEndDatePicker = false
+            }
+        )
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Button(
+            onClick = onNext,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            enabled = budgetLimit.isNotBlank() && budgetStartDate.isNotBlank()
         ) {
             Text("Continue", style = MaterialTheme.typography.titleMedium)
         }
@@ -1176,12 +1516,40 @@ fun IncomingStepPreview() {
     ExpentTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             IncomingStep(
-                salary = "5000",
-                bankBalance = "12000",
-                customIncomes = listOf(Pair("Freelance", "1500")),
-                onSalaryChange = {},
-                onBankBalanceChange = {},
+                salary = RecurringIncome(name = "Salary", amount = "5000", startDate = "01/01/2023"),
+                customIncomes = listOf(
+                    RecurringIncome(name = "Freelance", amount = "1500", startDate = "01/01/2023")
+                ),
+                selectedCategories = listOf(OnboardCategory("Food", "EXPENSE")),
+                onSalaryAmountChange = {},
+                onSalaryCategoryChange = {},
+                onSalaryPeriodChange = {},
+                onSalaryStartDateChange = {},
+                onSalaryEndDateChange = {},
                 onCustomIncomesChange = {},
+                onNext = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun BudgetingStepPreview() {
+    ExpentTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            BudgetingStep(
+                budgetLimit = "3000",
+                budgetPeriod = "MONTHLY",
+                budgetCategoryId = null,
+                budgetStartDate = "01/10/2023",
+                budgetEndDate = "",
+                selectedCategories = listOf(OnboardCategory("Food", "EXPENSE")),
+                onBudgetLimitChange = {},
+                onBudgetPeriodChange = {},
+                onBudgetCategoryChange = {},
+                onBudgetStartDateChange = {},
+                onBudgetEndDateChange = {},
                 onNext = {}
             )
         }

@@ -20,7 +20,8 @@ enum class OnboardStep(val index: Int) {
     CATEGORIES(1),
     PAYMENT_MODES(2),
     INCOMING(3),
-    OUTGOING(4),
+    BUDGETING(4),
+    OUTGOING(5),
     FINISH(-1)
 }
 
@@ -38,17 +39,30 @@ data class Subscription(
     val billingDate: String
 )
 
+data class RecurringIncome(
+    val name: String = "",
+    val amount: String = "",
+    val categoryId: String? = null,
+    val periodType: String = "MONTHLY",
+    val startDate: String = "",
+    val endDate: String = ""
+)
+
 data class OnboardState(
     val currentStep: OnboardStep = OnboardStep.WELCOME,
     val selectedCategories: List<OnboardCategory> = emptyList(),
-    val salary: String = "",
-    val bankBalance: String = "",
-    val customIncomes: List<Pair<String, String>> = emptyList(),
+    val salary: RecurringIncome = RecurringIncome(name = "Salary"),
+    val customIncomes: List<RecurringIncome> = emptyList(),
     val creditCardBill: String = "",
     val nextMonthPendingPayment: String = "",
     val recurringExpenses: List<RecurringExpense> = emptyList(),
     val subscriptions: List<Subscription> = emptyList(),
     val paymentModes: List<OnboardPaymentMode> = emptyList(),
+    val budgetLimit: String = "",
+    val budgetPeriod: String = "MONTHLY",
+    val budgetCategoryId: String? = null,
+    val budgetStartDate: String = "",
+    val budgetEndDate: String = "",
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -102,18 +116,20 @@ class OnboardViewModel @Inject constructor(
             if (canProceed) {
                 val next = when (currentState.currentStep) {
                     OnboardStep.WELCOME -> {
-                        val savedStep = sessionManager.getOnboardingStep() -1
+                        val savedStep = sessionManager.getOnboardingStep()
                         when (savedStep) {
                             0 -> OnboardStep.CATEGORIES
                             1 -> OnboardStep.PAYMENT_MODES
                             2 -> OnboardStep.INCOMING
-                            3 -> OnboardStep.OUTGOING
+                            3 -> OnboardStep.BUDGETING
+                            4 -> OnboardStep.OUTGOING
                             else -> OnboardStep.CATEGORIES
                         }
                     }
                     OnboardStep.CATEGORIES -> OnboardStep.PAYMENT_MODES
                     OnboardStep.PAYMENT_MODES -> OnboardStep.INCOMING
-                    OnboardStep.INCOMING -> OnboardStep.OUTGOING
+                    OnboardStep.INCOMING -> OnboardStep.BUDGETING
+                    OnboardStep.BUDGETING -> OnboardStep.OUTGOING
                     OnboardStep.OUTGOING -> OnboardStep.FINISH
                     OnboardStep.FINISH -> OnboardStep.FINISH
                 }
@@ -132,13 +148,30 @@ class OnboardViewModel @Inject constructor(
         _state.update { it.copy(selectedCategories = categories) }
     }
 
-    fun onSalaryChanged(salary: String) {
-        _state.update { it.copy(salary = salary) }
+    fun onSalaryAmountChanged(amount: String) {
+        _state.update { it.copy(salary = it.salary.copy(amount = amount)) }
     }
 
-    fun onBankBalanceChanged(balance: String) {
-        _state.update { it.copy(bankBalance = balance) }
+    fun onSalaryCategoryChanged(categoryId: String?) {
+        _state.update { it.copy(salary = it.salary.copy(categoryId = categoryId)) }
     }
+
+    fun onSalaryPeriodChanged(period: String) {
+        _state.update { it.copy(salary = it.salary.copy(periodType = period)) }
+    }
+
+    fun onSalaryStartDateChanged(date: String) {
+        _state.update { it.copy(salary = it.salary.copy(startDate = date)) }
+    }
+
+    fun onSalaryEndDateChanged(date: String) {
+        _state.update { it.copy(salary = it.salary.copy(endDate = date)) }
+    }
+
+    fun onCustomIncomesChanged(incomes: List<RecurringIncome>) {
+        _state.update { it.copy(customIncomes = incomes) }
+    }
+
 
     fun onCreditCardBillChanged(bill: String) {
         _state.update { it.copy(creditCardBill = bill) }
@@ -156,11 +189,27 @@ class OnboardViewModel @Inject constructor(
         _state.update { it.copy(subscriptions = subscriptions) }
     }
 
-    fun onCustomIncomesChanged(incomes: List<Pair<String, String>>) {
-        _state.update { it.copy(customIncomes = incomes) }
-    }
-
     fun onPaymentModesChanged(modes: List<OnboardPaymentMode>) {
         _state.update { it.copy(paymentModes = modes) }
+    }
+
+    fun onBudgetLimitChanged(limit: String) {
+        _state.update { it.copy(budgetLimit = limit) }
+    }
+
+    fun onBudgetPeriodChanged(period: String) {
+        _state.update { it.copy(budgetPeriod = period) }
+    }
+
+    fun onBudgetCategoryChanged(categoryId: String?) {
+        _state.update { it.copy(budgetCategoryId = categoryId) }
+    }
+
+    fun onBudgetStartDateChanged(date: String) {
+        _state.update { it.copy(budgetStartDate = date) }
+    }
+
+    fun onBudgetEndDateChanged(date: String) {
+        _state.update { it.copy(budgetEndDate = date) }
     }
 }

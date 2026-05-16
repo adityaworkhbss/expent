@@ -13,8 +13,9 @@ class AuthInterceptor @Inject constructor(
         
         val user = sessionManager.getUser()
         user?.accessToken?.let { token ->
-            android.util.Log.d("rest re", "Adding Auth Header: Bearer $token")
-            requestBuilder.addHeader("Authorization", "Bearer $token")
+            val cleanToken = token.trim()
+            android.util.Log.d("rest re", "Adding Auth Header: Bearer $cleanToken")
+            requestBuilder.addHeader("Authorization", "Bearer $cleanToken")
         } ?: android.util.Log.d("rest re", "No access token found in session")
         
         return chain.proceed(requestBuilder.build())
