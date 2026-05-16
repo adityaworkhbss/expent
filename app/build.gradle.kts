@@ -101,4 +101,6 @@ dependencies {
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
 
+    // Lottie
+    implementation(libs.lottie.compose)
 }

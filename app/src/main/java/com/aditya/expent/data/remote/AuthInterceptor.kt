@@ -19,11 +19,19 @@ class AuthInterceptor @Inject constructor(
         }
 
         val user = sessionManager.getUser()
-        user?.accessToken?.let { token ->
+        val token = user?.accessToken
+        
+        if (token != null) {
             val cleanToken = token.trim()
-            Log.d("rest re", "Adding Auth Header: Bearer $cleanToken")
-            requestBuilder.header("Authorization", "Bearer $cleanToken")
-        } ?: Log.d("rest re", "No access token found in session")
+            if (cleanToken.isNotEmpty()) {
+                Log.d("AuthInterceptor", "Adding Auth Header for $path: Bearer ${cleanToken.take(10)}...")
+                requestBuilder.header("Authorization", "Bearer $cleanToken")
+            } else {
+                Log.w("AuthInterceptor", "Access token is empty for $path")
+            }
+        } else {
+            Log.w("AuthInterceptor", "No user or access token found in session for $path")
+        }
         
         return chain.proceed(requestBuilder.build())
     }

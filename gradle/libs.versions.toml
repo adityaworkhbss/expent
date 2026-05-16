@@ -22,6 +22,7 @@ room = "2.8.4"
 kotlin = "2.3.21"
 ksp = "2.3.5"
 activity = "1.13.0"
+lottie = "6.6.2"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -56,6 +57,7 @@ hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", ve
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 retrofit2-converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottie" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

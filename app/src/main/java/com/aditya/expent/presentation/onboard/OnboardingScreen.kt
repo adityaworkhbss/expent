@@ -51,9 +51,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.aditya.expent.presentation.component.ExpentDatePicker
-import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
+import com.aditya.expent.R
+import com.aditya.expent.presentation.theme.ExpentTheme
+import com.airbnb.lottie.compose.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,7 +152,16 @@ fun OnboardRoute(
                                 .clickable(enabled = false) { },
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.sandy_loading))
+                            val progress by animateLottieCompositionAsState(
+                                composition,
+                                iterations = LottieConstants.IterateForever
+                            )
+                            LottieAnimation(
+                                composition = composition,
+                                progress = { progress },
+                                modifier = Modifier.size(200.dp)
+                            )
                         }
                     }
                 }
