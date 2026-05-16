@@ -3,6 +3,7 @@ package com.aditya.expent.data.repository
 import android.util.Log
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.CategoryRequestDto
+import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.repository.CategoryRepository
 import com.aditya.expent.utils.SessionManager
@@ -28,6 +29,18 @@ class CategoryRepositoryImpl @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("rest re", "Error addCategories: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getCategories(): Result<List<CategoryResponseDto>> {
+        return try {
+            Log.d("rest re", "Request getCategories: No parameters")
+            val response = apiService.getCategories()
+            Log.d("rest re", "Response getCategories: $response")
+            Result.success(response)
+        } catch (e: Exception) {
+            Log.e("rest re", "Error getCategories: ${e.message}", e)
             Result.failure(e)
         }
     }

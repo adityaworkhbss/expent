@@ -42,6 +42,10 @@ class SessionManager @Inject constructor(
     }
 
     fun clearSession() {
+        prefs.edit().remove("user_data").apply()
+    }
+
+    fun logout() {
         prefs.edit().clear().apply()
     }
 }

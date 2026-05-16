@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
+import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
 import com.aditya.expent.utils.SessionManager
@@ -63,6 +64,7 @@ data class OnboardState(
     val budgetCategoryId: String? = null,
     val budgetStartDate: String = "",
     val budgetEndDate: String = "",
+    val availableCategories: List<OnboardCategory> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -71,11 +73,30 @@ data class OnboardState(
 class OnboardViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     private val saveCategoriesUseCase: SaveCategoriesUseCase,
-    private val savePaymentModesUseCase: SavePaymentModesUseCase
+    private val savePaymentModesUseCase: SavePaymentModesUseCase,
+    private val getCategoriesUseCase: GetCategoriesUseCase
 ) : ViewModel() {
-
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
+
+    private fun fetchCategories() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            val result = getCategoriesUseCase()
+            if (result.isSuccess) {
+                val categories = result.getOrNull()?.map { 
+                    OnboardCategory(
+                        id = it.id,
+                        name = it.name,
+                        type = it.type
+                    )
+                } ?: emptyList()
+                _state.update { it.copy(selectedCategories = categories, isLoading = false) }
+            } else {
+                _state.update { it.copy(error = "Failed to load categories", isLoading = false) }
+            }
+        }
+    }
 
     private suspend fun saveCategories(): Boolean {
         _state.update { it.copy(isLoading = true, error = null) }
@@ -106,6 +127,11 @@ class OnboardViewModel @Inject constructor(
     fun nextStep() {
         viewModelScope.launch {
             val currentState = state.value
+
+            if(currentState.currentStep != OnboardStep.CATEGORIES &&
+                currentState.availableCategories.isEmpty()) {
+                fetchCategories()
+            }
 
             val canProceed = when (currentState.currentStep) {
                 OnboardStep.CATEGORIES -> saveCategories()
@@ -171,7 +197,6 @@ class OnboardViewModel @Inject constructor(
     fun onCustomIncomesChanged(incomes: List<RecurringIncome>) {
         _state.update { it.copy(customIncomes = incomes) }
     }
-
 
     fun onCreditCardBillChanged(bill: String) {
         _state.update { it.copy(creditCardBill = bill) }

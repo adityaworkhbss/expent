@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.aditya.expent.presentation.auth.AuthActivity
 import com.aditya.expent.presentation.dashboard.DashboardActivity
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.SessionManager
@@ -27,6 +28,12 @@ class OnboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        if (sessionManager.getUser() == null) {
+            startActivity(Intent(this, AuthActivity::class.java))
+            finish()
+            return
+        }
+
         setContent {
             ExpentTheme {
                 Surface(

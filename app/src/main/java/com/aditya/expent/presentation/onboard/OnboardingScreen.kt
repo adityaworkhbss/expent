@@ -26,10 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
@@ -40,7 +39,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,6 +99,7 @@ fun OnboardRoute(
                     when (step) {
                         OnboardStep.WELCOME -> WelcomeStep(onNext = { viewModel.nextStep() })
                         OnboardStep.CATEGORIES -> CategoriesStep(
+                            availableCategories = state.availableCategories,
                             selectedCategories = state.selectedCategories,
                             onCategoriesChange = { viewModel.onCategoriesSelected(it) },
                             onNext = { viewModel.nextStep() },
@@ -248,44 +247,22 @@ fun WelcomeStep(onNext: () -> Unit) {
         ) {
             Text("Get Started", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
         }
     }
 }
 
 @Composable
 fun CategoriesStep(
+    availableCategories: List<OnboardCategory>,
     selectedCategories: List<OnboardCategory>,
     onCategoriesChange: (List<OnboardCategory>) -> Unit,
     onNext: () -> Unit,
     isLoading: Boolean = false
 ) {
-    val predefinedCategories = listOf(
-        OnboardCategory("Food", "EXPENSE"),
-        OnboardCategory("Transport", "EXPENSE"),
-        OnboardCategory("Shopping", "EXPENSE"),
-        OnboardCategory("Entertainment", "EXPENSE"),
-        OnboardCategory("Health", "EXPENSE"),
-        OnboardCategory("Education", "EXPENSE"),
-        OnboardCategory("Bills", "EXPENSE"),
-        OnboardCategory("Groceries", "EXPENSE"),
-        OnboardCategory("Rent", "EXPENSE"),
-        OnboardCategory("Travel", "EXPENSE"),
-        OnboardCategory("Salary", "INCOME"),
-        OnboardCategory("Bonus", "INCOME"),
-        OnboardCategory("Gift", "INCOME")
-    )
-
     val customCategories = remember { mutableStateListOf<OnboardCategory>() }
 
-    LaunchedEffect(Unit) {
-        val initialCustom = selectedCategories.filter { cat -> 
-            predefinedCategories.none { it.name == cat.name && it.type == cat.type } 
-        }
-        customCategories.addAll(initialCustom)
-    }
-
-    val allCategories = predefinedCategories + customCategories
+    val allCategories = availableCategories + customCategories
     var newCategoryText by remember { mutableStateOf("") }
     var newCategoryType by remember { mutableStateOf("EXPENSE") }
 
@@ -695,12 +672,6 @@ fun IncomingStep(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterChip(
-                selected = salary.categoryId == null,
-                onClick = { onSalaryCategoryChange(null) },
-                label = { Text("General") },
-                shape = RoundedCornerShape(12.dp)
-            )
 
             val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
             for (category in incomeCategories) {
@@ -782,7 +753,6 @@ fun IncomingStep(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Add new income form
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -834,13 +804,6 @@ fun IncomingStep(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    selected = newIncomeCategory == null,
-                    onClick = { newIncomeCategory = null },
-                    label = { Text("General") },
-                    shape = RoundedCornerShape(12.dp)
-                )
-
                 val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
                 for (category in incomeCategories) {
                     FilterChip(
@@ -1002,12 +965,7 @@ fun BudgetingStep(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterChip(
-                selected = budgetCategoryId == null,
-                onClick = { onBudgetCategoryChange(null) },
-                label = { Text("Overall") },
-                shape = RoundedCornerShape(12.dp)
-            )
+
 
             val expenseCategories = selectedCategories.filter { it.type == "EXPENSE" }
             for (category in expenseCategories) {
@@ -1482,9 +1440,13 @@ fun CategoriesStepPreview() {
     ExpentTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             CategoriesStep(
-                selectedCategories = listOf(
+                availableCategories = listOf(
                     OnboardCategory("Food", "EXPENSE"),
-                    OnboardCategory("Transport", "EXPENSE")
+                    OnboardCategory("Transport", "EXPENSE"),
+                    OnboardCategory("Salary", "INCOME")
+                ),
+                selectedCategories = listOf(
+                    OnboardCategory("Food", "EXPENSE")
                 ),
                 onCategoriesChange = {},
                 onNext = {}

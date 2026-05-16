@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.dashboard
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,16 +29,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
+import com.aditya.expent.presentation.auth.AuthActivity
+import com.aditya.expent.utils.SessionManager
 import com.aditya.expent.presentation.theme.ExpentTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class DashboardActivity : ComponentActivity() {
     
+    @Inject
+    lateinit var sessionManager: SessionManager
+
     private val viewModel: DashboardViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        if (sessionManager.getUser() == null) {
+            startActivity(Intent(this, AuthActivity::class.java))
+            finish()
+            return
+        }
+
         setContent {
             ExpentTheme {
                 Surface(
