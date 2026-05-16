@@ -17,13 +17,14 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             val response = apiService.verifyGoogleToken(request)
             Log.d("rest re", "Response loginWithGoogle: $response")
+            Log.d("AuthRepo", "Extracted onboardingStep from response.user: ${response.user.onboardingStep}")
             val user = User(
                 id = response.user.id,
                 email = response.user.email,
                 name = response.user.name,
                 accessToken = response.accessToken,
                 refreshToken = response.refreshToken,
-                onboardingStep = response.onboardingStep
+                onboardingStep = response.user.onboardingStep
             )
             Result.success(user)
         } catch (e: Exception) {

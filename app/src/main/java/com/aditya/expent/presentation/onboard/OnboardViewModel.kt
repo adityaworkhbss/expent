@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.onboard
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.OnboardCategory
@@ -67,7 +68,24 @@ data class OnboardState(
     val budgetCategoryId: String? = null,
     val budgetStartDate: String = "",
     val budgetEndDate: String = "",
-    val availableCategories: List<OnboardCategory> = emptyList(),
+    val availableCategories: List<OnboardCategory> = listOf(
+        OnboardCategory("Food & Dining", "EXPENSE"),
+        OnboardCategory("Transportation", "EXPENSE"),
+        OnboardCategory("Shopping", "EXPENSE"),
+        OnboardCategory("Entertainment", "EXPENSE"),
+        OnboardCategory("Bills & Utilities", "EXPENSE"),
+        OnboardCategory("Groceries", "EXPENSE"),
+        OnboardCategory("Healthcare", "EXPENSE"),
+        OnboardCategory("Education", "EXPENSE"),
+        OnboardCategory("Travel", "EXPENSE"),
+        OnboardCategory("Housing", "EXPENSE"),
+        OnboardCategory("Salary", "INCOME"),
+        OnboardCategory("Freelance", "INCOME"),
+        OnboardCategory("Investments", "INCOME"),
+        OnboardCategory("Gifts", "INCOME"),
+        OnboardCategory("Business Profits", "INCOME")
+    ),
+    val hasFetchedCategories: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -85,19 +103,47 @@ class OnboardViewModel @Inject constructor(
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
 
-    private fun fetchCategories() {
+    init {
+        val savedStep = sessionManager.getOnboardingStep()
+        Log.d("OnboardVM", "Saved onboarding step from session: $savedStep")
+        if (savedStep > 0) {
+            val initialStep = when (savedStep) {
+                1 -> OnboardStep.PAYMENT_MODES
+                2 -> OnboardStep.INCOMING
+                3 -> OnboardStep.OUTGOING
+                4 -> OnboardStep.FINISH
+                else -> OnboardStep.WELCOME
+            }
+            _state.update { it.copy(currentStep = initialStep) }
+            loadCategories()
+        }
+    }
+
+    fun loadCategories() {
+        if (state.value.hasFetchedCategories) return
+        
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val result = getCategoriesUseCase()
             if (result.isSuccess) {
-                val categories = result.getOrNull()?.map { 
+                val fetchedCategories = result.getOrNull()?.map { 
                     OnboardCategory(
                         id = it.id,
                         name = it.name,
                         type = it.type
                     )
                 } ?: emptyList()
-                _state.update { it.copy(selectedCategories = categories, isLoading = false) }
+                
+                _state.update { 
+                    val currentAvailable = it.availableCategories
+                    val merged = (currentAvailable + fetchedCategories).distinctBy { cat -> "${cat.name}-${cat.type}" }
+                    it.copy(
+                        availableCategories = merged, 
+                        selectedCategories = fetchedCategories,
+                        isLoading = false, 
+                        hasFetchedCategories = true
+                    ) 
+                }
             } else {
                 _state.update { it.copy(error = "Failed to load categories", isLoading = false) }
             }
@@ -168,11 +214,6 @@ class OnboardViewModel @Inject constructor(
     fun nextStep() {
         viewModelScope.launch {
             val currentState = state.value
-
-            if(currentState.currentStep != OnboardStep.CATEGORIES &&
-                currentState.availableCategories.isEmpty()) {
-                fetchCategories()
-            }
 
             val canProceed = when (currentState.currentStep) {
                 OnboardStep.CATEGORIES -> saveCategories()

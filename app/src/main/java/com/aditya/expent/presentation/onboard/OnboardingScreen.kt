@@ -98,13 +98,18 @@ fun OnboardRoute(
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (step) {
                         OnboardStep.WELCOME -> WelcomeStep(onNext = { viewModel.nextStep() })
-                        OnboardStep.CATEGORIES -> CategoriesStep(
-                            availableCategories = state.availableCategories,
-                            selectedCategories = state.selectedCategories,
-                            onCategoriesChange = { viewModel.onCategoriesSelected(it) },
-                            onNext = { viewModel.nextStep() },
-                            isLoading = state.isLoading
-                        )
+                        OnboardStep.CATEGORIES -> {
+                            LaunchedEffect(Unit) {
+                                viewModel.loadCategories()
+                            }
+                            CategoriesStep(
+                                availableCategories = state.availableCategories,
+                                selectedCategories = state.selectedCategories,
+                                onCategoriesChange = { viewModel.onCategoriesSelected(it) },
+                                onNext = { viewModel.nextStep() },
+                                isLoading = state.isLoading
+                            )
+                        }
                         OnboardStep.PAYMENT_MODES -> PaymentModesStep(
                             paymentModes = state.paymentModes,
                             onPaymentModesChange = { viewModel.onPaymentModesChanged(it) },
@@ -123,20 +128,6 @@ fun OnboardRoute(
                             onCustomIncomesChange = { viewModel.onCustomIncomesChanged(it) },
                             onNext = { viewModel.nextStep() }
                         )
-//                        OnboardStep.BUDGETING -> BudgetingStep(
-//                            budgetLimit = state.budgetLimit,
-//                            budgetPeriod = state.budgetPeriod,
-//                            budgetCategoryId = state.budgetCategoryId,
-//                            budgetStartDate = state.budgetStartDate,
-//                            budgetEndDate = state.budgetEndDate,
-//                            selectedCategories = state.selectedCategories,
-//                            onBudgetLimitChange = { viewModel.onBudgetLimitChanged(it) },
-//                            onBudgetPeriodChange = { viewModel.onBudgetPeriodChanged(it) },
-//                            onBudgetCategoryChange = { viewModel.onBudgetCategoryChanged(it) },
-//                            onBudgetStartDateChange = { viewModel.onBudgetStartDateChanged(it) },
-//                            onBudgetEndDateChange = { viewModel.onBudgetEndDateChanged(it) },
-//                            onNext = { viewModel.nextStep() }
-//                        )
                         OnboardStep.OUTGOING -> OutgoingStep(
                             creditCardBill = state.creditCardBill,
                             nextMonthPendingPayment = state.nextMonthPendingPayment,
@@ -165,10 +156,9 @@ fun OnboardRoute(
                 }
             }
 
-            // Error display
             state.error?.let { error ->
                 LaunchedEffect(error) {
-                    // In a real app, show a Snackbar or Toast
+
                 }
                 Box(
                     modifier = Modifier
@@ -325,14 +315,28 @@ fun CategoriesStep(
                             text = category.name,
                             style = MaterialTheme.typography.titleSmall,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            textAlign = TextAlign.Center
                         )
-                        Text(
-                            text = category.type,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.7f) 
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            color = when (category.type) {
+                                "INCOME" -> if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color(0xFFE8F5E9)
+                                else -> if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color(0xFFFFEBEE)
+                            },
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = category.type,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = when (category.type) {
+                                    "INCOME" -> if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF2E7D32)
+                                    else -> if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFC62828)
+                                },
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -340,7 +344,6 @@ fun CategoriesStep(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Custom Category Input with Type Selection
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -884,170 +887,6 @@ fun IncomingStep(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BudgetingStep(
-    budgetLimit: String,
-    budgetPeriod: String,
-    budgetCategoryId: String?,
-    budgetStartDate: String,
-    budgetEndDate: String,
-    selectedCategories: List<OnboardCategory>,
-    onBudgetLimitChange: (String) -> Unit,
-    onBudgetPeriodChange: (String) -> Unit,
-    onBudgetCategoryChange: (String?) -> Unit,
-    onBudgetStartDateChange: (String) -> Unit,
-    onBudgetEndDateChange: (String) -> Unit,
-    onNext: () -> Unit
-) {
-    var showStartDatePicker by remember { mutableStateOf(false) }
-    var showEndDatePicker by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp)
-    ) {
-        Text(
-            text = "Set a Budget",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "Tell us how much you plan to spend to stay on track.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        OutlinedTextField(
-            value = budgetLimit,
-            onValueChange = onBudgetLimitChange,
-            label = { Text("Budget Limit") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            prefix = { Text("$ ") }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("Budget Period", style = MaterialTheme.typography.labelLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val periods = listOf("DAILY", "WEEKLY", "MONTHLY")
-            for (period in periods) {
-                FilterChip(
-                    selected = budgetPeriod == period,
-                    onClick = { onBudgetPeriodChange(period) },
-                    label = { Text(period.lowercase().replaceFirstChar { it.uppercase() }) },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("Category", style = MaterialTheme.typography.labelLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-
-
-            val expenseCategories = selectedCategories.filter { it.type == "EXPENSE" }
-            for (category in expenseCategories) {
-                FilterChip(
-                    selected = budgetCategoryId == category.name,
-                    onClick = { onBudgetCategoryChange(category.name) },
-                    label = { Text(category.name) },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedTextField(
-                value = budgetStartDate,
-                onValueChange = { },
-                label = { Text("Start Date") },
-                readOnly = true,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                trailingIcon = {
-                    IconButton(onClick = { showStartDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
-                    }
-                }
-            )
-
-            OutlinedTextField(
-                value = budgetEndDate,
-                onValueChange = { },
-                label = { Text("End Date (Opt)") },
-                readOnly = true,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                trailingIcon = {
-                    IconButton(onClick = { showEndDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
-                    }
-                }
-            )
-        }
-
-        ExpentDatePicker(
-            showDialog = showStartDatePicker,
-            onDismiss = { showStartDatePicker = false },
-            onDateSelected = {
-                onBudgetStartDateChange(it)
-                showStartDatePicker = false
-            }
-        )
-
-        ExpentDatePicker(
-            showDialog = showEndDatePicker,
-            onDismiss = { showEndDatePicker = false },
-            onDateSelected = {
-                onBudgetEndDateChange(it)
-                showEndDatePicker = false
-            }
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            enabled = budgetLimit.isNotBlank() && budgetStartDate.isNotBlank()
-        ) {
-            Text("Continue", style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun OutgoingStep(
     creditCardBill: String,
     nextMonthPendingPayment: String,
@@ -1495,28 +1334,6 @@ fun IncomingStepPreview() {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun BudgetingStepPreview() {
-    ExpentTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            BudgetingStep(
-                budgetLimit = "3000",
-                budgetPeriod = "MONTHLY",
-                budgetCategoryId = null,
-                budgetStartDate = "01/10/2023",
-                budgetEndDate = "",
-                selectedCategories = listOf(OnboardCategory("Food", "EXPENSE")),
-                onBudgetLimitChange = {},
-                onBudgetPeriodChange = {},
-                onBudgetCategoryChange = {},
-                onBudgetStartDateChange = {},
-                onBudgetEndDateChange = {},
-                onNext = {}
-            )
-        }
-    }
-}
 
 @Preview(showBackground = true)
 @Composable

@@ -63,6 +63,7 @@ class AuthViewModel @Inject constructor(
                     val user = loginResult.getOrNull()
                     Log.d("rest re", "Successfully logged in: ${user?.name}")
                     user?.let { 
+                        Log.d("AuthVM", "Saving user with onboarding step: ${it.onboardingStep}")
                         sessionManager.saveUser(it)
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
