@@ -53,7 +53,6 @@ class DashboardActivity : ComponentActivity() {
 }
 
 @Composable
-@Preview(showBackground = true)
 fun DashboardScreen(state: DashboardState) {
     Column(
         modifier = Modifier

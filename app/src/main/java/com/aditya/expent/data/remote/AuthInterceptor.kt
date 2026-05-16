@@ -11,9 +11,11 @@ class AuthInterceptor @Inject constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val requestBuilder = chain.request().newBuilder()
         
-        sessionManager.getUser()?.accessToken?.let { token ->
+        val user = sessionManager.getUser()
+        user?.accessToken?.let { token ->
+            android.util.Log.d("rest re", "Adding Auth Header: Bearer $token")
             requestBuilder.addHeader("Authorization", "Bearer $token")
-        }
+        } ?: android.util.Log.d("rest re", "No access token found in session")
         
         return chain.proceed(requestBuilder.build())
     }

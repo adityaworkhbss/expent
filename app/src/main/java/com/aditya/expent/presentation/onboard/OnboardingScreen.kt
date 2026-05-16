@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.aditya.expent.presentation.component.ExpentDatePicker
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.domain.model.OnboardCategory
+import com.aditya.expent.domain.model.OnboardPaymentMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,39 +96,76 @@ fun OnboardRoute(
                 },
                 label = "onboarding_step"
             ) { step ->
-                when (step) {
-                    OnboardStep.WELCOME -> WelcomeStep(onNext = { viewModel.nextStep() })
-                    OnboardStep.CATEGORIES -> CategoriesStep(
-                        selectedCategories = state.selectedCategories,
-                        onCategoriesChange = { viewModel.onCategoriesSelected(it) },
-                        onNext = { viewModel.nextStep() }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (step) {
+                        OnboardStep.WELCOME -> WelcomeStep(onNext = { viewModel.nextStep() })
+                        OnboardStep.CATEGORIES -> CategoriesStep(
+                            selectedCategories = state.selectedCategories,
+                            onCategoriesChange = { viewModel.onCategoriesSelected(it) },
+                            onNext = { viewModel.nextStep() },
+                            isLoading = state.isLoading
+                        )
+                        OnboardStep.PAYMENT_MODES -> PaymentModesStep(
+                            paymentModes = state.paymentModes,
+                            onPaymentModesChange = { viewModel.onPaymentModesChanged(it) },
+                            onNext = { viewModel.nextStep() },
+                            isLoading = state.isLoading
+                        )
+                        OnboardStep.INCOMING -> IncomingStep(
+                            salary = state.salary,
+                            bankBalance = state.bankBalance,
+                            customIncomes = state.customIncomes,
+                            onSalaryChange = { viewModel.onSalaryChanged(it) },
+                            onBankBalanceChange = { viewModel.onBankBalanceChanged(it) },
+                            onCustomIncomesChange = { viewModel.onCustomIncomesChanged(it) },
+                            onNext = { viewModel.nextStep() }
+                        )
+                        OnboardStep.OUTGOING -> OutgoingStep(
+                            creditCardBill = state.creditCardBill,
+                            nextMonthPendingPayment = state.nextMonthPendingPayment,
+                            recurringExpenses = state.recurringExpenses,
+                            subscriptions = state.subscriptions,
+                            onCreditCardBillChange = { viewModel.onCreditCardBillChanged(it) },
+                            onNextMonthPendingPaymentChange = { viewModel.onNextMonthPendingPaymentChanged(it) },
+                            onRecurringExpensesChange = { viewModel.onRecurringExpensesChanged(it) },
+                            onSubscriptionsChange = { viewModel.onSubscriptionsChanged(it) },
+                            onNext = { viewModel.nextStep() }
+                        )
+                        OnboardStep.FINISH -> FinishStep(onFinish = onFinish)
+                    }
+
+                    if (state.isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f))
+                                .clickable(enabled = false) { },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+            }
+
+            // Error display
+            state.error?.let { error ->
+                LaunchedEffect(error) {
+                    // In a real app, show a Snackbar or Toast
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 80.dp, start = 24.dp, end = 24.dp)
+                        .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(8.dp))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall
                     )
-                    OnboardStep.PAYMENT_MODES -> PaymentModesStep(
-                        paymentModes = state.paymentModes,
-                        onPaymentModesChange = { viewModel.onPaymentModesChanged(it) },
-                        onNext = { viewModel.nextStep() }
-                    )
-                    OnboardStep.INCOMING -> IncomingStep(
-                        salary = state.salary,
-                        bankBalance = state.bankBalance,
-                        customIncomes = state.customIncomes,
-                        onSalaryChange = { viewModel.onSalaryChanged(it) },
-                        onBankBalanceChange = { viewModel.onBankBalanceChanged(it) },
-                        onCustomIncomesChange = { viewModel.onCustomIncomesChanged(it) },
-                        onNext = { viewModel.nextStep() }
-                    )
-                    OnboardStep.OUTGOING -> OutgoingStep(
-                        creditCardBill = state.creditCardBill,
-                        nextMonthPendingPayment = state.nextMonthPendingPayment,
-                        recurringExpenses = state.recurringExpenses,
-                        subscriptions = state.subscriptions,
-                        onCreditCardBillChange = { viewModel.onCreditCardBillChanged(it) },
-                        onNextMonthPendingPaymentChange = { viewModel.onNextMonthPendingPaymentChanged(it) },
-                        onRecurringExpensesChange = { viewModel.onRecurringExpensesChanged(it) },
-                        onSubscriptionsChange = { viewModel.onSubscriptionsChanged(it) },
-                        onNext = { viewModel.nextStep() }
-                    )
-                    OnboardStep.FINISH -> FinishStep(onFinish = onFinish)
                 }
             }
         }
@@ -201,7 +239,8 @@ fun WelcomeStep(onNext: () -> Unit) {
 fun CategoriesStep(
     selectedCategories: List<OnboardCategory>,
     onCategoriesChange: (List<OnboardCategory>) -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    isLoading: Boolean = false
 ) {
     val predefinedCategories = listOf(
         OnboardCategory("Food", "EXPENSE"),
@@ -377,7 +416,7 @@ fun CategoriesStep(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            enabled = selectedCategories.isNotEmpty()
+            enabled = selectedCategories.isNotEmpty() && !isLoading
         ) {
             Text("Continue", style = MaterialTheme.typography.titleMedium)
         }
@@ -386,9 +425,10 @@ fun CategoriesStep(
 
 @Composable
 fun PaymentModesStep(
-    paymentModes: List<PaymentMode>,
-    onPaymentModesChange: (List<PaymentMode>) -> Unit,
-    onNext: () -> Unit
+    paymentModes: List<OnboardPaymentMode>,
+    onPaymentModesChange: (List<OnboardPaymentMode>) -> Unit,
+    onNext: () -> Unit,
+    isLoading: Boolean = false
 ) {
     var name by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf("PAY_NOW") }
@@ -524,7 +564,7 @@ fun PaymentModesStep(
                 Button(
                     onClick = {
                         if (name.isNotBlank()) {
-                            onPaymentModesChange(paymentModes + PaymentMode(name.trim(), selectedType))
+                            onPaymentModesChange(paymentModes + OnboardPaymentMode(name.trim(), selectedType))
                             name = ""
                         }
                     },
@@ -547,7 +587,7 @@ fun PaymentModesStep(
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(16.dp),
-            enabled = paymentModes.isNotEmpty()
+            enabled = paymentModes.isNotEmpty() && !isLoading
         ) {
             Text("Continue", style = MaterialTheme.typography.titleMedium)
         }
@@ -1120,8 +1160,8 @@ fun PaymentModesStepPreview() {
         Surface(modifier = Modifier.fillMaxSize()) {
             PaymentModesStep(
                 paymentModes = listOf(
-                    PaymentMode("HDFC Bank", "PAY_NOW"),
-                    PaymentMode("Amex Card", "PAY_LATER")
+                    OnboardPaymentMode("HDFC Bank", "PAY_NOW"),
+                    OnboardPaymentMode("Amex Card", "PAY_LATER")
                 ),
                 onPaymentModesChange = {},
                 onNext = {}
