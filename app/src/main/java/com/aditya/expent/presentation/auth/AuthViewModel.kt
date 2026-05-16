@@ -64,6 +64,7 @@ class AuthViewModel @Inject constructor(
                     Log.d("rest re", "Successfully logged in: ${user?.name}")
                     user?.let { 
                         sessionManager.saveUser(it)
+                        sessionManager.setOnboardingStep(it.onboardingStep)
                     }
                     _authState.value = AuthState(isSuccess = true)
                 } else {

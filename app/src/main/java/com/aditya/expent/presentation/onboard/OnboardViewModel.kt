@@ -10,6 +10,7 @@ import com.aditya.expent.domain.usecase.SaveBudgetUseCase
 import com.aditya.expent.domain.usecase.SaveExpensesAndSubscriptionsUseCase
 import com.aditya.expent.domain.usecase.SaveIncomeBudgetUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
+import com.aditya.expent.domain.usecase.UpdateOnboardingCountUseCase
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,7 +79,8 @@ class OnboardViewModel @Inject constructor(
     private val savePaymentModesUseCase: SavePaymentModesUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val saveIncomeBudgetUseCase: SaveIncomeBudgetUseCase,
-    private val saveExpensesAndSubscriptionsUseCase: SaveExpensesAndSubscriptionsUseCase
+    private val saveExpensesAndSubscriptionsUseCase: SaveExpensesAndSubscriptionsUseCase,
+    private val updateOnboardingCountUseCase: UpdateOnboardingCountUseCase
 ) : ViewModel() {
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
@@ -189,6 +191,7 @@ class OnboardViewModel @Inject constructor(
                             1 -> OnboardStep.PAYMENT_MODES
                             2 -> OnboardStep.INCOMING
                             3 -> OnboardStep.OUTGOING
+                            4 -> OnboardStep.FINISH
                             else -> OnboardStep.CATEGORIES
                         }
                     }
@@ -203,10 +206,10 @@ class OnboardViewModel @Inject constructor(
         }
     }
 
-    fun updateOnboardingStep(){
-        if (state.value.currentStep.index != -1) {
-            sessionManager.setOnboardingStep(state.value.currentStep.index)
-        }
+    suspend fun updateOnboardingStep() {
+        val nextStep = sessionManager.getOnboardingStep() + 1
+        updateOnboardingCountUseCase(nextStep)
+        sessionManager.setOnboardingStep(nextStep)
     }
 
     fun onCategoriesSelected(categories: List<OnboardCategory>) {
@@ -257,23 +260,4 @@ class OnboardViewModel @Inject constructor(
         _state.update { it.copy(paymentModes = modes) }
     }
 
-    fun onBudgetLimitChanged(limit: String) {
-        _state.update { it.copy(budgetLimit = limit) }
-    }
-
-    fun onBudgetPeriodChanged(period: String) {
-        _state.update { it.copy(budgetPeriod = period) }
-    }
-
-    fun onBudgetCategoryChanged(categoryId: String?) {
-        _state.update { it.copy(budgetCategoryId = categoryId) }
-    }
-
-    fun onBudgetStartDateChanged(date: String) {
-        _state.update { it.copy(budgetStartDate = date) }
-    }
-
-    fun onBudgetEndDateChanged(date: String) {
-        _state.update { it.copy(budgetEndDate = date) }
-    }
 }

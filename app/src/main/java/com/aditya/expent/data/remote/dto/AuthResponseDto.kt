@@ -9,7 +9,7 @@ data class AuthResponseDto(
     val accessToken: String,
     @SerializedName("refreshToken")
     val refreshToken: String,
-    @SerializedName("onboardingStep")
+    @SerializedName("onboardingCount")
     val onboardingStep: Int
 )
 
@@ -20,6 +20,6 @@ data class UserDto(
     val email: String,
     @SerializedName("name")
     val name: String,
-    @SerializedName("onboardingStep")
+    @SerializedName("onboardingCount")
     val onboardingStep: Int
 )

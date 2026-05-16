@@ -4,11 +4,13 @@ import com.aditya.expent.data.repository.AuthRepositoryImpl
 import com.aditya.expent.data.repository.CategoryRepositoryImpl
 import com.aditya.expent.data.repository.ExpenseAndSubscriptionRepositoryImpl
 import com.aditya.expent.data.repository.IncomeBudgetRepositoryImpl
+import com.aditya.expent.data.repository.OnboardingRepositoryImpl
 import com.aditya.expent.data.repository.PaymentModeRepositoryImpl
 import com.aditya.expent.domain.repository.AuthRepository
 import com.aditya.expent.domain.repository.CategoryRepository
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
+import com.aditya.expent.domain.repository.OnboardingRepository
 import com.aditya.expent.domain.repository.PaymentModeRepository
 import dagger.Binds
 import dagger.Module
@@ -49,5 +51,11 @@ abstract class RepositoryModule {
     abstract fun bindExpenseAndSubscriptionRepository(
         expenseAndSubscriptionRepositoryImpl: ExpenseAndSubscriptionRepositoryImpl
     ): ExpenseAndSubscriptionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOnboardingRepository(
+        onboardingRepositoryImpl: OnboardingRepositoryImpl
+    ): OnboardingRepository
 
 }

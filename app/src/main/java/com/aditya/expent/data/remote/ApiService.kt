@@ -12,6 +12,7 @@ import com.aditya.expent.data.remote.dto.TokenRefreshRequestDto
 import com.aditya.expent.data.remote.dto.TokenRefreshResponseDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
+import com.aditya.expent.data.remote.dto.OnboardingStepRequestDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -53,4 +54,9 @@ interface ApiService {
     suspend fun saveExpensesAndSubscriptions(
         @Body request: List<ExpenseIncomeRequestDto>
     ): List<ExpenseIncomeResponseDto>
+
+    @POST("auth/onboarding/increment")
+    suspend fun updateOnboardingCount(
+        @Body request: OnboardingStepRequestDto
+    )
 }
