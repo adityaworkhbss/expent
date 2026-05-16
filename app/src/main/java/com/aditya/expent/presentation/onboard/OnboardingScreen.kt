@@ -123,20 +123,20 @@ fun OnboardRoute(
                             onCustomIncomesChange = { viewModel.onCustomIncomesChanged(it) },
                             onNext = { viewModel.nextStep() }
                         )
-                        OnboardStep.BUDGETING -> BudgetingStep(
-                            budgetLimit = state.budgetLimit,
-                            budgetPeriod = state.budgetPeriod,
-                            budgetCategoryId = state.budgetCategoryId,
-                            budgetStartDate = state.budgetStartDate,
-                            budgetEndDate = state.budgetEndDate,
-                            selectedCategories = state.selectedCategories,
-                            onBudgetLimitChange = { viewModel.onBudgetLimitChanged(it) },
-                            onBudgetPeriodChange = { viewModel.onBudgetPeriodChanged(it) },
-                            onBudgetCategoryChange = { viewModel.onBudgetCategoryChanged(it) },
-                            onBudgetStartDateChange = { viewModel.onBudgetStartDateChanged(it) },
-                            onBudgetEndDateChange = { viewModel.onBudgetEndDateChanged(it) },
-                            onNext = { viewModel.nextStep() }
-                        )
+//                        OnboardStep.BUDGETING -> BudgetingStep(
+//                            budgetLimit = state.budgetLimit,
+//                            budgetPeriod = state.budgetPeriod,
+//                            budgetCategoryId = state.budgetCategoryId,
+//                            budgetStartDate = state.budgetStartDate,
+//                            budgetEndDate = state.budgetEndDate,
+//                            selectedCategories = state.selectedCategories,
+//                            onBudgetLimitChange = { viewModel.onBudgetLimitChanged(it) },
+//                            onBudgetPeriodChange = { viewModel.onBudgetPeriodChanged(it) },
+//                            onBudgetCategoryChange = { viewModel.onBudgetCategoryChanged(it) },
+//                            onBudgetStartDateChange = { viewModel.onBudgetStartDateChanged(it) },
+//                            onBudgetEndDateChange = { viewModel.onBudgetEndDateChanged(it) },
+//                            onNext = { viewModel.nextStep() }
+//                        )
                         OnboardStep.OUTGOING -> OutgoingStep(
                             creditCardBill = state.creditCardBill,
                             nextMonthPendingPayment = state.nextMonthPendingPayment,
@@ -1095,15 +1095,15 @@ fun OutgoingStep(
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(
-            value = nextMonthPendingPayment,
-            onValueChange = onNextMonthPendingPaymentChange,
-            label = { Text("Next Month Pending Payment (Optional)") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            prefix = { Text("$ ") }
-        )
+//        OutlinedTextField(
+//            value = nextMonthPendingPayment,
+//            onValueChange = onNextMonthPendingPaymentChange,
+//            label = { Text("Next Month Pending Payment (Optional)") },
+//            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+//            modifier = Modifier.fillMaxWidth(),
+//            shape = RoundedCornerShape(12.dp),
+//            prefix = { Text("$ ") }
+//        )
 
         Spacer(modifier = Modifier.height(24.dp))
         

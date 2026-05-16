@@ -1,0 +1,42 @@
+package com.aditya.expent.data.repository
+
+import com.aditya.expent.data.remote.ApiService
+import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
+import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
+import com.aditya.expent.presentation.onboard.RecurringExpense
+import com.aditya.expent.presentation.onboard.Subscription
+import javax.inject.Inject
+
+class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
+    private val apiService: ApiService
+) : ExpenseAndSubscriptionRepository {
+
+    override suspend fun saveExpensesAndSubscriptions(
+        expenses: List<RecurringExpense>,
+        subscriptions: List<Subscription>
+    ): Result<Unit> {
+        return try {
+            val requests = expenses.map { expense ->
+                ExpenseIncomeRequestDto(
+                    type = "expense",
+                    name = expense.name,
+                    amount = expense.amount,
+                    startDate = expense.startDate,
+                    tenure = expense.totalMonths,
+                    monthsPaid = expense.monthsPaid
+                )
+            } + subscriptions.map { subscription ->
+                ExpenseIncomeRequestDto(
+                    type = "subscription",
+                    name = subscription.name,
+                    amount = subscription.amount,
+                    startDate = subscription.billingDate
+                )
+            }
+            apiService.saveExpensesAndSubscriptions(requests)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}

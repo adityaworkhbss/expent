@@ -10,6 +10,8 @@ import com.aditya.expent.data.remote.dto.PaymentModeRequestDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.data.remote.dto.TokenRefreshRequestDto
 import com.aditya.expent.data.remote.dto.TokenRefreshResponseDto
+import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
+import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -46,4 +48,9 @@ interface ApiService {
 
     @GET("budgets")
     suspend fun getBudgets(): List<BudgetResponseDto>
+
+    @POST("emis")
+    suspend fun saveExpensesAndSubscriptions(
+        @Body request: List<ExpenseIncomeRequestDto>
+    ): List<ExpenseIncomeResponseDto>
 }

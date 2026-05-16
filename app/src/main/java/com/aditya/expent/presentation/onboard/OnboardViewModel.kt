@@ -7,6 +7,7 @@ import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveBudgetUseCase
+import com.aditya.expent.domain.usecase.SaveExpensesAndSubscriptionsUseCase
 import com.aditya.expent.domain.usecase.SaveIncomeBudgetUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
 import com.aditya.expent.utils.SessionManager
@@ -23,8 +24,7 @@ enum class OnboardStep(val index: Int) {
     CATEGORIES(1),
     PAYMENT_MODES(2),
     INCOMING(3),
-    BUDGETING(4),
-    OUTGOING(5),
+    OUTGOING(4),
     FINISH(-1)
 }
 
@@ -78,7 +78,7 @@ class OnboardViewModel @Inject constructor(
     private val savePaymentModesUseCase: SavePaymentModesUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val saveIncomeBudgetUseCase: SaveIncomeBudgetUseCase,
-    private val saveBudgetUseCase: SaveBudgetUseCase
+    private val saveExpensesAndSubscriptionsUseCase: SaveExpensesAndSubscriptionsUseCase
 ) : ViewModel() {
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
@@ -146,22 +146,19 @@ class OnboardViewModel @Inject constructor(
         }
     }
 
-    private suspend fun saveBudget(): Boolean {
+    private suspend fun saveExpensesAndSubscriptions() : Boolean {
         _state.update { it.copy(isLoading = true, error = null) }
-        val currentState = state.value
-        val result = saveBudgetUseCase(
-            categoryId = currentState.budgetCategoryId,
-            periodType = currentState.budgetPeriod,
-            amount = currentState.budgetLimit.toDoubleOrNull() ?: 0.0,
-            startDate = currentState.budgetStartDate,
-            endDate = if (currentState.budgetEndDate.isBlank()) null else currentState.budgetEndDate
+        val result = saveExpensesAndSubscriptionsUseCase(
+            expenses = state.value.recurringExpenses,
+            subscriptions = state.value.subscriptions
         )
-        return if (result.isSuccess) {
+
+        return if (result.isSuccess)  {
             _state.update { it.copy(isLoading = false) }
             updateOnboardingStep()
             true
         } else {
-            _state.update { it.copy(isLoading = false, error = "Failed to save budget") }
+            _state.update { it.copy(isLoading = false, error = "Failed to save expenses and subscriptions") }
             false
         }
     }
@@ -179,7 +176,7 @@ class OnboardViewModel @Inject constructor(
                 OnboardStep.CATEGORIES -> saveCategories()
                 OnboardStep.PAYMENT_MODES -> savePaymentModes()
                 OnboardStep.INCOMING -> saveIncomeBudget()
-                OnboardStep.BUDGETING -> saveBudget()
+                OnboardStep.OUTGOING -> saveExpensesAndSubscriptions()
                 else -> true
             }
 
@@ -191,15 +188,13 @@ class OnboardViewModel @Inject constructor(
                             0 -> OnboardStep.CATEGORIES
                             1 -> OnboardStep.PAYMENT_MODES
                             2 -> OnboardStep.INCOMING
-                            3 -> OnboardStep.BUDGETING
-                            4 -> OnboardStep.OUTGOING
+                            3 -> OnboardStep.OUTGOING
                             else -> OnboardStep.CATEGORIES
                         }
                     }
                     OnboardStep.CATEGORIES -> OnboardStep.PAYMENT_MODES
                     OnboardStep.PAYMENT_MODES -> OnboardStep.INCOMING
-                    OnboardStep.INCOMING -> OnboardStep.BUDGETING
-                    OnboardStep.BUDGETING -> OnboardStep.OUTGOING
+                    OnboardStep.INCOMING -> OnboardStep.OUTGOING
                     OnboardStep.OUTGOING -> OnboardStep.FINISH
                     OnboardStep.FINISH -> OnboardStep.FINISH
                 }
