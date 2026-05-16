@@ -279,7 +279,7 @@ fun CategoriesStep(
         )
         
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text(
             text = "Select or add categories for your income and expenses.",
             style = MaterialTheme.typography.bodyMedium,

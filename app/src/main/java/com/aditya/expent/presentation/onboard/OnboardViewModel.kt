@@ -6,6 +6,8 @@ import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
+import com.aditya.expent.domain.usecase.SaveBudgetUseCase
+import com.aditya.expent.domain.usecase.SaveIncomeBudgetUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -74,7 +76,9 @@ class OnboardViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     private val saveCategoriesUseCase: SaveCategoriesUseCase,
     private val savePaymentModesUseCase: SavePaymentModesUseCase,
-    private val getCategoriesUseCase: GetCategoriesUseCase
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val saveIncomeBudgetUseCase: SaveIncomeBudgetUseCase,
+    private val saveBudgetUseCase: SaveBudgetUseCase
 ) : ViewModel() {
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
@@ -124,6 +128,44 @@ class OnboardViewModel @Inject constructor(
         }
     }
 
+    private suspend fun saveIncomeBudget(): Boolean {
+        _state.update { it.copy(isLoading = true, error = null) }
+
+        val result = saveIncomeBudgetUseCase(
+            salary = state.value.salary,
+            customIncomes = state.value.customIncomes
+        )
+
+        return if (result.isSuccess) {
+            _state.update { it.copy(isLoading = false) }
+            updateOnboardingStep()
+            true
+        } else {
+            _state.update { it.copy(isLoading = false, error = "Failed to save income and budget") }
+            false
+        }
+    }
+
+    private suspend fun saveBudget(): Boolean {
+        _state.update { it.copy(isLoading = true, error = null) }
+        val currentState = state.value
+        val result = saveBudgetUseCase(
+            categoryId = currentState.budgetCategoryId,
+            periodType = currentState.budgetPeriod,
+            amount = currentState.budgetLimit.toDoubleOrNull() ?: 0.0,
+            startDate = currentState.budgetStartDate,
+            endDate = if (currentState.budgetEndDate.isBlank()) null else currentState.budgetEndDate
+        )
+        return if (result.isSuccess) {
+            _state.update { it.copy(isLoading = false) }
+            updateOnboardingStep()
+            true
+        } else {
+            _state.update { it.copy(isLoading = false, error = "Failed to save budget") }
+            false
+        }
+    }
+
     fun nextStep() {
         viewModelScope.launch {
             val currentState = state.value
@@ -136,6 +178,8 @@ class OnboardViewModel @Inject constructor(
             val canProceed = when (currentState.currentStep) {
                 OnboardStep.CATEGORIES -> saveCategories()
                 OnboardStep.PAYMENT_MODES -> savePaymentModes()
+                OnboardStep.INCOMING -> saveIncomeBudget()
+                OnboardStep.BUDGETING -> saveBudget()
                 else -> true
             }
 

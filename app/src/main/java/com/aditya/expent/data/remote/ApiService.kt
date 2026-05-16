@@ -2,6 +2,8 @@ package com.aditya.expent.data.remote
 
 import com.aditya.expent.data.remote.dto.AuthRequestDto
 import com.aditya.expent.data.remote.dto.AuthResponseDto
+import com.aditya.expent.data.remote.dto.BudgetRequestDto
+import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.remote.dto.CategoryRequestDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeRequestDto
@@ -36,4 +38,12 @@ interface ApiService {
 
     @GET("categories")
     suspend fun getCategories(): List<CategoryResponseDto>
+
+    @POST("budgets")
+    suspend fun saveBudgets(
+        @Body request: List<BudgetRequestDto>
+    ): List<BudgetResponseDto>
+
+    @GET("budgets")
+    suspend fun getBudgets(): List<BudgetResponseDto>
 }
