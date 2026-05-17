@@ -24,24 +24,55 @@ class DashboardViewModel @Inject constructor() : ViewModel() {
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     init {
-        // Placeholder initial data
         loadMockData()
     }
 
     private fun loadMockData() {
         val mockTransactions = listOf(
-            Transaction("1", "Salary", 5000.0, "15 May", "Job", TransactionType.INCOME),
-            Transaction("2", "Grocery", -120.0, "14 May", "Food", TransactionType.EXPENSE),
-            Transaction("3", "Netflix", -15.0, "12 May", "Subscription", TransactionType.EXPENSE),
-            Transaction("4", "Freelance", 800.0, "10 May", "Work", TransactionType.INCOME)
+            Transaction("1", "Salary Credited", 5000.0, "15/05/2026", "Job", TransactionType.INCOME),
+            Transaction("2", "Weekly Grocery", -120.0, "14/05/2026", "Food", TransactionType.EXPENSE),
+            Transaction("3", "Netflix Subscription", -15.0, "14/05/2026", "Subscription", TransactionType.EXPENSE),
+            Transaction("4", "Freelance Work", 800.0, "10/05/2026", "Work", TransactionType.INCOME),
+            Transaction("5", "Dinner at Restaurant", -45.50, "10/05/2026", "Food", TransactionType.EXPENSE)
         )
-        
-        _state.value = DashboardState(
-            totalBalance = 5665.0,
-            totalIncome = 5800.0,
-            totalExpense = 135.0,
-            recentTransactions = mockTransactions,
-            userName = "Aditya"
+        updateStateWithList(mockTransactions)
+    }
+
+    fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String) {
+        val newTransaction = Transaction(
+            id = java.util.UUID.randomUUID().toString(),
+            title = title,
+            amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
+            date = date,
+            category = category,
+            type = type
+        )
+        val updatedList = listOf(newTransaction) + _state.value.recentTransactions
+        updateStateWithList(updatedList)
+    }
+
+    fun deleteTransaction(id: String) {
+        val updatedList = _state.value.recentTransactions.filter { it.id != id }
+        updateStateWithList(updatedList)
+    }
+
+    private fun updateStateWithList(list: List<Transaction>) {
+        var income = 0.0
+        var expense = 0.0
+        list.forEach {
+            if (it.type == TransactionType.INCOME) {
+                income += Math.abs(it.amount)
+            } else {
+                expense += Math.abs(it.amount)
+            }
+        }
+        val balance = income - expense
+
+        _state.value = _state.value.copy(
+            recentTransactions = list,
+            totalBalance = balance,
+            totalIncome = income,
+            totalExpense = expense
         )
     }
 }
