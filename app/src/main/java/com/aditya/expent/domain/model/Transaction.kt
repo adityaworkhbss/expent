@@ -6,10 +6,14 @@ data class Transaction(
     val amount: Double,
     val date: String,
     val category: String,
-    val type: TransactionType
+    val type: TransactionType,
+    val accountId: String? = null,
+    val categoryId: String? = null,
+    val transferToAccountId: String? = null
 )
 
 enum class TransactionType {
     INCOME,
-    EXPENSE
+    EXPENSE,
+    TRANSFER
 }

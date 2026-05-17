@@ -115,3 +115,30 @@ data class PaginatedTransactionsResponseDto(
     @SerializedName("meta")
     val meta: MetaDto
 )
+
+data class CreateTransactionRequestDto(
+    @SerializedName("type")
+    val type: String,
+    @SerializedName("amount")
+    val amount: Double,
+    @SerializedName("transactionDate")
+    val transactionDate: String,
+    @SerializedName("accountId")
+    val accountId: String,
+    @SerializedName("categoryId")
+    val categoryId: String? = null,
+    @SerializedName("transferToAccountId")
+    val transferToAccountId: String? = null,
+    @SerializedName("note")
+    val note: String? = null,
+    @SerializedName("merchant")
+    val merchant: String? = null,
+    @SerializedName("paymentMethod")
+    val paymentMethod: String? = null,
+    @SerializedName("tags")
+    val tags: List<String>? = null,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("isSalary")
+    val isSalary: Boolean? = null
+)

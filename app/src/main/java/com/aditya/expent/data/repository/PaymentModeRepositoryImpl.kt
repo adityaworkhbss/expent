@@ -33,4 +33,16 @@ class PaymentModeRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun getAccounts(): Result<List<com.aditya.expent.data.remote.dto.PaymentModeResponseDto>> {
+        return try {
+            Log.d("rest re", "Request getAccounts")
+            val response = apiService.getAccounts()
+            Log.d("rest re", "Response getAccounts: $response")
+            Result.success(response)
+        } catch (e: Exception) {
+            Log.e("rest re", "Error getAccounts: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }

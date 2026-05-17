@@ -6,7 +6,10 @@ import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.domain.usecase.GetTransactionUseCase
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
+import com.aditya.expent.domain.usecase.GetAccountsUseCase
+import com.aditya.expent.domain.usecase.AddTransactionsUseCase
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
+import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,13 +24,16 @@ data class DashboardState(
     val totalExpense: Double = 0.0,
     val recentTransactions: List<Transaction> = emptyList(),
     val categories: List<CategoryResponseDto> = emptyList(),
+    val accounts: List<PaymentModeResponseDto> = emptyList(),
     val userName: String = "User"
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val getTransactionUseCase: GetTransactionUseCase,
-    private val getCategoriesUseCase: GetCategoriesUseCase
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val getAccountsUseCase: GetAccountsUseCase,
+    private val addTransactionsUseCase: AddTransactionsUseCase
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(DashboardState())
@@ -36,6 +42,7 @@ class DashboardViewModel @Inject constructor(
     init {
         loadTransactions()
         loadCategories()
+        loadAccounts()
     }
 
     fun loadTransactions() {
@@ -60,7 +67,9 @@ class DashboardViewModel @Inject constructor(
                         amount = amount,
                         date = dto.transactionDate,
                         category = dto.category?.name ?: "Other",
-                        type = typeEnum
+                        type = typeEnum,
+                        accountId = dto.accountId,
+                        categoryId = dto.categoryId
                     )
                 }
                 updateStateWithList(transactions)
@@ -80,17 +89,42 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun loadAccounts() {
+        viewModelScope.launch {
+            getAccountsUseCase().onSuccess { accountList ->
+                _state.value = _state.value.copy(accounts = accountList)
+            }.onFailure {
+                // Keep default empty on error
+            }
+        }
+    }
+
     fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String) {
-        val newTransaction = Transaction(
-            id = java.util.UUID.randomUUID().toString(),
-            title = title,
-            amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
-            date = date,
-            category = category,
-            type = type
-        )
-        val updatedList = listOf(newTransaction) + _state.value.recentTransactions
-        updateStateWithList(updatedList)
+        viewModelScope.launch {
+            val categoryId = _state.value.categories.firstOrNull { it.name.equals(category, ignoreCase = true) }?.id
+            val accountId = _state.value.accounts.firstOrNull()?.id ?: "d3b07384-d113-4a1c-922c-df2e4c4bb5c3"
+
+            val newTransaction = Transaction(
+                id = java.util.UUID.randomUUID().toString(),
+                title = title,
+                amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
+                date = date,
+                category = category,
+                type = type,
+                accountId = accountId,
+                categoryId = categoryId
+            )
+            
+            // Optimistic local update
+            val updatedList = listOf(newTransaction) + _state.value.recentTransactions
+            updateStateWithList(updatedList)
+
+            // Save to server
+            addTransactionsUseCase(newTransaction)
+            
+            // Refresh list from server to get accurate data
+            loadTransactions()
+        }
     }
 
     fun deleteTransaction(id: String) {

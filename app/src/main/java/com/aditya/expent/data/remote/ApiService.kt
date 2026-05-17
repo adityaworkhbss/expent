@@ -15,6 +15,8 @@ import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import com.aditya.expent.data.remote.dto.OnboardingStepRequestDto
 import com.aditya.expent.data.remote.dto.PaginatedTransactionsResponseDto
 import com.aditya.expent.data.remote.dto.TransactionQueryDto
+import com.aditya.expent.data.remote.dto.CreateTransactionRequestDto
+import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -56,4 +58,10 @@ interface ApiService {
         @Query("page") page: Int? = null,
         @Query("limit") limit: Int? = null
     ): PaginatedTransactionsResponseDto
+
+    @POST("transactions")
+    suspend fun addTransaction(@Body request: CreateTransactionRequestDto): TransactionResponseDto
+
+    @GET("accounts")
+    suspend fun getAccounts(): List<PaymentModeResponseDto>
 }
