@@ -1,12 +1,18 @@
 package com.aditya.expent.presentation.dashboard
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
+import com.aditya.expent.domain.usecase.GetTransactionUseCase
+import com.aditya.expent.domain.usecase.GetCategoriesUseCase
+import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class DashboardState(
@@ -14,28 +20,64 @@ data class DashboardState(
     val totalIncome: Double = 0.0,
     val totalExpense: Double = 0.0,
     val recentTransactions: List<Transaction> = emptyList(),
+    val categories: List<CategoryResponseDto> = emptyList(),
     val userName: String = "User"
 )
 
 @HiltViewModel
-class DashboardViewModel @Inject constructor() : ViewModel() {
+class DashboardViewModel @Inject constructor(
+    private val getTransactionUseCase: GetTransactionUseCase,
+    private val getCategoriesUseCase: GetCategoriesUseCase
+) : ViewModel() {
     
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     init {
-        loadMockData()
+        loadTransactions()
+        loadCategories()
     }
 
-    private fun loadMockData() {
-        val mockTransactions = listOf(
-            Transaction("1", "Salary Credited", 5000.0, "15/05/2026", "Job", TransactionType.INCOME),
-            Transaction("2", "Weekly Grocery", -120.0, "14/05/2026", "Food", TransactionType.EXPENSE),
-            Transaction("3", "Netflix Subscription", -15.0, "14/05/2026", "Subscription", TransactionType.EXPENSE),
-            Transaction("4", "Freelance Work", 800.0, "10/05/2026", "Work", TransactionType.INCOME),
-            Transaction("5", "Dinner at Restaurant", -45.50, "10/05/2026", "Food", TransactionType.EXPENSE)
-        )
-        updateStateWithList(mockTransactions)
+    fun loadTransactions() {
+        viewModelScope.launch {
+            val endDate = LocalDate.now()
+            val startDate = endDate.minusDays(7)
+
+            val result = getTransactionUseCase(
+                startDate.toString(),
+                endDate.toString()
+            )
+
+            result.onSuccess { paginatedResponse ->
+                val transactions = paginatedResponse.data.map { dto ->
+                    val typeEnum = if (dto.type.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
+                    val rawAmount = dto.amount.toDoubleOrNull() ?: 0.0
+                    val amount = if (typeEnum == TransactionType.EXPENSE) -Math.abs(rawAmount) else Math.abs(rawAmount)
+
+                    Transaction(
+                        id = dto.id,
+                        title = dto.note ?: dto.merchant ?: "Transaction",
+                        amount = amount,
+                        date = dto.transactionDate,
+                        category = dto.category?.name ?: "Other",
+                        type = typeEnum
+                    )
+                }
+                updateStateWithList(transactions)
+            }.onFailure {
+                updateStateWithList(emptyList())
+            }
+        }
+    }
+
+    fun loadCategories() {
+        viewModelScope.launch {
+            getCategoriesUseCase().onSuccess { categoryList ->
+                _state.value = _state.value.copy(categories = categoryList)
+            }.onFailure {
+                // Keep default empty on error
+            }
+        }
     }
 
     fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String) {

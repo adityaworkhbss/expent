@@ -48,6 +48,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
+import com.aditya.expent.data.remote.dto.CategoryResponseDto
+import com.aditya.expent.utils.CategoryUtils.getCategoryIconAndColor
 import com.aditya.expent.presentation.auth.AuthActivity
 import com.aditya.expent.presentation.transactions.TransactionActivity
 import com.aditya.expent.presentation.component.ExpentDatePicker
@@ -301,6 +303,7 @@ fun DashboardScreen(
 
             if (showBottomSheet) {
                 AddTransactionBottomSheet(
+                    categories = state.categories,
                     onDismiss = { showBottomSheet = false },
                     onSave = { title, amount, category, type, date ->
                         onAddTransaction(title, amount, category, type, date)
@@ -745,14 +748,31 @@ fun GlowFloatingActionButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionBottomSheet(
+    categories: List<CategoryResponseDto>,
     onDismiss: () -> Unit,
     onSave: (String, Double, String, TransactionType, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amountText by remember { mutableStateOf("") }
     var titleText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Food") }
+
     var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
+
+    val displayCategories = categories.map { cat ->
+        val iconAndColor = getCategoryIconAndColor(cat.name)
+        Triple(cat.name, iconAndColor.first, iconAndColor.second)
+    }
+
+    var selectedCategory by remember(categories, selectedType) {
+        val firstFiltered = categories.firstOrNull { cat ->
+            if (selectedType == TransactionType.INCOME) {
+                cat.type.equals("income", ignoreCase = true)
+            } else {
+                cat.type.equals("expense", ignoreCase = true)
+            }
+        }
+        mutableStateOf(firstFiltered?.name ?: "Others")
+    }
     var selectedDateText by remember { mutableStateOf(getTodayDateString()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -786,7 +806,6 @@ fun AddTransactionBottomSheet(
                 }
             }
 
-            // Sliding type tab switcher
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -900,24 +919,26 @@ fun AddTransactionBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 2.dp)
                 ) {
-                    val categories = listOf(
-                        Pair("Food", Icons.Default.Restaurant),
-                        Pair("Subscription", Icons.Default.Subscriptions),
-                        Pair("Work", Icons.Default.Work),
-                        Pair("Job", Icons.Default.BusinessCenter),
-                        Pair("Shopping", Icons.Default.ShoppingCart),
-                        Pair("Travel", Icons.Default.Flight),
-                        Pair("Leisure", Icons.Default.LocalPlay),
-                        Pair("Others", Icons.Default.Category)
-                    )
-                    items(categories) { (catName, icon) ->
+                    val filteredCategory = categories.filter { cat ->
+                            if (selectedType == TransactionType.INCOME) {
+                                cat.type.equals("income", ignoreCase = true)
+                            } else {
+                                cat.type.equals("expense", ignoreCase = true)
+                            }
+                        }.map { cat ->
+                            val iconAndColor = getCategoryIconAndColor(cat.name)
+                            Triple(cat.name, iconAndColor.first, iconAndColor.second)
+                        }
+
+
+                    items(filteredCategory) { (catName, icon, catColor) ->
                         val isSelected = selectedCategory == catName
                         val containerColor by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            targetValue = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
                             label = "ChipBg"
                         )
                         val contentColor by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            targetValue = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant,
                             label = "ChipText"
                         )
                         val scale by animateFloatAsState(
@@ -933,7 +954,7 @@ fun AddTransactionBottomSheet(
                             color = containerColor,
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                color = if (isSelected) catColor else Color.Transparent
                             )
                         ) {
                             Row(
@@ -945,7 +966,7 @@ fun AddTransactionBottomSheet(
                                     imageVector = icon,
                                     contentDescription = catName,
                                     modifier = Modifier.size(18.dp),
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -1037,6 +1058,7 @@ fun AddTransactionBottomSheet(
         }
     )
 }
+
 
 fun getTodayDateString(): String {
     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
