@@ -1,60 +1,43 @@
 package com.aditya.expent.presentation.onboard
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.aditya.expent.presentation.component.ExpentDatePicker
+import androidx.compose.ui.unit.sp
+import com.aditya.expent.R
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
-import com.aditya.expent.R
+import com.aditya.expent.presentation.component.ExpentDatePicker
 import com.aditya.expent.presentation.theme.ExpentTheme
+import com.aditya.expent.presentation.theme.EmeraldPrimary
+import com.aditya.expent.presentation.theme.ColorIncome
+import com.aditya.expent.presentation.theme.ColorExpense
 import com.airbnb.lottie.compose.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,17 +64,35 @@ fun OnboardRoute(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Elegant background ambient glows
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(EmeraldPrimary.copy(alpha = 0.05f), Color.Transparent),
+                        radius = 350.dp.toPx()
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(x = size.width, y = 0f)
+                )
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF3F51B5).copy(alpha = 0.03f), Color.Transparent),
+                        radius = 300.dp.toPx()
+                    ),
+                    center = androidx.compose.ui.geometry.Offset(x = 0f, y = size.height)
+                )
+            }
+
             AnimatedContent(
                 targetState = state.currentStep,
                 transitionSpec = {
                     val isForward = targetState.ordinal > initialState.ordinal
                     if (isForward) {
-                        (slideInHorizontally(animationSpec = tween(400)) { width -> width } + fadeIn(animationSpec = tween(400))).togetherWith(
-                            slideOutHorizontally(animationSpec = tween(400)) { width -> -width } + fadeOut(animationSpec = tween(400))
+                        (slideInHorizontally(animationSpec = tween(450, easing = EaseInOutCubic)) { width -> width } + fadeIn(animationSpec = tween(450))).togetherWith(
+                            slideOutHorizontally(animationSpec = tween(450, easing = EaseInOutCubic)) { width -> -width } + fadeOut(animationSpec = tween(450))
                         )
                     } else {
-                        (slideInHorizontally(animationSpec = tween(400)) { width -> -width } + fadeIn(animationSpec = tween(400))).togetherWith(
-                            slideOutHorizontally(animationSpec = tween(400)) { width -> width } + fadeOut(animationSpec = tween(400))
+                        (slideInHorizontally(animationSpec = tween(450, easing = EaseInOutCubic)) { width -> -width } + fadeIn(animationSpec = tween(450))).togetherWith(
+                            slideOutHorizontally(animationSpec = tween(450, easing = EaseInOutCubic)) { width -> width } + fadeOut(animationSpec = tween(450))
                         )
                     }
                 },
@@ -148,7 +149,7 @@ fun OnboardRoute(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f))
+                                .background(Color.Black.copy(alpha = 0.4f))
                                 .clickable(enabled = false) { },
                             contentAlignment = Alignment.Center
                         ) {
@@ -160,7 +161,7 @@ fun OnboardRoute(
                             LottieAnimation(
                                 composition = composition,
                                 progress = { progress },
-                                modifier = Modifier.size(200.dp)
+                                modifier = Modifier.size(180.dp)
                             )
                         }
                     }
@@ -168,22 +169,29 @@ fun OnboardRoute(
             }
 
             state.error?.let { error ->
-                LaunchedEffect(error) {
-
-                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 80.dp, start = 24.dp, end = 24.dp)
-                        .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(8.dp))
-                        .padding(12.dp)
+                        .padding(bottom = 90.dp, start = 24.dp, end = 24.dp)
+                        .shadow(8.dp, RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(16.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                        .padding(16.dp)
                 ) {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Error",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
                 }
             }
         }
@@ -192,6 +200,17 @@ fun OnboardRoute(
 
 @Composable
 fun WelcomeStep(onNext: () -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -202,53 +221,81 @@ fun WelcomeStep(onNext: () -> Unit) {
         Spacer(modifier = Modifier.weight(1f))
         
         Box(
-            modifier = Modifier
-                .size(120.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    shape = CircleShape
-                )
-                .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.AccountBalanceWallet,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                tint = MaterialTheme.colorScheme.primary
+            // Ambient glowing background behind wallet icon
+            Box(
+                modifier = Modifier
+                    .size(160.dp)
+                    .scale(pulseScale)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                EmeraldPrimary.copy(alpha = 0.2f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
+
+            Box(
+                modifier = Modifier
+                    .size(110.dp)
+                    .shadow(12.dp, CircleShape)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(EmeraldPrimary, Color(0xFF004D40))
+                        ),
+                        shape = CircleShape
+                    )
+                    .padding(26.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountBalanceWallet,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    tint = Color.White
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         Text(
             text = "Welcome to Expent",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontWeight = FontWeight.Black,
+                letterSpacing = (-0.5).sp
+            ),
+            color = EmeraldPrimary
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Let's set up your profile to give you the best financial tracking experience.",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Let's set up your profile to give you a gorgeous, premium financial tracking experience.",
+            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1.2f))
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(56.dp)
+                .shadow(8.dp, RoundedCornerShape(16.dp)),
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Get Started", style = MaterialTheme.typography.titleMedium)
+            Text("Get Started", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.White)
         }
     }
 }
@@ -262,7 +309,6 @@ fun CategoriesStep(
     isLoading: Boolean = false
 ) {
     val customCategories = remember { mutableStateListOf<OnboardCategory>() }
-
     val allCategories = availableCategories + customCategories
     var newCategoryText by remember { mutableStateOf("") }
     var newCategoryType by remember { mutableStateOf("EXPENSE") }
@@ -270,25 +316,31 @@ fun CategoriesStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
     ) {
-        Text(
-            text = "Categories Setup",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Categories Setup",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Step 1 of 4 • Select categories you use",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EmeraldPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Select or add categories for your income and expenses.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
+        // Grid of Categories styled with glowing cards
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -297,55 +349,69 @@ fun CategoriesStep(
         ) {
             items(allCategories) { category ->
                 val isSelected = selectedCategories.any { it.name == category.name && it.type == category.type }
-                Box(
+                
+                Surface(
+                    onClick = {
+                        val newList = if (isSelected) {
+                            selectedCategories.filterNot { it.name == category.name && it.type == category.type }
+                        } else {
+                            selectedCategories + category
+                        }
+                        onCategoriesChange(newList)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
+                        .scale(if (isSelected) 1.02f else 1.0f)
                         .border(
                             width = 1.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        .clickable {
-                            val newList = if (isSelected) {
-                                selectedCategories.filterNot { it.name == category.name && it.type == category.type }
-                            } else {
-                                selectedCategories + category
-                            }
-                            onCategoriesChange(newList)
-                        }
-                        .padding(vertical = 12.dp, horizontal = 12.dp),
-                    contentAlignment = Alignment.Center
+                            color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(18.dp)
+                        ),
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (isSelected) EmeraldPrimary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (category.type == "INCOME") ColorIncome.copy(alpha = 0.1f)
+                                    else ColorExpense.copy(alpha = 0.1f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (category.type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                tint = if (category.type == "INCOME") ColorIncome else ColorExpense,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(10.dp))
+
                         Text(
                             text = category.name,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                            color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Spacer(modifier = Modifier.height(6.dp))
+                        
                         Surface(
-                            color = when (category.type) {
-                                "INCOME" -> if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color(0xFFE8F5E9)
-                                else -> if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color(0xFFFFEBEE)
-                            },
-                            shape = RoundedCornerShape(4.dp)
+                            color = if (category.type == "INCOME") ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
                                 text = category.type,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = when (category.type) {
-                                    "INCOME" -> if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF2E7D32)
-                                    else -> if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFC62828)
-                                },
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = if (category.type == "INCOME") ColorIncome else ColorExpense,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
                     }
@@ -355,79 +421,119 @@ fun CategoriesStep(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                .padding(12.dp)
+        // Custom categories input drawer card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = newCategoryText,
-                    onValueChange = { newCategoryText = it },
-                    placeholder = { Text("Custom category name") },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Add Custom Category",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = {
-                        val newCatName = newCategoryText.trim()
-                        if (newCatName.isNotBlank() && allCategories.none { it.name == newCatName && it.type == newCategoryType }) {
-                            val newCat = OnboardCategory(newCatName, newCategoryType)
-                            customCategories.add(newCat)
-                            onCategoriesChange(selectedCategories + newCat)
-                            newCategoryText = ""
-                        }
-                    },
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        Icons.Default.Add, 
-                        contentDescription = "Add", 
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("EXPENSE", "INCOME").forEach { type ->
-                    val isTypeSelected = newCategoryType == type
-                    FilterChip(
-                        selected = isTypeSelected,
-                        onClick = { newCategoryType = type },
-                        label = { Text(type) },
+                    OutlinedTextField(
+                        value = newCategoryText,
+                        onValueChange = { newCategoryText = it },
+                        placeholder = { Text("e.g., Subscriptions, Books") },
                         modifier = Modifier.weight(1f),
-                        leadingIcon = if (isTypeSelected) {
-                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                        } else null
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
                     )
+                    
+                    Spacer(modifier = Modifier.width(10.dp))
+                    
+                    IconButton(
+                        onClick = {
+                            val newCatName = newCategoryText.trim()
+                            if (newCatName.isNotBlank() && allCategories.none { it.name == newCatName && it.type == newCategoryType }) {
+                                val newCat = OnboardCategory(newCatName, newCategoryType)
+                                customCategories.add(newCat)
+                                onCategoriesChange(selectedCategories + newCat)
+                                newCategoryText = ""
+                            }
+                        },
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(EmeraldPrimary),
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("EXPENSE", "INCOME").forEach { type ->
+                        val isSel = newCategoryType == type
+                        Surface(
+                            onClick = { newCategoryType = type },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (isSel) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = EmeraldPrimary, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
+                                Text(
+                                    text = if (type == "EXPENSE") "Expense" else "Income",
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            enabled = selectedCategories.isNotEmpty() && !isLoading
+                .height(56.dp)
+                .padding(bottom = 8.dp),
+            enabled = selectedCategories.isNotEmpty() && !isLoading,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = EmeraldPrimary,
+                disabledContainerColor = EmeraldPrimary.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Continue", style = MaterialTheme.typography.titleMedium)
+            Text("Continue", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
         }
     }
 }
@@ -445,160 +551,228 @@ fun PaymentModesStep(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
     ) {
-        Text(
-            text = "Payment Methods",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Column(modifier = Modifier.padding(top = 12.dp)) {
+            Text(
+                text = "Payment Methods",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Step 2 of 4 • Customize accounts & cards",
+                style = MaterialTheme.typography.bodySmall,
+                color = EmeraldPrimary,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Add your bank accounts, credit cards, or wallets.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
+        // Scrollable area showing cards and bank options
         Column(
             modifier = Modifier
                 .weight(1f)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Render existing payment methods as virtual cards!
             paymentModes.forEach { mode ->
-                Row(
+                val isCredit = mode.type == "PAY_LATER"
+
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(24.dp))
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            RoundedCornerShape(12.dp)
+                            Brush.linearGradient(
+                                colors = if (isCredit) listOf(Color(0xFF3F51B5), Color(0xFFE91E63))
+                                else listOf(EmeraldPrimary, Color(0xFF004D40))
+                            )
                         )
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                        .padding(18.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = mode.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (mode.type == "PAY_NOW") "Debit / Wallet" else "Credit / Pay Later",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = {
-                        onPaymentModesChange(paymentModes.filter { it != mode })
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Added",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Add new payment mode form
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
-                    .padding(16.dp)
-            ) {
-                Text(
-                    text = "Add New Method",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Account Name") },
-                    placeholder = { Text("e.g. HDFC Bank, Amex Card") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("PAY_NOW", "PAY_LATER").forEach { type ->
-                        val isSelected = selectedType == type
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Gold Chip logo
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(34.dp, 24.dp)
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color(0xFFFFEE58), Color(0xFFF57F17))
+                                    )
                                 )
-                                .clickable { selectedType = type }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
+                                .border(0.5.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                        )
+                        
+                        // Delete Card Button
+                        IconButton(
+                            onClick = { onPaymentModesChange(paymentModes.filter { it != mode }) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.15f))
                         ) {
-                            Text(
-                                text = if (type == "PAY_NOW") "Pay Now" else "Pay Later",
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = {
-                        if (name.isNotBlank()) {
-                            onPaymentModesChange(paymentModes + OnboardPaymentMode(name.trim(), selectedType))
-                            name = ""
+                    // Card Label & Type badge (No dummy card number shown)
+                    Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                        Text(
+                            text = mode.name,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                color = Color.White.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    text = if (isCredit) "PAY LATER" else "PAY NOW",
+                                    color = Color.White,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = name.isNotBlank()
+                    }
+                }
+            }
+
+            if (paymentModes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                        .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)), RoundedCornerShape(20.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Add Method")
+                    Text(
+                        text = "💳 Add a wallet or card below to start",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Premium virtual card adder panel
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Text(
+                        text = "Add New Method",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = EmeraldPrimary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Account / Card Name") },
+                        placeholder = { Text("e.g., SBI Savings, Amex Card") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("PAY_NOW", "PAY_LATER").forEach { type ->
+                            val isSel = selectedType == type
+                            Surface(
+                                onClick = { selectedType = type },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSel) EmeraldPrimary else Color.Transparent,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            ) {
+                                Text(
+                                    text = if (type == "PAY_NOW") "Pay Now" else "Pay Later",
+                                    color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank()) {
+                                onPaymentModesChange(paymentModes + OnboardPaymentMode(name.trim(), selectedType))
+                                name = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        enabled = name.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Add Payment Mode", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(56.dp)
+                .padding(bottom = 8.dp),
             shape = RoundedCornerShape(16.dp),
-            enabled = paymentModes.isNotEmpty() && !isLoading
+            enabled = paymentModes.isNotEmpty() && !isLoading,
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
         ) {
-            Text("Continue", style = MaterialTheme.typography.titleMedium)
+            Text("Continue", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
         }
     }
 }
@@ -623,275 +797,401 @@ fun IncomingStep(
     var newIncomeStartDate by remember { mutableStateOf("") }
     
     var showSalaryStartDatePicker by remember { mutableStateOf(false) }
-    var showSalaryEndDatePicker by remember { mutableStateOf(false) }
     var showNewIncomeDatePicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
     ) {
-        Text(
-            text = "Incoming Finances",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "Let's set your baseline so we can track your overall wealth.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        OutlinedTextField(
-            value = salary.amount,
-            onValueChange = onSalaryAmountChange,
-            label = { Text("Monthly Salary Amount") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            prefix = { Text("$ ") }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf("WEEKLY", "MONTHLY").forEach { period ->
-                FilterChip(
-                    selected = salary.periodType == period,
-                    onClick = { onSalaryPeriodChange(period) },
-                    label = { Text(period.lowercase().replaceFirstChar { it.uppercase() }) },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
+        Column(modifier = Modifier.padding(top = 12.dp)) {
+            Text(
+                text = "Incoming Finances",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Step 3 of 4 • Set your income baseline",
+                style = MaterialTheme.typography.bodySmall,
+                color = EmeraldPrimary,
+                fontWeight = FontWeight.Bold
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Text("Salary Category", style = MaterialTheme.typography.labelLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-
-            val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
-            for (category in incomeCategories) {
-                FilterChip(
-                    selected = salary.categoryId == category.name,
-                    onClick = { onSalaryCategoryChange(category.name) },
-                    label = { Text(category.name) },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = salary.startDate,
-            onValueChange = { },
-            label = { Text("Start Date") },
-            readOnly = true,
+        // Main Salary card
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            trailingIcon = {
-                IconButton(onClick = { showSalaryStartDatePicker = true }) {
-                    Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = "💼 Regular Monthly Salary",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = EmeraldPrimary
+                )
+                
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = salary.amount,
+                    onValueChange = onSalaryAmountChange,
+                    label = { Text("Monthly Salary Amount") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    prefix = { Text("$ ", fontWeight = FontWeight.Bold, color = EmeraldPrimary) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldPrimary,
+                        focusedLabelColor = EmeraldPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Frequency:", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("WEEKLY", "MONTHLY").forEach { period ->
+                        val isSel = salary.periodType == period
+                        Surface(
+                            onClick = { onSalaryPeriodChange(period) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
+                            Text(
+                                text = period.lowercase().replaceFirstChar { it.uppercase() },
+                                modifier = Modifier.padding(vertical = 10.dp),
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
-            }
-        )
 
-        ExpentDatePicker(
-            showDialog = showSalaryStartDatePicker,
-            onDismiss = { showSalaryStartDatePicker = false },
-            onDateSelected = {
-                onSalaryStartDateChange(it)
-                showSalaryStartDatePicker = false
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Salary Category:", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
+                    incomeCategories.forEach { category ->
+                        val isSel = salary.categoryId == category.name
+                        Surface(
+                            onClick = { onSalaryCategoryChange(category.name) },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
+                            Text(
+                                text = category.name,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = salary.startDate,
+                    onValueChange = { },
+                    label = { Text("Start Date") },
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    trailingIcon = {
+                        IconButton(onClick = { showSalaryStartDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldPrimary,
+                        focusedLabelColor = EmeraldPrimary
+                    )
+                )
+
+                ExpentDatePicker(
+                    showDialog = showSalaryStartDatePicker,
+                    onDismiss = { showSalaryStartDatePicker = false },
+                    onDateSelected = {
+                        onSalaryStartDateChange(it)
+                        showSalaryStartDatePicker = false
+                    }
+                )
             }
-        )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
         
         Text(
             text = "Additional Incomes",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 4.dp)
         )
         
         Spacer(modifier = Modifier.height(8.dp))
 
-        customIncomes.forEachIndexed { _, customIncome ->
-            Row(
+        customIncomes.forEach { customIncome ->
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(vertical = 4.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(ColorIncome.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.AddCard, contentDescription = null, tint = ColorIncome, modifier = Modifier.size(20.dp))
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = customIncome.name, 
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "${customIncome.periodType.lowercase().replaceFirstChar { it.uppercase() }} | Category: ${customIncome.categoryId ?: "General"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
                     Text(
-                        text = customIncome.name, 
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "${customIncome.periodType.lowercase().capitalize()} | Category: ${customIncome.categoryId ?: "General"}",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "$ ${customIncome.amount}", 
+                        fontWeight = FontWeight.Black,
+                        color = ColorIncome,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 }
-                Text(
-                    text = "$ ${customIncome.amount}", 
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium
-                )
             }
         }
         
-        if (customIncomes.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                .padding(16.dp)
+        // Add custom income panel
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = newIncomeName,
-                    onValueChange = { newIncomeName = it },
-                    placeholder = { Text("Income Name") },
-                    modifier = Modifier.weight(1.5f),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = "Add Secondary Income Source",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = EmeraldPrimary
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = newIncomeAmount,
-                    onValueChange = { newIncomeAmount = it },
-                    placeholder = { Text("Amount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    singleLine = true
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("WEEKLY", "MONTHLY").forEach { period ->
-                    FilterChip(
-                        selected = newIncomePeriod == period,
-                        onClick = { newIncomePeriod = period },
-                        label = { Text(period.lowercase().capitalize()) },
-                        shape = RoundedCornerShape(12.dp)
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = newIncomeName,
+                        onValueChange = { newIncomeName = it },
+                        placeholder = { Text("Source e.g., Rent") },
+                        modifier = Modifier.weight(1.4f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = newIncomeAmount,
+                        onValueChange = { newIncomeAmount = it },
+                        placeholder = { Text("Amount") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
                     )
                 }
-            }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("WEEKLY", "MONTHLY").forEach { period ->
+                        val isSel = newIncomePeriod == period
+                        Surface(
+                            onClick = { newIncomePeriod = period },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
+                            Text(
+                                text = period.lowercase().replaceFirstChar { it.uppercase() },
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-            Text("Category", style = MaterialTheme.typography.labelMedium)
-            Spacer(modifier = Modifier.height(4.dp))
+                Text("Category:", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                Spacer(modifier = Modifier.height(6.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
-                for (category in incomeCategories) {
-                    FilterChip(
-                        selected = newIncomeCategory == category.name,
-                        onClick = { newIncomeCategory = category.name },
-                        label = { Text(category.name) },
-                        shape = RoundedCornerShape(12.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
+                    incomeCategories.forEach { category ->
+                        val isSel = newIncomeCategory == category.name
+                        Surface(
+                            onClick = { newIncomeCategory = category.name },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                ),
+                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ) {
+                            Text(
+                                text = category.name,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = newIncomeStartDate,
+                    onValueChange = { },
+                    placeholder = { Text("Start Date") },
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    trailingIcon = {
+                        IconButton(onClick = { showNewIncomeDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldPrimary,
+                        focusedLabelColor = EmeraldPrimary
                     )
-                }
-            }
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = newIncomeStartDate,
-                onValueChange = { },
-                placeholder = { Text("Start Date") },
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                trailingIcon = {
-                    IconButton(onClick = { showNewIncomeDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                ExpentDatePicker(
+                    showDialog = showNewIncomeDatePicker,
+                    onDismiss = { showNewIncomeDatePicker = false },
+                    onDateSelected = {
+                        newIncomeStartDate = it
+                        showNewIncomeDatePicker = false
                     }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        if (newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank() && newIncomeStartDate.isNotBlank()) {
+                            onCustomIncomesChange(customIncomes + RecurringIncome(
+                                name = newIncomeName.trim(),
+                                amount = newIncomeAmount.trim(),
+                                periodType = newIncomePeriod,
+                                startDate = newIncomeStartDate,
+                                categoryId = newIncomeCategory
+                            ))
+                            newIncomeName = ""
+                            newIncomeAmount = ""
+                            newIncomeStartDate = ""
+                            newIncomeCategory = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank() && newIncomeStartDate.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Income Source", color = Color.White, fontWeight = FontWeight.Bold)
                 }
-            )
-
-            ExpentDatePicker(
-                showDialog = showNewIncomeDatePicker,
-                onDismiss = { showNewIncomeDatePicker = false },
-                onDateSelected = {
-                    newIncomeStartDate = it
-                    showNewIncomeDatePicker = false
-                }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = {
-                    if (newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank() && newIncomeStartDate.isNotBlank()) {
-                        onCustomIncomesChange(customIncomes + RecurringIncome(
-                            name = newIncomeName.trim(),
-                            amount = newIncomeAmount.trim(),
-                            periodType = newIncomePeriod,
-                            startDate = newIncomeStartDate,
-                            categoryId = newIncomeCategory
-                        ))
-                        newIncomeName = ""
-                        newIncomeAmount = ""
-                        newIncomeStartDate = ""
-                        newIncomeCategory = null
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Income Source")
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(56.dp)
+                .padding(bottom = 8.dp),
             shape = RoundedCornerShape(16.dp),
-            enabled = salary.amount.isNotBlank() && salary.startDate.isNotBlank()
+            enabled = salary.amount.isNotBlank() && salary.startDate.isNotBlank(),
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
         ) {
-            Text("Continue", style = MaterialTheme.typography.titleMedium)
+            Text("Continue", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
         }
     }
 }
@@ -926,258 +1226,413 @@ fun OutgoingStep(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
+            .padding(horizontal = 24.dp)
     ) {
-        Text(
-            text = "Outgoing Expenses",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Column(modifier = Modifier.padding(top = 12.dp)) {
+            Text(
+                text = "Outgoing Expenses",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Step 4 of 4 • Map your recurring bills",
+                style = MaterialTheme.typography.bodySmall,
+                color = EmeraldPrimary,
+                fontWeight = FontWeight.Bold
+            )
+        }
         
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "Do you have any recurring deductions or outstanding bills?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-
-//        OutlinedTextField(
-//            value = nextMonthPendingPayment,
-//            onValueChange = onNextMonthPendingPaymentChange,
-//            label = { Text("Next Month Pending Payment (Optional)") },
-//            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-//            modifier = Modifier.fillMaxWidth(),
-//            shape = RoundedCornerShape(12.dp),
-//            prefix = { Text("$ ") }
-//        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         
         Text(
-            text = "Recurring EMIs",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            text = "Recurring EMIs & Loans",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 4.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Display existing loans as sleek summaries with custom progress bars!
         recurringExpenses.forEach { emi ->
-            Column(
+            val paid = emi.monthsPaid.toFloatOrNull() ?: 0f
+            val total = emi.totalMonths.toFloatOrNull() ?: 1f
+            val progress = (paid / total).coerceIn(0f, 1f)
+
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .padding(12.dp)
+                    .padding(vertical = 4.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(emi.name, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                    Text("$ ${emi.amount}/mo", color = MaterialTheme.colorScheme.primary)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(ColorExpense.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Percent, contentDescription = null, tint = ColorExpense, modifier = Modifier.size(18.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(emi.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                        }
+                        
+                        Text(
+                            text = "$ ${emi.amount} / mo", 
+                            fontWeight = FontWeight.Black, 
+                            color = ColorExpense,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Loan Progress: ${emi.monthsPaid} / ${emi.totalMonths} months",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Started: ${emi.startDate}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Custom horizontal progress line bar
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress)
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .background(ColorExpense)
+                        )
+                    }
                 }
-                Text("Paid ${emi.monthsPaid} out of ${emi.totalMonths} months | Start: ${emi.startDate}", style = MaterialTheme.typography.bodySmall)
             }
         }
 
-        // Add EMI Form
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                .padding(12.dp)
-        ) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = emiName,
-                    onValueChange = { emiName = it },
-                    placeholder = { Text("EMI Name") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = emiAmount,
-                    onValueChange = { emiAmount = it },
-                    placeholder = { Text("Amount") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
-                    value = emiTotalMonths,
-                    onValueChange = { emiTotalMonths = it },
-                    placeholder = { Text("Total Months") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = emiMonthsPaid,
-                    onValueChange = { emiMonthsPaid = it },
-                    placeholder = { Text("Months Paid") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = emiStartDate,
-                onValueChange = { },
-                placeholder = { Text("Start Date") },
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    IconButton(onClick = { showEmiDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
-                    }
-                }
-            )
-            
-            ExpentDatePicker(
-                showDialog = showEmiDatePicker,
-                onDismiss = { showEmiDatePicker = false },
-                onDateSelected = {
-                    emiStartDate = it
-                    showEmiDatePicker = false
-                }
-            )
+        Spacer(modifier = Modifier.height(10.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = {
-                    if (emiName.isNotBlank() && emiAmount.isNotBlank() && emiTotalMonths.isNotBlank() && emiMonthsPaid.isNotBlank() && emiStartDate.isNotBlank()) {
-                        onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(), emiStartDate.trim()))
-                        emiName = ""
-                        emiAmount = ""
-                        emiTotalMonths = ""
-                        emiMonthsPaid = ""
-                        emiStartDate = ""
+        // Add Loan Form Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = "Add Recurring Loan / EMI",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = EmeraldPrimary
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = emiName,
+                        onValueChange = { emiName = it },
+                        placeholder = { Text("EMI name e.g., Car Loan") },
+                        modifier = Modifier.weight(1.3f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = emiAmount,
+                        onValueChange = { emiAmount = it },
+                        placeholder = { Text("Monthly") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = emiTotalMonths,
+                        onValueChange = { emiTotalMonths = it },
+                        placeholder = { Text("Total Months") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = emiMonthsPaid,
+                        onValueChange = { emiMonthsPaid = it },
+                        placeholder = { Text("Months Paid") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                OutlinedTextField(
+                    value = emiStartDate,
+                    onValueChange = { },
+                    placeholder = { Text("Start Date") },
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    trailingIcon = {
+                        IconButton(onClick = { showEmiDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldPrimary,
+                        focusedLabelColor = EmeraldPrimary
+                    )
+                )
+                
+                ExpentDatePicker(
+                    showDialog = showEmiDatePicker,
+                    onDismiss = { showEmiDatePicker = false },
+                    onDateSelected = {
+                        emiStartDate = it
+                        showEmiDatePicker = false
                     }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Add EMI")
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                
+                Button(
+                    onClick = {
+                        if (emiName.isNotBlank() && emiAmount.isNotBlank() && emiTotalMonths.isNotBlank() && emiMonthsPaid.isNotBlank() && emiStartDate.isNotBlank()) {
+                            onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(), emiStartDate.trim()))
+                            emiName = ""
+                            emiAmount = ""
+                            emiTotalMonths = ""
+                            emiMonthsPaid = ""
+                            emiStartDate = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                    enabled = emiName.isNotBlank() && emiAmount.isNotBlank() && emiTotalMonths.isNotBlank() && emiMonthsPaid.isNotBlank() && emiStartDate.isNotBlank()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Loan Account", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
         
         Text(
-            text = "Subscriptions",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            text = "Active Subscriptions",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 4.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Existing subscriptions
         subscriptions.forEach { sub ->
-            Row(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(vertical = 4.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(sub.name, fontWeight = FontWeight.Bold)
-                    Text("Bills on ${sub.billingDate} every month", style = MaterialTheme.typography.bodySmall)
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE0F7FA)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.SmartScreen, contentDescription = null, tint = Color(0xFF00ACC1), modifier = Modifier.size(18.dp))
+                    }
+                    
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(sub.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "Billing date: ${sub.billingDate} of every month", 
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = "$ ${sub.amount} / mo", 
+                        fontWeight = FontWeight.Black, 
+                        color = Color(0xFF0097A7),
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
-                Text("$ ${sub.amount}/mo", color = MaterialTheme.colorScheme.primary)
             }
         }
 
-        // Add Sub Form
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-                .padding(12.dp)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Add subscription card form
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = "Add Media / App Subscription",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = EmeraldPrimary
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
                 OutlinedTextField(
                     value = subName,
                     onValueChange = { subName = it },
-                    placeholder = { Text("Sub Name") },
+                    placeholder = { Text("Service name e.g., Netflix") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldPrimary,
+                        focusedLabelColor = EmeraldPrimary
+                    )
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                
+                Spacer(modifier = Modifier.height(10.dp))
+                
                 Row {
                     OutlinedTextField(
                         value = subAmount,
                         onValueChange = { subAmount = it },
-                        placeholder = { Text("Amount") },
+                        placeholder = { Text("Amount / mo") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
+                        modifier = Modifier.weight(1.1f),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     OutlinedTextField(
                         value = subDate,
                         onValueChange = { },
-                        placeholder = { Text("Date") },
+                        placeholder = { Text("Billing Date") },
                         readOnly = true,
                         modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
                         singleLine = true,
                         trailingIcon = {
                             IconButton(onClick = { showSubDatePicker = true }) {
-                                Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                                Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
                             }
-                        }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = EmeraldPrimary,
+                            focusedLabelColor = EmeraldPrimary
+                        )
                     )
                 }
-            }
-            
-            ExpentDatePicker(
-                showDialog = showSubDatePicker,
-                onDismiss = { showSubDatePicker = false },
-                onDateSelected = {
-                    subDate = it
-                    showSubDatePicker = false
-                }
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-            IconButton(
-                onClick = {
-                    if (subName.isNotBlank() && subAmount.isNotBlank() && subDate.isNotBlank()) {
-                        onSubscriptionsChange(subscriptions + Subscription(subName.trim(), subAmount.trim(), subDate.trim()))
-                        subName = ""
-                        subAmount = ""
-                        subDate = ""
+                
+                ExpentDatePicker(
+                    showDialog = showSubDatePicker,
+                    onDismiss = { showSubDatePicker = false },
+                    onDateSelected = {
+                        subDate = it
+                        showSubDatePicker = false
                     }
-                },
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Subscription", tint = MaterialTheme.colorScheme.onPrimary)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = {
+                        if (subName.isNotBlank() && subAmount.isNotBlank() && subDate.isNotBlank()) {
+                            onSubscriptionsChange(subscriptions + Subscription(subName.trim(), subAmount.trim(), subDate.trim()))
+                            subName = ""
+                            subAmount = ""
+                            subDate = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                    enabled = subName.isNotBlank() && subAmount.isNotBlank() && subDate.isNotBlank()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Subscription", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         Button(
             onClick = onNext,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp)
+                .height(56.dp)
+                .padding(bottom = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
         ) {
-            Text("Complete Setup", style = MaterialTheme.typography.titleMedium)
+            Text("Complete Setup", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
         }
     }
 }
@@ -1208,10 +1663,13 @@ fun FinishStep(onFinish: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .size(100.dp)
+                .size(110.dp)
                 .scale(scale)
+                .shadow(12.dp, CircleShape)
                 .background(
-                    color = MaterialTheme.colorScheme.primary,
+                    Brush.verticalGradient(
+                        colors = listOf(EmeraldPrimary, Color(0xFF004D40))
+                    ),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -1219,35 +1677,38 @@ fun FinishStep(onFinish: () -> Unit) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
+                modifier = Modifier.size(54.dp),
+                tint = Color.White
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
 
         AnimatedVisibility(
             visible = startAnimation,
             enter = slideInVertically(
                 initialOffsetY = { 50 },
-                animationSpec = tween(500, delayMillis = 300)
-            ) + fadeIn(animationSpec = tween(500, delayMillis = 300))
+                animationSpec = tween(600, delayMillis = 300)
+            ) + fadeIn(animationSpec = tween(600, delayMillis = 300))
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "You're all set!",
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = EmeraldPrimary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Expent is ready to help you master your finances.",
-                    style = MaterialTheme.typography.bodyLarge,
+                    text = "Expent is ready to help you master your finances and budgets.",
+                    style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
         }
@@ -1258,17 +1719,19 @@ fun FinishStep(onFinish: () -> Unit) {
             visible = startAnimation,
             enter = slideInVertically(
                 initialOffsetY = { 50 },
-                animationSpec = tween(500, delayMillis = 600)
-            ) + fadeIn(animationSpec = tween(500, delayMillis = 600))
+                animationSpec = tween(600, delayMillis = 600)
+            ) + fadeIn(animationSpec = tween(600, delayMillis = 600))
         ) {
             Button(
                 onClick = onFinish,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(56.dp)
+                    .shadow(8.dp, RoundedCornerShape(16.dp)),
+                colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Go to Dashboard", style = MaterialTheme.typography.titleMedium)
+                Text("Go to Dashboard", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
             }
         }
     }
@@ -1291,12 +1754,12 @@ fun CategoriesStepPreview() {
         Surface(modifier = Modifier.fillMaxSize()) {
             CategoriesStep(
                 availableCategories = listOf(
-                    OnboardCategory("Food", "EXPENSE"),
-                    OnboardCategory("Transport", "EXPENSE"),
+                    OnboardCategory("Food & Dining", "EXPENSE"),
+                    OnboardCategory("Transportation", "EXPENSE"),
                     OnboardCategory("Salary", "INCOME")
                 ),
                 selectedCategories = listOf(
-                    OnboardCategory("Food", "EXPENSE")
+                    OnboardCategory("Food & Dining", "EXPENSE")
                 ),
                 onCategoriesChange = {},
                 onNext = {}
@@ -1332,7 +1795,7 @@ fun IncomingStepPreview() {
                 customIncomes = listOf(
                     RecurringIncome(name = "Freelance", amount = "1500", startDate = "01/01/2023")
                 ),
-                selectedCategories = listOf(OnboardCategory("Food", "EXPENSE")),
+                selectedCategories = listOf(OnboardCategory("Salary", "INCOME")),
                 onSalaryAmountChange = {},
                 onSalaryCategoryChange = {},
                 onSalaryPeriodChange = {},
@@ -1344,7 +1807,6 @@ fun IncomingStepPreview() {
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
