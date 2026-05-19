@@ -6,4 +6,5 @@ import com.aditya.expent.domain.model.OnboardCategory
 interface CategoryRepository {
     suspend fun addCategories(categories: List<OnboardCategory>): Result<Unit>
     suspend fun getCategories(): Result<List<CategoryResponseDto>>
+    suspend fun deleteCategory(categoryId: String): Result<Unit>
 }

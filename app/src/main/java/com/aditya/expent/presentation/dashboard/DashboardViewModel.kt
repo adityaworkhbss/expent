@@ -69,7 +69,8 @@ class DashboardViewModel @Inject constructor(
                         category = dto.category?.name ?: "Other",
                         type = typeEnum,
                         accountId = dto.accountId,
-                        categoryId = dto.categoryId
+                        categoryId = dto.categoryId,
+                        paymentMethod = dto.paymentMethod ?: dto.account?.name
                     )
                 }
                 updateStateWithList(transactions)
@@ -99,10 +100,9 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String) {
+    fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String, accountName: String, accountId: String) {
         viewModelScope.launch {
             val categoryId = _state.value.categories.firstOrNull { it.name.equals(category, ignoreCase = true) }?.id
-            val accountId = _state.value.accounts.firstOrNull()?.id ?: "d3b07384-d113-4a1c-922c-df2e4c4bb5c3"
 
             val newTransaction = Transaction(
                 id = java.util.UUID.randomUUID().toString(),
@@ -112,7 +112,8 @@ class DashboardViewModel @Inject constructor(
                 category = category,
                 type = type,
                 accountId = accountId,
-                categoryId = categoryId
+                categoryId = categoryId,
+                paymentMethod = accountName
             )
             
             // Optimistic local update

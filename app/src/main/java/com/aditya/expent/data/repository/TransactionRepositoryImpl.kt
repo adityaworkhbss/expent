@@ -45,7 +45,7 @@ class TransactionRepositoryImpl @Inject constructor(
                 transferToAccountId = transaction.transferToAccountId,
                 note = transaction.title,
                 merchant = null,
-                paymentMethod = null,
+                paymentMethod = transaction.paymentMethod,
                 tags = null,
                 status = "CLEARED",
                 isSalary = transaction.title.lowercase().contains("salary")
@@ -68,16 +68,24 @@ class TransactionRepositoryImpl @Inject constructor(
             val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             val date = parser.parse(dateStr)
             if (date != null) {
+                val calendar = java.util.Calendar.getInstance()
+                calendar.time = date
+                // Set to 12:00:00 (noon) local time to prevent timezone offset shifts from flipping the calendar day
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, 12)
+                calendar.set(java.util.Calendar.MINUTE, 0)
+                calendar.set(java.util.Calendar.SECOND, 0)
+                calendar.set(java.util.Calendar.MILLISECOND, 0)
+
                 val isoFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-                isoFormatter.timeZone = TimeZone.getTimeZone("UTC")
-                return isoFormatter.format(date)
+                isoFormatter.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                return isoFormatter.format(calendar.time)
             }
         } catch (e: Exception) {
             // ignore
         }
         try {
             val isoFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-            isoFormatter.timeZone = TimeZone.getTimeZone("UTC")
+            isoFormatter.timeZone = java.util.TimeZone.getTimeZone("UTC")
             return isoFormatter.format(Date())
         } catch (e: Exception) {
             return dateStr

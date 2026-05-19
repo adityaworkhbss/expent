@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,7 +106,7 @@ fun TransactionScreen(onBack: () -> Unit) {
         }
     }
 
-    val groupedTransactions = filteredTransactions.groupBy { it.date }
+    val groupedTransactions = filteredTransactions.groupBy { formatDisplayDate(it.date) }
 
     Column(
         modifier = Modifier
@@ -327,10 +328,9 @@ fun TransactionScreen(onBack: () -> Unit) {
                     }
                 }
             } else {
-                groupedTransactions.forEach { (dateStr, transactionsForDay) ->
-                    item(key = "hist_header_$dateStr") {
+                groupedTransactions.forEach { (friendlyDate, transactionsForDay) ->
+                    item(key = "hist_header_$friendlyDate") {
                         val netTotal = transactionsForDay.sumOf { it.amount }
-                        val friendlyDate = formatDisplayDate(dateStr)
 
                         Row(
                             modifier = Modifier
@@ -443,54 +443,64 @@ fun HistoryTransactionItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = transaction.title,
+                text = transaction.category,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            val paymentMode = transaction.paymentMethod ?: "Cash"
             Text(
-                text = transaction.category,
-                style = MaterialTheme.typography.labelMedium,
-                color = categoryColor,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(categoryColor.copy(alpha = 0.1f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                text = "via $paymentMode",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-
-        AnimatedVisibility(
-            visible = showDeleteIcon,
-            enter = fadeIn() + expandHorizontally(),
-            exit = fadeOut() + shrinkHorizontally()
+        
+        Spacer(modifier = Modifier.width(10.dp))
+        
+        Box(
+            contentAlignment = Alignment.CenterEnd
         ) {
-            IconButton(
-                onClick = onDelete,
-                colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showDeleteIcon,
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally()
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    modifier = Modifier.size(22.dp)
+                IconButton(
+                    onClick = onDelete,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !showDeleteIcon,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Text(
+                    text = if (transaction.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", transaction.amount)}" else "- $ ${String.format("%.2f", Math.abs(transaction.amount))}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (transaction.type == TransactionType.INCOME) ColorIncome else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-        }
-
-        AnimatedVisibility(
-            visible = !showDeleteIcon,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Text(
-                text = if (transaction.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", transaction.amount)}" else "- $ ${String.format("%.2f", Math.abs(transaction.amount))}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (transaction.type == TransactionType.INCOME) ColorIncome else MaterialTheme.colorScheme.onSurface
-            )
         }
     }
 }
@@ -501,18 +511,23 @@ private fun formatDisplayDate(dateStr: String): String {
     }
 
     try {
-        val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val date = parser.parse(dateStr)
+        val isoParser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        isoParser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = isoParser.parse(dateStr)
         if (date != null) {
-            val todayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-            val yesterdayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
-            if (dateStr == todayStr) return "Today"
-            if (dateStr == yesterdayStr) return "Yesterday"
-
-            val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-            return formatter.format(date)
+            val localFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val formattedInput = localFormatter.format(date)
+            
+            val todayStr = localFormatter.format(Date())
+            val yesterdayStr = localFormatter.format(Date(Date().time - 24 * 60 * 60 * 1000))
+            
+            if (formattedInput == todayStr) return "Today"
+            if (formattedInput == yesterdayStr) return "Yesterday"
+            
+            val displayFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            return displayFormatter.format(date)
         }
-    } catch (e: java.lang.Exception) {
+    } catch (e: Exception) {
         // ignore
     }
 
@@ -529,7 +544,23 @@ private fun formatDisplayDate(dateStr: String): String {
             val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return formatter.format(date)
         }
-    } catch (e: java.lang.Exception) {
+    } catch (e: Exception) {
+        // ignore
+    }
+
+    try {
+        val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val date = parser.parse(dateStr)
+        if (date != null) {
+            val todayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+            val yesterdayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
+            if (dateStr == todayStr) return "Today"
+            if (dateStr == yesterdayStr) return "Yesterday"
+            
+            val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            return formatter.format(date)
+        }
+    } catch (e: Exception) {
         // ignore
     }
 

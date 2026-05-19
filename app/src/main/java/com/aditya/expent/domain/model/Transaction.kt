@@ -9,7 +9,8 @@ data class Transaction(
     val type: TransactionType,
     val accountId: String? = null,
     val categoryId: String? = null,
-    val transferToAccountId: String? = null
+    val transferToAccountId: String? = null,
+    val paymentMethod: String? = null
 )
 
 enum class TransactionType {

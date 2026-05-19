@@ -44,4 +44,16 @@ class CategoryRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun deleteCategory(categoryId: String): Result<Unit> {
+        return try {
+            Log.d("rest re", "Request deleteCategory: categoryId=$categoryId")
+            apiService.deleteCategory(categoryId)
+            Log.d("rest re", "Response deleteCategory: Success")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("rest re", "Error deleteCategory: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }

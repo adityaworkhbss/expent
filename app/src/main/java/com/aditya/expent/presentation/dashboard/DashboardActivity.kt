@@ -39,20 +39,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
+import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.utils.CategoryUtils.getCategoryIconAndColor
 import com.aditya.expent.presentation.auth.AuthActivity
 import com.aditya.expent.presentation.transactions.TransactionActivity
 import com.aditya.expent.presentation.component.ExpentDatePicker
+import com.aditya.expent.presentation.profile.ProfileActivity
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
@@ -90,8 +92,8 @@ class DashboardActivity : ComponentActivity() {
                     val state by viewModel.state.collectAsState()
                     DashboardScreen(
                         state = state,
-                        onAddTransaction = { title, amount, category, type, date ->
-                            viewModel.addTransaction(title, amount, category, type, date)
+                        onAddTransaction = { title, amount, category, type, date, accountName, accountId ->
+                            viewModel.addTransaction(title, amount, category, type, date, accountName, accountId)
                         },
                         onDeleteTransaction = { id ->
                             viewModel.deleteTransaction(id)
@@ -107,7 +109,7 @@ class DashboardActivity : ComponentActivity() {
 @Composable
 fun DashboardScreen(
     state: DashboardState,
-    onAddTransaction: (String, Double, String, TransactionType, String) -> Unit,
+    onAddTransaction: (String, Double, String, TransactionType, String, String, String) -> Unit,
     onDeleteTransaction: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -115,7 +117,7 @@ fun DashboardScreen(
     var showBottomSheet by remember { mutableStateOf(false) }
     
     val visibleTransactions = if (isExpanded) state.recentTransactions else state.recentTransactions.take(3)
-    val groupedTransactions = visibleTransactions.groupBy { it.date }
+    val groupedTransactions = visibleTransactions.groupBy { formatDisplayDate(it.date) }
 
     Scaffold(
         floatingActionButton = {
@@ -164,7 +166,7 @@ fun DashboardScreen(
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.primaryContainer)
                                 .clickable {
-                                    context.startActivity(Intent(context, com.aditya.expent.presentation.profile.ProfileActivity::class.java))
+                                    context.startActivity(Intent(context, ProfileActivity::class.java))
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -247,10 +249,9 @@ fun DashboardScreen(
                         }
                     }
                 } else {
-                    groupedTransactions.forEach { (dateStr, transactionsForDay) ->
-                        item(key = "header_$dateStr") {
+                    groupedTransactions.forEach { (friendlyDate, transactionsForDay) ->
+                        item(key = "header_$friendlyDate") {
                             val netTotal = transactionsForDay.sumOf { it.amount }
-                            val friendlyDate = formatDisplayDate(dateStr)
                             
                             Row(
                                 modifier = Modifier
@@ -304,9 +305,10 @@ fun DashboardScreen(
             if (showBottomSheet) {
                 AddTransactionBottomSheet(
                     categories = state.categories,
+                    accounts = state.accounts,
                     onDismiss = { showBottomSheet = false },
-                    onSave = { title, amount, category, type, date ->
-                        onAddTransaction(title, amount, category, type, date)
+                    onSave = { title, amount, category, type, date, accountName, accountId ->
+                        onAddTransaction(title, amount, category, type, date, accountName, accountId)
                         showBottomSheet = false
                     }
                 )
@@ -531,54 +533,64 @@ fun TransactionItem(
         
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = transaction.title,
+                text = transaction.category,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            val paymentMode = transaction.paymentMethod ?: "Cash"
             Text(
-                text = transaction.category,
-                style = MaterialTheme.typography.labelMedium,
-                color = categoryColor,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(categoryColor.copy(alpha = 0.1f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                text = "via $paymentMode",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         
-        AnimatedVisibility(
-            visible = showDeleteIcon,
-            enter = fadeIn() + expandHorizontally(),
-            exit = fadeOut() + shrinkHorizontally()
+        Spacer(modifier = Modifier.width(10.dp))
+        
+        Box(
+            contentAlignment = Alignment.CenterEnd
         ) {
-            IconButton(
-                onClick = onDelete,
-                colors = IconButtonDefaults.iconButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showDeleteIcon,
+                enter = fadeIn() + expandHorizontally(),
+                exit = fadeOut() + shrinkHorizontally()
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete Transaction",
-                    modifier = Modifier.size(22.dp)
+                IconButton(
+                    onClick = onDelete,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete Transaction",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !showDeleteIcon,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Text(
+                    text = if (transaction.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", transaction.amount)}" else "- $ ${String.format("%.2f", Math.abs(transaction.amount))}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (transaction.type == TransactionType.INCOME) ColorIncome else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-        }
-
-        AnimatedVisibility(
-            visible = !showDeleteIcon,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Text(
-                text = if (transaction.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", transaction.amount)}" else "- $ ${String.format("%.2f", Math.abs(transaction.amount))}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (transaction.type == TransactionType.INCOME) ColorIncome else MaterialTheme.colorScheme.onSurface
-            )
         }
     }
 }
@@ -749,19 +761,14 @@ fun GlowFloatingActionButton(
 @Composable
 fun AddTransactionBottomSheet(
     categories: List<CategoryResponseDto>,
+    accounts: List<PaymentModeResponseDto>,
     onDismiss: () -> Unit,
-    onSave: (String, Double, String, TransactionType, String) -> Unit
+    onSave: (String, Double, String, TransactionType, String, String, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amountText by remember { mutableStateOf("") }
-    var titleText by remember { mutableStateOf("") }
 
     var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
-
-    val displayCategories = categories.map { cat ->
-        val iconAndColor = getCategoryIconAndColor(cat.name)
-        Triple(cat.name, iconAndColor.first, iconAndColor.second)
-    }
 
     var selectedCategory by remember(categories, selectedType) {
         val firstFiltered = categories.firstOrNull { cat ->
@@ -773,8 +780,33 @@ fun AddTransactionBottomSheet(
         }
         mutableStateOf(firstFiltered?.name ?: "Others")
     }
+
+    // Account filtering: INCOME shows PAY_NOW only, EXPENSE shows all accounts
+    val filteredAccounts = remember(accounts, selectedType) {
+        if (selectedType == TransactionType.INCOME) {
+            accounts.filter { it.type.equals("PAY_NOW", ignoreCase = true) }
+        } else {
+            accounts
+        }
+    }
+
+    var selectedAccountName by remember { mutableStateOf("") }
+    var selectedAccountId by remember { mutableStateOf("") }
+
+    LaunchedEffect(filteredAccounts) {
+        val currentExists = filteredAccounts.any { it.name == selectedAccountName }
+        if (!currentExists) {
+            filteredAccounts.firstOrNull()?.let {
+                selectedAccountName = it.name
+                selectedAccountId = it.id
+            }
+        }
+    }
+
     var selectedDateText by remember { mutableStateOf(getTodayDateString()) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    val activeColor = if (selectedType == TransactionType.INCOME) ColorIncome else ColorExpense
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -789,8 +821,9 @@ fun AddTransactionBottomSheet(
                 .navigationBarsPadding()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -799,50 +832,88 @@ fun AddTransactionBottomSheet(
                 Text(
                     text = "Add Transaction",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+                IconButton(
+                    onClick = onDismiss,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
+            // Interactive Segment Switcher (Income vs Expense)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(25.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .height(52.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                     .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val isExpense = selectedType == TransactionType.EXPENSE
+                
+                // Income Option
+                val incomeBgColor by animateColorAsState(
+                    targetValue = if (!isExpense) ColorIncome else Color.Transparent,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                    label = "IncomeBg"
+                )
+                val incomeTextColor by animateColorAsState(
+                    targetValue = if (!isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    label = "IncomeText"
+                )
+                
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(if (!isExpense) ColorIncome else Color.Transparent)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(incomeBgColor)
                         .clickable { selectedType = TransactionType.INCOME },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Income",
-                        color = if (!isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = incomeTextColor,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                // Expense Option
+                val expenseBgColor by animateColorAsState(
+                    targetValue = if (isExpense) ColorExpense else Color.Transparent,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                    label = "ExpenseBg"
+                )
+                val expenseTextColor by animateColorAsState(
+                    targetValue = if (isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    label = "ExpenseText"
+                )
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(if (isExpense) ColorExpense else Color.Transparent)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(expenseBgColor)
                         .clickable { selectedType = TransactionType.EXPENSE },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Expense",
-                        color = if (isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = expenseTextColor,
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -851,25 +922,32 @@ fun AddTransactionBottomSheet(
             // Big interactive amount indicator
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(activeColor.copy(alpha = 0.04f))
+                    .border(1.dp, activeColor.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
+                    .padding(vertical = 20.dp, horizontal = 16.dp)
             ) {
                 Text(
-                    text = "Enter Amount",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Amount",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    fontWeight = FontWeight.Medium
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
                         text = "$",
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (selectedType == TransactionType.INCOME) ColorIncome else ColorExpense
+                        style = MaterialTheme.typography.displayMedium.copy(fontSize = 44.sp),
+                        fontWeight = FontWeight.Black,
+                        color = activeColor
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     BasicTextField(
                         value = amountText,
                         onValueChange = {
@@ -878,41 +956,29 @@ fun AddTransactionBottomSheet(
                             }
                         },
                         textStyle = MaterialTheme.typography.displayMedium.copy(
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 44.sp,
                             textAlign = TextAlign.Start,
                             color = MaterialTheme.colorScheme.onSurface
                         ),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Decimal
                         ),
-                        cursorBrush = SolidColor(if (selectedType == TransactionType.INCOME) ColorIncome else ColorExpense),
+                        cursorBrush = SolidColor(activeColor),
                         modifier = Modifier
                             .width(IntrinsicSize.Min)
-                            .defaultMinSize(minWidth = 80.dp)
+                            .defaultMinSize(minWidth = 100.dp)
                     )
                 }
             }
 
-            // Description text field
-            OutlinedTextField(
-                value = titleText,
-                onValueChange = { titleText = it },
-                label = { Text("What was this for?") },
-                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                )
-            )
-
-            // Category scrollable row
+            // Category Selection
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Select Category",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 LazyRow(
@@ -920,21 +986,20 @@ fun AddTransactionBottomSheet(
                     contentPadding = PaddingValues(horizontal = 2.dp)
                 ) {
                     val filteredCategory = categories.filter { cat ->
-                            if (selectedType == TransactionType.INCOME) {
-                                cat.type.equals("income", ignoreCase = true)
-                            } else {
-                                cat.type.equals("expense", ignoreCase = true)
-                            }
-                        }.map { cat ->
-                            val iconAndColor = getCategoryIconAndColor(cat.name)
-                            Triple(cat.name, iconAndColor.first, iconAndColor.second)
+                        if (selectedType == TransactionType.INCOME) {
+                            cat.type.equals("income", ignoreCase = true)
+                        } else {
+                            cat.type.equals("expense", ignoreCase = true)
                         }
-
+                    }.map { cat ->
+                        val iconAndColor = getCategoryIconAndColor(cat.name)
+                        Triple(cat.name, iconAndColor.first, iconAndColor.second)
+                    }
 
                     items(filteredCategory) { (catName, icon, catColor) ->
                         val isSelected = selectedCategory == catName
                         val containerColor by animateColorAsState(
-                            targetValue = if (isSelected) catColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
+                            targetValue = if (isSelected) catColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             label = "ChipBg"
                         )
                         val contentColor by animateColorAsState(
@@ -942,7 +1007,7 @@ fun AddTransactionBottomSheet(
                             label = "ChipText"
                         )
                         val scale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.05f else 1f,
+                            targetValue = if (isSelected) 1.04f else 1f,
                             label = "ChipScale"
                         )
                         
@@ -954,7 +1019,7 @@ fun AddTransactionBottomSheet(
                             color = containerColor,
                             border = BorderStroke(
                                 width = 1.dp,
-                                color = if (isSelected) catColor else Color.Transparent
+                                color = if (isSelected) catColor.copy(alpha = 0.4f) else Color.Transparent
                             )
                         ) {
                             Row(
@@ -981,12 +1046,101 @@ fun AddTransactionBottomSheet(
                 }
             }
 
-            // Beautiful Date Row
+            // Select Account Selection (Filtered based on INCOME PAY_NOW / EXPENSE All)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Select Account",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                if (filteredAccounts.isEmpty()) {
+                    Text(
+                        text = "No applicable accounts found.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
+                    ) {
+                        items(filteredAccounts) { acc ->
+                            val isSelected = selectedAccountName == acc.name
+                            
+                            val accColor = when (acc.type.uppercase()) {
+                                "BANK" -> Color(0xFF2196F3)
+                                "CREDIT" -> Color(0xFFE91E63)
+                                "CASH" -> Color(0xFF4CAF50)
+                                else -> MaterialTheme.colorScheme.secondary
+                            }
+                            
+                            val containerColor by animateColorAsState(
+                                targetValue = if (isSelected) accColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                label = "AccChipBg"
+                            )
+                            val contentColor by animateColorAsState(
+                                targetValue = if (isSelected) accColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                label = "AccChipText"
+                            )
+                            val scale by animateFloatAsState(
+                                targetValue = if (isSelected) 1.04f else 1f,
+                                label = "AccChipScale"
+                            )
+                            
+                            Surface(
+                                modifier = Modifier
+                                    .scale(scale)
+                                    .clickable { 
+                                        selectedAccountName = acc.name
+                                        selectedAccountId = acc.id
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                color = containerColor,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isSelected) accColor.copy(alpha = 0.4f) else Color.Transparent
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    val icon = when (acc.type.uppercase()) {
+                                        "BANK" -> Icons.Default.AccountBalance
+                                        "CREDIT" -> Icons.Default.CreditCard
+                                        else -> Icons.Default.AccountBalanceWallet
+                                    }
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = acc.name,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = if (isSelected) accColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = acc.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = contentColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Beautiful Interactive Date Card
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
                     .clickable { showDatePicker = true }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -996,7 +1150,7 @@ fun AddTransactionBottomSheet(
                     Icon(
                         imageVector = Icons.Default.CalendarToday,
                         contentDescription = "Date",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = activeColor,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -1004,40 +1158,58 @@ fun AddTransactionBottomSheet(
                         Text(
                             text = "Transaction Date",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                         Text(
                             text = selectedDateText,
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
 
             // Save Trigger Button
-            val isEnabled = amountText.toDoubleOrNull()?.let { it > 0 } == true && titleText.isNotBlank()
+            val isEnabled = amountText.toDoubleOrNull()?.let { it > 0 } == true
+            
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val buttonScale by animateFloatAsState(
+                targetValue = if (isPressed) 0.96f else 1f,
+                label = "ButtonPress"
+            )
+
             Button(
                 onClick = {
                     val amt = amountText.toDoubleOrNull()
-                    if (amt != null && amt > 0 && titleText.isNotBlank()) {
-                        onSave(titleText, amt, selectedCategory, selectedType, selectedDateText)
+                    if (amt != null && amt > 0) {
+                        onSave(selectedCategory, amt, selectedCategory, selectedType, selectedDateText, selectedAccountName, selectedAccountId)
                     }
                 },
                 enabled = isEnabled,
+                interactionSource = interactionSource,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .shadow(if (isEnabled) 8.dp else 0.dp, RoundedCornerShape(28.dp)),
+                    .scale(buttonScale)
+                    .shadow(
+                        elevation = if (isEnabled) 12.dp else 0.dp,
+                        shape = RoundedCornerShape(28.dp),
+                        ambientColor = activeColor,
+                        spotColor = activeColor
+                    ),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = activeColor,
+                    contentColor = Color.White,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 )
             ) {
                 Text(
@@ -1069,18 +1241,23 @@ fun formatDisplayDate(dateStr: String): String {
     if (dateStr.equals("Today", ignoreCase = true) || dateStr.equals("Yesterday", ignoreCase = true)) {
         return dateStr
     }
-    
+
     try {
-        val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        val date = parser.parse(dateStr)
+        val isoParser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        isoParser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val date = isoParser.parse(dateStr)
         if (date != null) {
-            val todayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-            val yesterdayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
-            if (dateStr == todayStr) return "Today"
-            if (dateStr == yesterdayStr) return "Yesterday"
+            val localFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val formattedInput = localFormatter.format(date)
             
-            val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-            return formatter.format(date)
+            val todayStr = localFormatter.format(Date())
+            val yesterdayStr = localFormatter.format(Date(Date().time - 24 * 60 * 60 * 1000))
+            
+            if (formattedInput == todayStr) return "Today"
+            if (formattedInput == yesterdayStr) return "Yesterday"
+            
+            val displayFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            return displayFormatter.format(date)
         }
     } catch (e: Exception) {
         // ignore
@@ -1096,6 +1273,22 @@ fun formatDisplayDate(dateStr: String): String {
             if (formattedInput == todayStr) return "Today"
             if (formattedInput == yesterdayStr) return "Yesterday"
 
+            val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            return formatter.format(date)
+        }
+    } catch (e: Exception) {
+        // ignore
+    }
+
+    try {
+        val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val date = parser.parse(dateStr)
+        if (date != null) {
+            val todayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+            val yesterdayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
+            if (dateStr == todayStr) return "Today"
+            if (dateStr == yesterdayStr) return "Yesterday"
+            
             val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return formatter.format(date)
         }
@@ -1123,7 +1316,7 @@ fun DashboardActivityPreview() {
                         Transaction("3", "Netflix Subscription", -12.99, "14/05/2026", "Subscription", TransactionType.EXPENSE)
                     )
                 ),
-                onAddTransaction = { _, _, _, _, _ -> },
+                onAddTransaction = { _, _, _, _, _, _, _ -> },
                 onDeleteTransaction = {}
             )
         }

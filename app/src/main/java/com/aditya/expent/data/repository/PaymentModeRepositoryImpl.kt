@@ -45,4 +45,16 @@ class PaymentModeRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun deleteAccounts(id : String): Result<Unit> {
+        return try {
+            Log.d("rest re", "Request deleteAccounts")
+            val response = apiService.deleteAccount(id)
+            Log.d("rest re", "Response deleteAccounts: $response")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("rest re", "Error deleteAccounts: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 }

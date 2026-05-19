@@ -4,27 +4,22 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.*
+import androidx.activity.viewModels
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,26 +27,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.aditya.expent.domain.model.Transaction
-import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.domain.model.User
 import com.aditya.expent.presentation.auth.AuthActivity
-import com.aditya.expent.presentation.dashboard.DashboardScreen
-import com.aditya.expent.presentation.dashboard.DashboardState
+import com.aditya.expent.presentation.dashboard.DashboardViewModel
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
-import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -62,6 +53,8 @@ class ProfileActivity : ComponentActivity() {
 
     @Inject
     lateinit var sessionManager: SessionManager
+
+    private val viewModel : DashboardViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +101,7 @@ fun ProfileScreen(
     var showCategoriesManager by remember { mutableStateOf(false) }
     var showAppSettings by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     // Shared preferences states (mocked with initial values)
     var remindersEnabled by remember { mutableStateOf(true) }
@@ -181,12 +175,12 @@ fun ProfileScreen(
                     drawCircle(
                         color = Color.White.copy(alpha = 0.05f),
                         radius = 120.dp.toPx(),
-                        center = androidx.compose.ui.geometry.Offset(x = size.width - 20.dp.toPx(), y = 30.dp.toPx())
+                        center = Offset(x = size.width - 20.dp.toPx(), y = 30.dp.toPx())
                     )
                     drawCircle(
                         color = Color.White.copy(alpha = 0.03f),
                         radius = 80.dp.toPx(),
-                        center = androidx.compose.ui.geometry.Offset(x = 10.dp.toPx(), y = size.height - 20.dp.toPx())
+                        center = Offset(x = 10.dp.toPx(), y = size.height - 20.dp.toPx())
                     )
                 }
 
@@ -377,6 +371,16 @@ fun ProfileScreen(
                         icon = Icons.Default.Settings,
                         iconColor = Color(0xFF558B2F),
                         onClick = { showAppSettings = true }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+
+                    ProfileOptionRow(
+                        title = "Help us improve",
+                        subtitle = "Share your feedback & suggest features",
+                        icon = Icons.Default.Feedback,
+                        iconColor = Color(0xFF00ACC1),
+                        onClick = { showFeedbackDialog = true }
                     )
                 }
             }
@@ -955,6 +959,168 @@ fun ProfileScreen(
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Text("Log Out", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 6. HELP US IMPROVE DIALOG
+    if (showFeedbackDialog) {
+        var feedbackRating by remember { mutableStateOf(5) }
+        var feedbackText by remember { mutableStateOf("") }
+        var feedbackSubmittedState by remember { mutableStateOf(false) }
+
+        Dialog(
+            onDismissRequest = { showFeedbackDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .shadow(16.dp, RoundedCornerShape(28.dp))
+                    .border(1.dp, Color(0xFF00ACC1).copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (!feedbackSubmittedState) {
+                        Text(
+                            text = "Help Us Improve",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "How would you rate your experience so far?",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Star rating selector
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            (1..5).forEach { starIndex ->
+                                val isSelected = starIndex <= feedbackRating
+                                val starScale by animateFloatAsState(
+                                    targetValue = if (isSelected) 1.2f else 1f,
+                                    label = "StarScale"
+                                )
+                                Icon(
+                                    imageVector = if (isSelected) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "Star $starIndex",
+                                    tint = if (isSelected) Color(0xFFFFB300) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .scale(starScale)
+                                        .clickable { feedbackRating = starIndex }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        OutlinedTextField(
+                            value = feedbackText,
+                            onValueChange = { feedbackText = it },
+                            label = { Text("What can we improve?") },
+                            placeholder = { Text("Describe your issues or suggest new features here...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF00ACC1),
+                                focusedLabelColor = Color(0xFF00ACC1)
+                            ),
+                            maxLines = 4
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { showFeedbackDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    feedbackSubmittedState = true
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Text("Submit", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else {
+                        // Success State
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF4CAF50).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Success",
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Thank You!",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Your feedback is incredibly valuable to us. We will use it to build a better experience for everyone!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Button(
+                            onClick = { showFeedbackDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00ACC1)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

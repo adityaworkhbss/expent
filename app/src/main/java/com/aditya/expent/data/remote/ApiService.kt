@@ -14,13 +14,12 @@ import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import com.aditya.expent.data.remote.dto.OnboardingStepRequestDto
 import com.aditya.expent.data.remote.dto.PaginatedTransactionsResponseDto
-import com.aditya.expent.data.remote.dto.TransactionQueryDto
 import com.aditya.expent.data.remote.dto.CreateTransactionRequestDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
-import retrofit2.http.Header
 import retrofit2.http.Query
 
 interface ApiService {
@@ -64,4 +63,10 @@ interface ApiService {
 
     @GET("accounts")
     suspend fun getAccounts(): List<PaymentModeResponseDto>
+
+    @DELETE("categories/{id}")
+    suspend fun deleteCategory( @Query("id") categoryId: String)
+
+    @DELETE("accounts/{id}")
+    suspend fun deleteAccount( @Query("id") accountId: String)
 }
