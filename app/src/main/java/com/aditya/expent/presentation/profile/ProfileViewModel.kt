@@ -4,10 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
+import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
+import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.domain.usecase.DeleteCategoriesUseCase
+import com.aditya.expent.domain.usecase.DeletePaymentModeUseCase
 import com.aditya.expent.domain.usecase.GetAccountsUseCase
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
+import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,8 +30,9 @@ class ProfileViewModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,
     private val deleteCategoriesUseCase: DeleteCategoriesUseCase,
-    private val saveCategoriesUseCase: DeleteCategoriesUseCase,
-    private val savePaymentModesUseCase: SavePaymentModesUseCase
+    private val saveCategoriesUseCase: SaveCategoriesUseCase,
+    private val savePaymentModesUseCase: SavePaymentModesUseCase,
+    private val deletePaymentModesUseCase: DeletePaymentModeUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -68,9 +73,9 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun saveCategory(categoryId: String, name: String) {
+    fun saveCategory(name: String, type: String) {
         viewModelScope.launch {
-            saveCategoriesUseCase(categoryId).onSuccess {
+            saveCategoriesUseCase(listOf(OnboardCategory(name = name, type = type))).onSuccess {
                 loadCategories() // Refresh categories after saving
             }.onFailure {
                 // Handle error if needed
@@ -78,10 +83,20 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun savePaymentMode(paymentModes : List<OnboardPaymentMode>) {
+    fun savePaymentMode(name: String, type: String) {
         viewModelScope.launch {
-            savePaymentModesUseCase(paymentModes).onSuccess {
+            savePaymentModesUseCase(listOf(OnboardPaymentMode(name = name, type = type))).onSuccess {
                 loadAccounts() // Refresh accounts after saving
+            }.onFailure {
+                // Handle error if needed
+            }
+        }
+    }
+
+    fun deletePaymentMode(id: String) {
+        viewModelScope.launch {
+            deletePaymentModesUseCase(id).onSuccess {
+                loadAccounts() // Refresh accounts after deletion
             }.onFailure {
                 // Handle error if needed
             }

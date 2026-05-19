@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,10 +42,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.aditya.expent.domain.model.User
 import com.aditya.expent.presentation.auth.AuthActivity
-import com.aditya.expent.presentation.dashboard.DashboardViewModel
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorExpense
+import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -54,7 +56,7 @@ class ProfileActivity : ComponentActivity() {
     @Inject
     lateinit var sessionManager: SessionManager
 
-    private val viewModel : DashboardViewModel by viewModels()
+    private val viewModel : ProfileViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,8 +67,11 @@ class ProfileActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val state by viewModel.state.collectAsState()
                     ProfileScreen(
+                        state = state,
                         sessionManager = sessionManager,
+                        viewModel = viewModel,
                         onBack = { finish() },
                         onLogout = {
                             sessionManager.logout()
@@ -86,6 +91,8 @@ class ProfileActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    state: ProfileState,
+    viewModel: ProfileViewModel? = null,
     sessionManager: SessionManager? = null,
     currentUser: User? = null,
     onBack: () -> Unit = {},
@@ -105,10 +112,11 @@ fun ProfileScreen(
 
     // Shared preferences states (mocked with initial values)
     var remindersEnabled by remember { mutableStateOf(true) }
-    var paymentModes = remember { mutableStateListOf("💳 HDFC Credit Card", "📱 UPI / GPay", "💵 Cash Wallet", "🏦 SBI Account") }
-    var categories = remember { mutableStateListOf("Food", "Subscription", "Work", "Job", "Shopping", "Travel", "Leisure", "Others") }
     var isDarkModeEnabled by remember { mutableStateOf(false) }
     var selectedCurrency by remember { mutableStateOf("USD ($)") }
+
+    var paymentModes = state.accounts
+    var categories = state.categories
 
     LazyColumn(
         modifier = Modifier
@@ -510,6 +518,7 @@ fun ProfileScreen(
     // 2. PAYMENT MODES MANAGER DIALOG
     if (showPaymentModes) {
         var newPaymentModeText by remember { mutableStateOf("") }
+        var newPaymentModeType by remember { mutableStateOf("PAY_NOW") }
 
         Dialog(
             onDismissRequest = { showPaymentModes = false },
@@ -518,7 +527,7 @@ fun ProfileScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.6f)
+                    .fillMaxHeight(0.7f)
                     .shadow(16.dp, RoundedCornerShape(28.dp))
                     .border(1.dp, Color(0xFF0288D1).copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
                 shape = RoundedCornerShape(28.dp),
@@ -538,34 +547,83 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Input row to add new card
-                    Row(
+                    // Input & selector column to add new payment mode
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        OutlinedTextField(
-                            value = newPaymentModeText,
-                            onValueChange = { newPaymentModeText = it },
-                            placeholder = { Text("e.g. UPI, ICICI Card...") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF0288D1)
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        IconButton(
-                            onClick = {
-                                if (newPaymentModeText.isNotBlank()) {
-                                    paymentModes.add(newPaymentModeText)
-                                    newPaymentModeText = ""
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFF0288D1), contentColor = Color.White),
-                            modifier = Modifier.size(50.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add Mode")
+                            OutlinedTextField(
+                                value = newPaymentModeText,
+                                onValueChange = { newPaymentModeText = it },
+                                placeholder = { Text("e.g. UPI, ICICI Card...") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF0288D1)
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            IconButton(
+                                onClick = {
+                                    if (newPaymentModeText.isNotBlank()) {
+                                        viewModel?.savePaymentMode(newPaymentModeText.trim(), newPaymentModeType)
+                                        newPaymentModeText = ""
+                                    }
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFF0288D1), contentColor = Color.White),
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Add Mode")
+                            }
+                        }
+
+                        // Type selector for new payment mode
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("PAY_NOW", "PAY_LATER").forEach { type ->
+                                val isSel = newPaymentModeType == type
+                                Surface(
+                                    onClick = { newPaymentModeType = type },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSel) Color(0xFF0288D1) else Color.Transparent,
+                                            shape = RoundedCornerShape(12.dp)
+                                        ),
+                                    color = if (isSel) Color(0xFF0288D1).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (isSel) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = Color(0xFF0288D1),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                        }
+                                        Text(
+                                            text = if (type == "PAY_NOW") "Pay Now" else "Pay Later",
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSel) Color(0xFF0288D1) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -593,17 +651,34 @@ fun ProfileScreen(
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = mode,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
+                                Column {
+                                    Text(
+                                        text = mode.name,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Surface(
+                                        color = if (mode.type == "PAY_LATER") Color(0xFFE91E63).copy(alpha = 0.15f) else Color(0xFF0288D1).copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (mode.type == "PAY_LATER") "PAY LATER" else "PAY NOW",
+                                            color = if (mode.type == "PAY_LATER") Color(0xFFE91E63) else Color(0xFF0288D1),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                                 IconButton(
-                                    onClick = { paymentModes.remove(mode) },
+                                    onClick = {
+                                        viewModel?.deletePaymentMode(mode.id)
+                                    },
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
@@ -637,6 +712,7 @@ fun ProfileScreen(
     // 3. CATEGORIES MANAGER DIALOG
     if (showCategoriesManager) {
         var newCategoryText by remember { mutableStateOf("") }
+        var newCategoryType by remember { mutableStateOf("EXPENSE") }
 
         Dialog(
             onDismissRequest = { showCategoriesManager = false },
@@ -645,7 +721,7 @@ fun ProfileScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.65f)
+                    .fillMaxHeight(0.72f)
                     .shadow(16.dp, RoundedCornerShape(28.dp))
                     .border(1.dp, Color(0xFFAB47BC).copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
                 shape = RoundedCornerShape(28.dp),
@@ -665,33 +741,83 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
+                    // Input & selector column to add new category
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        OutlinedTextField(
-                            value = newCategoryText,
-                            onValueChange = { newCategoryText = it },
-                            placeholder = { Text("e.g. Gift, Fuel...") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFFAB47BC)
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        IconButton(
-                            onClick = {
-                                if (newCategoryText.isNotBlank()) {
-                                    categories.add(newCategoryText)
-                                    newCategoryText = ""
-                                }
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFFAB47BC), contentColor = Color.White),
-                            modifier = Modifier.size(50.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add Category")
+                            OutlinedTextField(
+                                value = newCategoryText,
+                                onValueChange = { newCategoryText = it },
+                                placeholder = { Text("e.g. Gift, Fuel...") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFFAB47BC)
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            IconButton(
+                                onClick = {
+                                    if (newCategoryText.isNotBlank()) {
+                                        viewModel?.saveCategory(newCategoryText.trim(), newCategoryType)
+                                        newCategoryText = ""
+                                    }
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFFAB47BC), contentColor = Color.White),
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Add Category")
+                            }
+                        }
+
+                        // Type selector for new category
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf("EXPENSE", "INCOME").forEach { type ->
+                                val isSel = newCategoryType == type
+                                Surface(
+                                    onClick = { newCategoryType = type },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSel) Color(0xFFAB47BC) else Color.Transparent,
+                                            shape = RoundedCornerShape(12.dp)
+                                        ),
+                                    color = if (isSel) Color(0xFFAB47BC).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (isSel) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = Color(0xFFAB47BC),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                        }
+                                        Text(
+                                            text = if (type == "EXPENSE") "Expense" else "Income",
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSel) Color(0xFFAB47BC) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -718,34 +844,52 @@ fun ProfileScreen(
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(30.dp)
+                                            .size(40.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFFAB47BC).copy(alpha = 0.15f)),
+                                            .background(
+                                                if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f)
+                                                else ColorExpense.copy(alpha = 0.15f)
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            Icons.Default.Folder,
+                                            imageVector = if (cat.type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                                             contentDescription = null,
-                                            tint = Color(0xFFAB47BC),
-                                            modifier = Modifier.size(16.dp)
+                                            tint = if (cat.type == "INCOME") ColorIncome else ColorExpense,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = cat,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Column {
+                                        Text(
+                                            text = cat.name,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Surface(
+                                            color = if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (cat.type == "INCOME") "INCOME" else "EXPENSE",
+                                                color = if (cat.type == "INCOME") ColorIncome else ColorExpense,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
                                 }
                                 IconButton(
-                                    onClick = { categories.remove(cat) },
+                                    onClick = { viewModel?.deleteCategory(cat.id) },
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
@@ -1194,6 +1338,7 @@ fun ProfileActivityPreview() {
     ExpentTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             ProfileScreen(
+                state = ProfileState(),
                 currentUser = User(
                     id = "1",
                     name = "John Doe",
