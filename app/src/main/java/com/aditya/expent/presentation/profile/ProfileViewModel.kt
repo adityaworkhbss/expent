@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
@@ -13,8 +14,10 @@ import com.aditya.expent.domain.usecase.GetAccountsUseCase
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
+import com.aditya.expent.domain.usecase.GetCustomizationUseCase
+import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +27,9 @@ data class ProfileState(
     val categories: List<CategoryResponseDto> = emptyList(),
     val accounts: List<PaymentModeResponseDto> = emptyList(),
     val userName: String = "User",
-    val email: String = ""
+    val email: String = "",
+    val aiTransaction: Boolean = false,
+    val reminder: Boolean = false
 )
 
 @HiltViewModel
@@ -34,7 +39,9 @@ class ProfileViewModel @Inject constructor(
     private val deleteCategoriesUseCase: DeleteCategoriesUseCase,
     private val saveCategoriesUseCase: SaveCategoriesUseCase,
     private val savePaymentModesUseCase: SavePaymentModesUseCase,
-    private val deletePaymentModesUseCase: DeletePaymentModeUseCase
+    private val deletePaymentModesUseCase: DeletePaymentModeUseCase,
+    private val getCustomizationUseCase: GetCustomizationUseCase,
+    private val updateCustomizationUseCase: UpdateCustomizationUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -43,6 +50,7 @@ class ProfileViewModel @Inject constructor(
     init {
         loadCategories()
         loadAccounts()
+        loadCustomization()
     }
 
     fun loadCategories() {
@@ -105,5 +113,38 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun loadCustomization() {
+        Log.d("ProfileViewModel", "loadCustomization: Calling getCustomizationUseCase")
+        viewModelScope.launch {
+            getCustomizationUseCase().onSuccess { customization ->
+                Log.d("ProfileViewModel", "loadCustomization SUCCESS: retrieved customization -> aiTransaction = ${customization.aiTransaction}, reminder = ${customization.reminder}")
+                _state.value = _state.value.copy(
+                    aiTransaction = customization.aiTransaction,
+                    reminder = customization.reminder
+                )
+            }.onFailure {
+                Log.e("ProfileViewModel", "loadCustomization FAILURE: unable to load customization from repository", it)
+                // Keep default on error
+            }
+        }
+    }
+
+    fun updateCustomization(aiTransaction: Boolean, reminder: Boolean) {
+        Log.d("ProfileViewModel", "updateCustomization: aiTransaction = $aiTransaction, reminder = $reminder")
+        viewModelScope.launch {
+            // Optimistic update
+            _state.value = _state.value.copy(
+                aiTransaction = aiTransaction,
+                reminder = reminder
+            )
+            updateCustomizationUseCase(aiTransaction, reminder).onSuccess {
+                Log.d("ProfileViewModel", "updateCustomization SUCCESS")
+            }.onFailure {
+                Log.e("ProfileViewModel", "updateCustomization FAILURE: reverting to cached customization", it)
+                // Revert or handle error, we could reload
+                loadCustomization()
+            }
+        }
+    }
 
 }

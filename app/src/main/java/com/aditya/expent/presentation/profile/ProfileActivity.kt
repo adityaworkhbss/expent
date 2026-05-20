@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.profile
 
+import android.util.Log
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -101,6 +102,7 @@ fun ProfileScreen(
     // Current user state loaded directly from sessionManager or passed preview user
     var currentUserState by remember { mutableStateOf(currentUser ?: sessionManager?.getUser()) }
     val displayUser = currentUserState ?: User("0", "aditya@expent.com", "Aditya Sharma", "tok", "ref", 1)
+    Log.d("ProfileActivity", "ProfileScreen Composing: state.reminder = ${state.reminder}, state.aiTransaction = ${state.aiTransaction}")
 
     // Option Dialog States
     var showEditProfile by remember { mutableStateOf(false) }
@@ -110,8 +112,7 @@ fun ProfileScreen(
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
 
-    // Shared preferences states (mocked with initial values)
-    var remindersEnabled by remember { mutableStateOf(true) }
+    // Shared preferences states (handled via state)
     var isDarkModeEnabled by remember { mutableStateOf(false) }
     var selectedCurrency by remember { mutableStateOf("USD ($)") }
 
@@ -362,17 +363,20 @@ fun ProfileScreen(
                             )
                         }
                         Switch(
-                            checked = remindersEnabled,
-                            onCheckedChange = { remindersEnabled = it },
+                            checked = state.reminder,
+                            onCheckedChange = { 
+                                Log.d("ProfileActivity", "Daily Reminders switch toggled: $it")
+                                viewModel?.updateCustomization(aiTransaction = state.aiTransaction, reminder = it)
+                            },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = EmeraldPrimary
                             )
                         )
                     }
-
+ 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
-
+ 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -408,8 +412,11 @@ fun ProfileScreen(
                             )
                         }
                         Switch(
-                            checked = remindersEnabled,
-                            onCheckedChange = { remindersEnabled = it },
+                            checked = state.aiTransaction,
+                            onCheckedChange = { 
+                                Log.d("ProfileActivity", "AI Based Transaction switch toggled: $it")
+                                viewModel?.updateCustomization(aiTransaction = it, reminder = state.reminder)
+                            },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = EmeraldPrimary

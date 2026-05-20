@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.dashboard
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.Transaction
@@ -10,6 +11,7 @@ import com.aditya.expent.domain.usecase.GetAccountsUseCase
 import com.aditya.expent.domain.usecase.AddTransactionsUseCase
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
+import com.aditya.expent.domain.usecase.GetCustomizationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +27,9 @@ data class DashboardState(
     val recentTransactions: List<Transaction> = emptyList(),
     val categories: List<CategoryResponseDto> = emptyList(),
     val accounts: List<PaymentModeResponseDto> = emptyList(),
-    val userName: String = "User"
+    val userName: String = "User",
+    val aiTransaction: Boolean = false,
+    val reminder: Boolean = false
 )
 
 @HiltViewModel
@@ -33,7 +37,8 @@ class DashboardViewModel @Inject constructor(
     private val getTransactionUseCase: GetTransactionUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,
-    private val addTransactionsUseCase: AddTransactionsUseCase
+    private val addTransactionsUseCase: AddTransactionsUseCase,
+    private val getCustomizationUseCase: GetCustomizationUseCase
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(DashboardState())
@@ -43,6 +48,23 @@ class DashboardViewModel @Inject constructor(
         loadTransactions()
         loadCategories()
         loadAccounts()
+        loadCustomization()
+    }
+
+    fun loadCustomization(){
+        Log.d("DashboardViewModel", "loadCustomization: Calling getCustomizationUseCase")
+        viewModelScope.launch {
+            getCustomizationUseCase().onSuccess { customization ->
+                Log.d("DashboardViewModel", "loadCustomization SUCCESS: retrieved customization -> aiTransaction = ${customization.aiTransaction}, reminder = ${customization.reminder}")
+                _state.value = _state.value.copy(
+                    aiTransaction = customization.aiTransaction,
+                    reminder = customization.reminder
+                )
+            }.onFailure {
+                Log.e("DashboardViewModel", "loadCustomization FAILURE: unable to load customization from repository", it)
+                // Keep default on error
+            }
+        }
     }
 
     fun loadTransactions() {

@@ -16,6 +16,7 @@ import com.aditya.expent.data.remote.dto.OnboardingStepRequestDto
 import com.aditya.expent.data.remote.dto.PaginatedTransactionsResponseDto
 import com.aditya.expent.data.remote.dto.CreateTransactionRequestDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
+import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -70,4 +71,10 @@ interface ApiService {
 
     @DELETE("accounts/{id}")
     suspend fun deleteAccount( @Path("id") accountId: String)
+
+    @GET("user-customization")
+    suspend fun getUserCustomization(): UserCustomizationResponseDto
+
+    @POST("user-customization")
+    suspend fun updateUserCustomization(@Body request: UserCustomizationResponseDto): UserCustomizationResponseDto
 }

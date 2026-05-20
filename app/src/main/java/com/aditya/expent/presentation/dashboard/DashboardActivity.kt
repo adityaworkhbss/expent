@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.dashboard
 
+import android.util.Log
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -106,6 +107,12 @@ class DashboardActivity : ComponentActivity() {
             }
         }
     }
+    override fun onResume() {
+        super.onResume()
+        Log.d("DashboardActivity", "onResume: Reloading customizations via viewModel.loadCustomization()")
+        // Reload customizations in case they were updated in ProfileActivity
+        viewModel.loadCustomization()
+    }
 }
 
 data class Reminder(
@@ -127,6 +134,7 @@ fun DashboardScreen(
     onAddAiTransaction: (String) -> Unit
 ) {
     val context = LocalContext.current
+    Log.d("DashboardActivity", "DashboardScreen Composing: state.reminder = ${state.reminder}, state.aiTransaction = ${state.aiTransaction}")
     var isExpanded by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
     
@@ -239,7 +247,7 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    if (reminders.isNotEmpty()) {
+                    if (state.reminder && reminders.isNotEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -393,6 +401,7 @@ fun DashboardScreen(
                 AddTransactionBottomSheet(
                     categories = state.categories,
                     accounts = state.accounts,
+                    aiTransactionEnabled = state.aiTransaction,
                     onDismiss = { showBottomSheet = false },
                     onSave = { title, amount, category, type, date, accountName, accountId ->
                         onAddTransaction(title, amount, category, type, date, accountName, accountId)
@@ -1441,11 +1450,13 @@ fun GlowFloatingActionButton(
 fun AddTransactionBottomSheet(
     categories: List<CategoryResponseDto>,
     accounts: List<PaymentModeResponseDto>,
+    aiTransactionEnabled: Boolean,
     onDismiss: () -> Unit,
     onSave: (String, Double, String, TransactionType, String, String, String) -> Unit,
     onAiSave: (String) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    Log.d("DashboardActivity", "AddTransactionBottomSheet: aiTransactionEnabled = $aiTransactionEnabled")
     var amountText by remember { mutableStateOf("") }
 
     var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
@@ -1530,57 +1541,11 @@ fun AddTransactionBottomSheet(
                 }
             }
 
-            var inputMode by remember { mutableStateOf("Manual") }
-
-            // Custom Tab Switcher for Manual vs Smart AI
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp)
-                    .clip(RoundedCornerShape(23.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                    .padding(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val isSmart = inputMode == "Smart"
-                
-                // Manual Option
-                val manualBg by animateColorAsState(if (!isSmart) MaterialTheme.colorScheme.primary else Color.Transparent, label = "ManualBg")
-                val manualText by animateColorAsState(if (!isSmart) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, label = "ManualText")
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(manualBg)
-                        .clickable { inputMode = "Manual" },
-                    contentAlignment = Alignment.Center
-                ) { 
-                    Text("Manual Entry", color = manualText, fontWeight = FontWeight.Bold, fontSize = 14.sp) 
-                }
-                
-                // Smart AI Option
-                val smartBg by animateColorAsState(if (isSmart) Color(0xFF6200EA) else Color.Transparent, label = "SmartBg")
-                val smartText by animateColorAsState(if (isSmart) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, label = "SmartText")
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(19.dp))
-                        .background(smartBg)
-                        .clickable { inputMode = "Smart" },
-                    contentAlignment = Alignment.Center
-                ) {
-                   Row(verticalAlignment = Alignment.CenterVertically) {
-                       Icon(Icons.Default.AutoAwesome, contentDescription=null, tint=smartText, modifier=Modifier.size(16.dp))
-                       Spacer(Modifier.width(6.dp))
-                       Text("Smart AI", color = smartText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                   }
-                }
-            }
+            val finalInputMode = if (aiTransactionEnabled) "Smart" else "Manual"
+            Log.d("DashboardActivity", "AddTransactionBottomSheet: Rendering with finalInputMode = $finalInputMode, aiTransactionEnabled = $aiTransactionEnabled")
 
             AnimatedContent(
-                targetState = inputMode,
+                targetState = finalInputMode,
                 transitionSpec = {
                     fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
                 },

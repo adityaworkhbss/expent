@@ -25,6 +25,15 @@ class SessionManager @Inject constructor(
         return if (json != null) gson.fromJson(json, User::class.java) else null
     }
 
+    fun saveCustomization(customization: com.aditya.expent.data.remote.dto.UserCustomizationResponseDto) {
+        prefs.edit().putString("user_customization", gson.toJson(customization)).apply()
+    }
+
+    fun getCustomization(): com.aditya.expent.data.remote.dto.UserCustomizationResponseDto? {
+        val json = prefs.getString("user_customization", null)
+        return if (json != null) gson.fromJson(json, com.aditya.expent.data.remote.dto.UserCustomizationResponseDto::class.java) else null
+    }
+
     fun setOnboardingComplete(complete: Boolean) {
         prefs.edit().putBoolean("onboarding_complete", complete).apply()
     }
