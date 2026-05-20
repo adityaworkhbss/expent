@@ -13,6 +13,7 @@ import com.aditya.expent.domain.usecase.GetAccountsUseCase
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,7 @@ data class ProfileState(
     val email: String = ""
 )
 
+@HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,

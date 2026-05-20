@@ -20,6 +20,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
@@ -65,8 +66,8 @@ interface ApiService {
     suspend fun getAccounts(): List<PaymentModeResponseDto>
 
     @DELETE("categories/{id}")
-    suspend fun deleteCategory( @Query("id") categoryId: String)
+    suspend fun deleteCategory( @Path("id") categoryId: String)
 
     @DELETE("accounts/{id}")
-    suspend fun deleteAccount( @Query("id") accountId: String)
+    suspend fun deleteAccount( @Path("id") accountId: String)
 }

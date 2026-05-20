@@ -97,6 +97,9 @@ class DashboardActivity : ComponentActivity() {
                         },
                         onDeleteTransaction = { id ->
                             viewModel.deleteTransaction(id)
+                        },
+                        onAddAiTransaction = { text ->
+                            viewModel.addAiTransaction(text)
                         }
                     )
                 }
@@ -105,16 +108,63 @@ class DashboardActivity : ComponentActivity() {
     }
 }
 
+data class Reminder(
+    val id: String,
+    val title: String,
+    val description: String,
+    val amount: Double,
+    val dueDate: String,
+    val category: String,
+    val type: TransactionType
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     state: DashboardState,
     onAddTransaction: (String, Double, String, TransactionType, String, String, String) -> Unit,
-    onDeleteTransaction: (String) -> Unit
+    onDeleteTransaction: (String) -> Unit,
+    onAddAiTransaction: (String) -> Unit
 ) {
     val context = LocalContext.current
     var isExpanded by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var selectedReminderForDialog by remember { mutableStateOf<Reminder?>(null) }
+    var showEditReminderSheet by remember { mutableStateOf(false) }
+    var selectedReminderForEdit by remember { mutableStateOf<Reminder?>(null) }
+    val reminders = remember {
+        mutableStateListOf(
+            Reminder(
+                id = "1",
+                title = "Electricity Bill",
+                description = "Electricity bill due in 3 days",
+                amount = 45.50,
+                dueDate = "Sep 30, 2026",
+                category = "Bills",
+                type = TransactionType.EXPENSE
+            ),
+            Reminder(
+                id = "2",
+                title = "Netflix Subscription",
+                description = "Standard plan renewal",
+                amount = 15.99,
+                dueDate = "Oct 05, 2026",
+                category = "Subscription",
+                type = TransactionType.EXPENSE
+            ),
+            Reminder(
+                id = "3",
+                title = "Salary / Paycheck",
+                description = "Monthly direct deposit",
+                amount = 2500.00,
+                dueDate = "Oct 01, 2026",
+                category = "Job",
+                type = TransactionType.INCOME
+            )
+        )
+    }
     
     val visibleTransactions = if (isExpanded) state.recentTransactions else state.recentTransactions.take(3)
     val groupedTransactions = visibleTransactions.groupBy { formatDisplayDate(it.date) }
@@ -188,6 +238,43 @@ fun DashboardScreen(
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
+
+                    if (reminders.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "Upcoming Reminders",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp, top = 12.dp)
+                            )
+                            
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            ) {
+                                items(reminders, key = { it.id }) { reminder ->
+                                    ReminderCard(
+                                        reminder = reminder,
+                                        onTick = {
+                                            selectedReminderForDialog = reminder
+                                            showConfirmDialog = true
+                                        },
+                                        onEdit = {
+                                            selectedReminderForEdit = reminder
+                                            showEditReminderSheet = true
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
 
                     // Transactions Section Header
                     Row(
@@ -310,8 +397,600 @@ fun DashboardScreen(
                     onSave = { title, amount, category, type, date, accountName, accountId ->
                         onAddTransaction(title, amount, category, type, date, accountName, accountId)
                         showBottomSheet = false
+                    },
+                    onAiSave = { aiText ->
+                        onAddAiTransaction(aiText)
+                        showBottomSheet = false
                     }
                 )
+            }
+
+            // REMINDER CONFIRMATION DIALOG
+            if (showConfirmDialog && selectedReminderForDialog != null) {
+                val reminder = selectedReminderForDialog!!
+                AlertDialog(
+                    onDismissRequest = { 
+                        showConfirmDialog = false
+                        selectedReminderForDialog = null
+                    },
+                    shape = RoundedCornerShape(28.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    title = {
+                        Text(
+                            text = "Add to Transactions?",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Do you want to add this reminder into your transactions?",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (reminder.type == TransactionType.INCOME) ColorIncome.copy(alpha = 0.15f)
+                                                else ColorExpense.copy(alpha = 0.15f)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        val icon = when (reminder.category.lowercase()) {
+                                            "food" -> Icons.Default.Restaurant
+                                            "subscription" -> Icons.Default.Subscriptions
+                                            "work" -> Icons.Default.Work
+                                            "job" -> Icons.Default.BusinessCenter
+                                            "shopping" -> Icons.Default.ShoppingCart
+                                            "travel" -> Icons.Default.Flight
+                                            "entertainment", "leisure" -> Icons.Default.LocalPlay
+                                            else -> Icons.Default.Category
+                                        }
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = reminder.category,
+                                            tint = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = reminder.title,
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = reminder.category,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    
+                                    Text(
+                                        text = if (reminder.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", reminder.amount)}" else "- $ ${String.format("%.2f", reminder.amount)}",
+                                        fontWeight = FontWeight.Black,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val firstAccount = state.accounts.firstOrNull()
+                                val accountName = firstAccount?.name ?: "Cash"
+                                val accountId = firstAccount?.id ?: ""
+                                
+                                onAddTransaction(
+                                    reminder.title,
+                                    reminder.amount,
+                                    reminder.category,
+                                    reminder.type,
+                                    getTodayDateString(),
+                                    accountName,
+                                    accountId
+                                )
+                                
+                                reminders.remove(reminder)
+                                
+                                showConfirmDialog = false
+                                selectedReminderForDialog = null
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Yes, Add", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                showConfirmDialog = false
+                                selectedReminderForDialog = null
+                            }
+                        ) {
+                            Text(
+                                "Cancel",
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                )
+            }
+
+            // EDIT REMINDER BOTTOM SHEET
+            if (showEditReminderSheet && selectedReminderForEdit != null) {
+                EditReminderBottomSheet(
+                    reminder = selectedReminderForEdit!!,
+                    categories = state.categories,
+                    onDismiss = {
+                        showEditReminderSheet = false
+                        selectedReminderForEdit = null
+                    },
+                    onSave = { updatedReminder ->
+                        val index = reminders.indexOfFirst { it.id == updatedReminder.id }
+                        if (index != -1) {
+                            reminders[index] = updatedReminder
+                        }
+                        showEditReminderSheet = false
+                        selectedReminderForEdit = null
+                    },
+                    onDelete = {
+                        val reminderToDelete = selectedReminderForEdit
+                        if (reminderToDelete != null) {
+                            reminders.remove(reminderToDelete)
+                        }
+                        showEditReminderSheet = false
+                        selectedReminderForEdit = null
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReminderCard(
+    reminder: Reminder,
+    onTick: () -> Unit,
+    onEdit: () -> Unit
+) {
+    val categoryColor = when (reminder.category.lowercase()) {
+        "food" -> Color(0xFFFF7043)
+        "subscription" -> Color(0xFFAB47BC)
+        "work" -> Color(0xFF42A5F5)
+        "job" -> Color(0xFF009688)
+        "shopping" -> Color(0xFFEC407A)
+        "travel" -> Color(0xFF26A69A)
+        "entertainment", "leisure" -> Color(0xFFFFCA28)
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    Card(
+        modifier = Modifier
+            .width(280.dp)
+            .height(130.dp)
+            .shadow(6.dp, RoundedCornerShape(24.dp))
+            .border(
+                1.dp,
+                if (reminder.type == TransactionType.INCOME) ColorIncome.copy(alpha = 0.3f) else ColorExpense.copy(alpha = 0.3f),
+                RoundedCornerShape(24.dp)
+            )
+            .clickable { onEdit() },
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(6.dp)
+                    .background(
+                        if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+                    )
+                    .align(Alignment.CenterStart)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 18.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(categoryColor.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val icon = when (reminder.category.lowercase()) {
+                        "food" -> Icons.Default.Restaurant
+                        "subscription" -> Icons.Default.Subscriptions
+                        "work" -> Icons.Default.Work
+                        "job" -> Icons.Default.BusinessCenter
+                        "shopping" -> Icons.Default.ShoppingCart
+                        "travel" -> Icons.Default.Flight
+                        "entertainment", "leisure" -> Icons.Default.LocalPlay
+                        else -> Icons.Default.Alarm
+                    }
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = reminder.category,
+                        tint = categoryColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = reminder.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = reminder.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = reminder.dueDate,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxHeight(),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(
+                        onClick = onTick,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (reminder.type == TransactionType.INCOME) ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
+                            contentColor = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+                        ),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Confirm Reminder",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "$${String.format("%.2f", reminder.amount)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Black,
+                        color = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditReminderBottomSheet(
+    reminder: Reminder,
+    categories: List<CategoryResponseDto>,
+    onDismiss: () -> Unit,
+    onSave: (Reminder) -> Unit,
+    onDelete: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    
+    var title by remember { mutableStateOf(reminder.title) }
+    var description by remember { mutableStateOf(reminder.description) }
+    var amountText by remember { mutableStateOf(reminder.amount.toString()) }
+    var dueDate by remember { mutableStateOf(reminder.dueDate) }
+    var selectedCategory by remember { mutableStateOf(reminder.category) }
+    var selectedType by remember { mutableStateOf(reminder.type) }
+
+    val activeColor = if (selectedType == TransactionType.INCOME) ColorIncome else ColorExpense
+
+    val filteredCategories = remember(categories, selectedType) {
+        categories.filter { cat ->
+            if (selectedType == TransactionType.INCOME) {
+                cat.type.equals("income", ignoreCase = true)
+            } else {
+                cat.type.equals("expense", ignoreCase = true)
+            }
+        }.map { it.name }
+    }
+
+    LaunchedEffect(filteredCategories) {
+        if (selectedCategory !in filteredCategories && filteredCategories.isNotEmpty()) {
+            selectedCategory = filteredCategories.first()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        tonalElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Edit Reminder",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(
+                    onClick = onDismiss,
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                listOf(TransactionType.EXPENSE, TransactionType.INCOME).forEach { type ->
+                    val isSelected = selectedType == type
+                    val typeColor = if (type == TransactionType.INCOME) ColorIncome else ColorExpense
+                    Surface(
+                        onClick = { selectedType = type },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) typeColor else Color.Transparent,
+                                shape = RoundedCornerShape(14.dp)
+                            ),
+                        color = if (isSelected) typeColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = if (type == TransactionType.INCOME) "Income" else "Expense",
+                                color = if (isSelected) typeColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Title") },
+                placeholder = { Text("e.g. Rent, Electricity...") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = activeColor,
+                    focusedLabelColor = activeColor
+                )
+            )
+
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description") },
+                placeholder = { Text("Short reminder details") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = activeColor,
+                    focusedLabelColor = activeColor
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    label = { Text("Amount ($)") },
+                    placeholder = { Text("0.00") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = activeColor,
+                        focusedLabelColor = activeColor
+                    )
+                )
+
+                OutlinedTextField(
+                    value = dueDate,
+                    onValueChange = { dueDate = it },
+                    label = { Text("Due Date") },
+                    placeholder = { Text("e.g. Sep 30, 2026") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = activeColor,
+                        focusedLabelColor = activeColor
+                    )
+                )
+            }
+
+            if (filteredCategories.isNotEmpty()) {
+                var expandedCategoryDropdown by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expandedCategoryDropdown,
+                    onExpandedChange = { expandedCategoryDropdown = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedCategory,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = activeColor,
+                            focusedLabelColor = activeColor
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCategoryDropdown,
+                        onDismissRequest = { expandedCategoryDropdown = false }
+                    ) {
+                        filteredCategories.forEach { catName ->
+                            DropdownMenuItem(
+                                text = { Text(catName) },
+                                onClick = {
+                                    selectedCategory = catName
+                                    expandedCategoryDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Delete", fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = {
+                        val amountVal = amountText.toDoubleOrNull() ?: reminder.amount
+                        onSave(
+                            reminder.copy(
+                                title = title.trim(),
+                                description = description.trim(),
+                                amount = amountVal,
+                                dueDate = dueDate.trim(),
+                                category = selectedCategory,
+                                type = selectedType
+                            )
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = activeColor),
+                    modifier = Modifier
+                        .weight(2f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Save,
+                        contentDescription = "Save Changes",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -763,7 +1442,8 @@ fun AddTransactionBottomSheet(
     categories: List<CategoryResponseDto>,
     accounts: List<PaymentModeResponseDto>,
     onDismiss: () -> Unit,
-    onSave: (String, Double, String, TransactionType, String, String, String) -> Unit
+    onSave: (String, Double, String, TransactionType, String, String, String) -> Unit,
+    onAiSave: (String) -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var amountText by remember { mutableStateOf("") }
@@ -850,16 +1530,139 @@ fun AddTransactionBottomSheet(
                 }
             }
 
-            // Interactive Segment Switcher (Income vs Expense)
+            var inputMode by remember { mutableStateOf("Manual") }
+
+            // Custom Tab Switcher for Manual vs Smart AI
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(26.dp))
+                    .height(46.dp)
+                    .clip(RoundedCornerShape(23.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                     .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val isSmart = inputMode == "Smart"
+                
+                // Manual Option
+                val manualBg by animateColorAsState(if (!isSmart) MaterialTheme.colorScheme.primary else Color.Transparent, label = "ManualBg")
+                val manualText by animateColorAsState(if (!isSmart) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, label = "ManualText")
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(manualBg)
+                        .clickable { inputMode = "Manual" },
+                    contentAlignment = Alignment.Center
+                ) { 
+                    Text("Manual Entry", color = manualText, fontWeight = FontWeight.Bold, fontSize = 14.sp) 
+                }
+                
+                // Smart AI Option
+                val smartBg by animateColorAsState(if (isSmart) Color(0xFF6200EA) else Color.Transparent, label = "SmartBg")
+                val smartText by animateColorAsState(if (isSmart) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, label = "SmartText")
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(19.dp))
+                        .background(smartBg)
+                        .clickable { inputMode = "Smart" },
+                    contentAlignment = Alignment.Center
+                ) {
+                   Row(verticalAlignment = Alignment.CenterVertically) {
+                       Icon(Icons.Default.AutoAwesome, contentDescription=null, tint=smartText, modifier=Modifier.size(16.dp))
+                       Spacer(Modifier.width(6.dp))
+                       Text("Smart AI", color = smartText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                   }
+                }
+            }
+
+            AnimatedContent(
+                targetState = inputMode,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                },
+                label = "InputModeTransition"
+            ) { mode ->
+                if (mode == "Smart") {
+                    var aiText by remember { mutableStateOf("") }
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = aiText,
+                            onValueChange = { aiText = it },
+                            placeholder = { Text("e.g. Spent $25 on pizza yesterday using cash") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF6200EA),
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                focusedContainerColor = Color(0xFF6200EA).copy(alpha = 0.03f),
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            ),
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                            maxLines = 6
+                        )
+
+                        Text(
+                            text = "AI will automatically extract amount, category, type, and date from your sentence.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val interactionSource = remember { MutableInteractionSource() }
+                        val isPressed by interactionSource.collectIsPressedAsState()
+                        val btnScale by animateFloatAsState(targetValue = if (isPressed) 0.96f else 1f, label = "AiBtnScale")
+
+                        Button(
+                            onClick = { onAiSave(aiText) },
+                            enabled = aiText.isNotBlank(),
+                            interactionSource = interactionSource,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .scale(btnScale)
+                                .shadow(
+                                    elevation = if (aiText.isNotBlank()) 12.dp else 0.dp,
+                                    shape = RoundedCornerShape(28.dp),
+                                    ambientColor = Color(0xFF6200EA),
+                                    spotColor = Color(0xFF6200EA)
+                                ),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF6200EA),
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                            )
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription=null, tint = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Parse & Save Transaction", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(22.dp)
+                    ) {
+                        // Interactive Segment Switcher (Income vs Expense)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(26.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                .padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                 val isExpense = selectedType == TransactionType.EXPENSE
                 
                 // Income Option
@@ -1185,41 +1988,44 @@ fun AddTransactionBottomSheet(
                 label = "ButtonPress"
             )
 
-            Button(
-                onClick = {
-                    val amt = amountText.toDoubleOrNull()
-                    if (amt != null && amt > 0) {
-                        onSave(selectedCategory, amt, selectedCategory, selectedType, selectedDateText, selectedAccountName, selectedAccountId)
-                    }
-                },
-                enabled = isEnabled,
-                interactionSource = interactionSource,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .scale(buttonScale)
-                    .shadow(
-                        elevation = if (isEnabled) 12.dp else 0.dp,
+                    Button(
+                        onClick = {
+                            val amt = amountText.toDoubleOrNull()
+                            if (amt != null && amt > 0) {
+                                onSave(selectedCategory, amt, selectedCategory, selectedType, selectedDateText, selectedAccountName, selectedAccountId)
+                            }
+                        },
+                        enabled = isEnabled,
+                        interactionSource = interactionSource,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .scale(buttonScale)
+                            .shadow(
+                                elevation = if (isEnabled) 12.dp else 0.dp,
+                                shape = RoundedCornerShape(28.dp),
+                                ambientColor = activeColor,
+                                spotColor = activeColor
+                            ),
                         shape = RoundedCornerShape(28.dp),
-                        ambientColor = activeColor,
-                        spotColor = activeColor
-                    ),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = activeColor,
-                    contentColor = Color.White,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                )
-            ) {
-                Text(
-                    text = "Save Transaction",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = activeColor,
+                            contentColor = Color.White,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Text(
+                            text = "Save Transaction",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }
+}
 
     ExpentDatePicker(
         showDialog = showDatePicker,
@@ -1317,7 +2123,8 @@ fun DashboardActivityPreview() {
                     )
                 ),
                 onAddTransaction = { _, _, _, _, _, _, _ -> },
-                onDeleteTransaction = {}
+                onDeleteTransaction = {},
+                onAddAiTransaction = {}
             )
         }
     }

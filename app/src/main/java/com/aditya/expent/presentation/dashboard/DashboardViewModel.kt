@@ -128,6 +128,27 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    fun addAiTransaction(rawText: String) {
+        viewModelScope.launch {
+            // TODO: Implement actual AI endpoint calling.
+            // Temporarily mock it as an unknown expense for UI demonstration
+            val newTransaction = Transaction(
+                id = java.util.UUID.randomUUID().toString(),
+                title = rawText,
+                amount = -10.0,
+                date = LocalDate.now().toString(),
+                category = "Others",
+                type = TransactionType.EXPENSE,
+                accountId = _state.value.accounts.firstOrNull()?.id ?: "0",
+                categoryId = _state.value.categories.firstOrNull { it.name == "Others" }?.id,
+                paymentMethod = "Cash"
+            )
+            
+            val updatedList = listOf(newTransaction) + _state.value.recentTransactions
+            updateStateWithList(updatedList)
+        }
+    }
+
     fun deleteTransaction(id: String) {
         val updatedList = _state.value.recentTransactions.filter { it.id != id }
         updateStateWithList(updatedList)
