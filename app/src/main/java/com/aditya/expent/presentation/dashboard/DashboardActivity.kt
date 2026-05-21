@@ -119,6 +119,7 @@ class DashboardActivity : ComponentActivity() {
         Log.d("DashboardActivity", "onResume: Reloading customizations via viewModel.loadCustomization()")
         // Reload customizations in case they were updated in ProfileActivity
         viewModel.loadCustomization()
+        viewModel.loadAccounts()
     }
 }
 
@@ -220,7 +221,7 @@ fun DashboardScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Good Morning,",
+                                text = state.greetingMessage,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

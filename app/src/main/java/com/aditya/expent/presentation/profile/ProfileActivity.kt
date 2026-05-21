@@ -237,32 +237,32 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Custom glass "Edit Profile" pill button
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { showEditProfile = true },
-                            color = Color.White.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Edit Profile",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color.White
-                                )
-                            }
-                        }
+//                        // Custom glass "Edit Profile" pill button
+//                        Surface(
+//                            modifier = Modifier
+//                                .clip(RoundedCornerShape(12.dp))
+//                                .clickable { showEditProfile = true },
+//                            color = Color.White.copy(alpha = 0.15f),
+//                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
+//                        ) {
+//                            Row(
+//                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+//                                verticalAlignment = Alignment.CenterVertically
+//                            ) {
+//                                Icon(
+//                                    imageVector = Icons.Default.Edit,
+//                                    contentDescription = null,
+//                                    tint = Color.White,
+//                                    modifier = Modifier.size(14.dp)
+//                                )
+//                                Spacer(modifier = Modifier.width(6.dp))
+//                                Text(
+//                                    text = "Edit Profile",
+//                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+//                                    color = Color.White
+//                                )
+//                            }
+//                        }
                     }
                 }
             }

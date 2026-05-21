@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.dashboard
 
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,12 +15,14 @@ import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.domain.usecase.GetCustomizationUseCase
 import com.aditya.expent.domain.usecase.ParseTransactionUseCase
 import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
+import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDate.now
 import javax.inject.Inject
 
 data class DashboardState(
@@ -31,7 +34,8 @@ data class DashboardState(
     val accounts: List<PaymentModeResponseDto> = emptyList(),
     val userName: String = "User",
     val aiTransaction: Boolean = false,
-    val reminder: Boolean = false
+    val reminder: Boolean = false,
+    val greetingMessage: String = "Welcome"
 )
 
 @HiltViewModel
@@ -42,7 +46,8 @@ class DashboardViewModel @Inject constructor(
     private val addTransactionsUseCase: AddTransactionsUseCase,
     private val getCustomizationUseCase: GetCustomizationUseCase,
     private val parseTransactionUseCase: ParseTransactionUseCase,
-    private val updateCustomizationUseCase: UpdateCustomizationUseCase
+    private val updateCustomizationUseCase: UpdateCustomizationUseCase,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(DashboardState())
@@ -53,6 +58,23 @@ class DashboardViewModel @Inject constructor(
         loadCategories()
         loadAccounts()
         loadCustomization()
+        loadInfos()
+    }
+
+    fun loadInfos(){
+        _state.value = _state.value.copy(userName = sessionManager.getUser()?.name ?: "User")
+        val hour = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            now().atStartOfDay().hour
+        } else {
+            0
+        }
+        val greeting = when (hour) {
+            in 5..11 -> "Good Morning"
+            in 12..16 -> "Good Afternoon"
+            in 17..21 -> "Good Evening"
+            else -> "Welcome"
+        }
+        _state.value = _state.value.copy(greetingMessage = greeting)
     }
 
     fun loadCustomization(){
@@ -73,7 +95,7 @@ class DashboardViewModel @Inject constructor(
 
     fun loadTransactions() {
         viewModelScope.launch {
-            val endDate = LocalDate.now()
+            val endDate = now()
             val startDate = endDate.minusDays(7)
 
             val result = getTransactionUseCase(
