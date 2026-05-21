@@ -4,6 +4,8 @@ import android.util.Log
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.CreateTransactionRequestDto
 import com.aditya.expent.data.remote.dto.PaginatedTransactionsResponseDto
+import com.aditya.expent.data.remote.dto.ParseTransactionRequestDto
+import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.repository.TransactionRepository
 import java.text.SimpleDateFormat
@@ -60,13 +62,38 @@ class TransactionRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun parseTransaction(text: String): Result<ParseTransactionResponseDto> {
+        return try {
+            Log.d("rest re", "Request parseTransaction: text=$text")
+            val response = apiService.parseTransaction(ParseTransactionRequestDto(text))
+            Log.d("rest re", "Response parseTransaction: $response")
+            Result.success(response)
+        } catch (e: Exception) {
+            Log.e("rest re", "Error parseTransaction: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     private fun convertDateToIso(dateStr: String): String {
         try {
             if (dateStr.contains("-") && dateStr.contains("T")) {
                 return dateStr
             }
-            val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-            val date = parser.parse(dateStr)
+            var date: Date? = null
+            try {
+                val parser = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                date = parser.parse(dateStr)
+            } catch (e: Exception) {
+                // ignore
+            }
+            if (date == null) {
+                try {
+                    val parser = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    date = parser.parse(dateStr)
+                } catch (e: Exception) {
+                    // ignore
+                }
+            }
             if (date != null) {
                 val calendar = java.util.Calendar.getInstance()
                 calendar.time = date

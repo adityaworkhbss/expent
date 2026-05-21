@@ -142,6 +142,13 @@ fun DashboardScreen(
     var selectedReminderForDialog by remember { mutableStateOf<Reminder?>(null) }
     var showEditReminderSheet by remember { mutableStateOf(false) }
     var selectedReminderForEdit by remember { mutableStateOf<Reminder?>(null) }
+    
+    val reminderListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val activeReminderIndex by remember {
+        derivedStateOf {
+            reminderListState.firstVisibleItemIndex
+        }
+    }
     val reminders = remember {
         mutableStateListOf(
             Reminder(
@@ -262,6 +269,7 @@ fun DashboardScreen(
                             )
                             
                             LazyRow(
+                                state = reminderListState,
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp)
@@ -280,6 +288,14 @@ fun DashboardScreen(
                                     )
                                 }
                             }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            ReminderDotsIndicator(
+                                count = reminders.size.coerceAtMost(5),
+                                activeIndex = activeReminderIndex,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
                         }
                         Spacer(modifier = Modifier.height(32.dp))
                     }
@@ -734,6 +750,93 @@ fun ReminderCard(
             }
         }
     }
+}
+
+@Composable
+fun ReminderDotsIndicator(
+    count: Int,
+    activeIndex: Int,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val pulseScale by infiniteTransition.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.15f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1000, easing = EaseInOutSine),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "pulseScale"
+        )
+
+        val coercedActiveIndex = activeIndex.coerceIn(0, (count - 1).coerceAtLeast(0))
+
+        for (i in 0 until count) {
+            key(i) {
+                ReminderDot(
+                    isSelected = i == coercedActiveIndex,
+                    isReached = i < coercedActiveIndex,
+                    pulseScale = pulseScale
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReminderDot(
+    isSelected: Boolean,
+    isReached: Boolean,
+    pulseScale: Float
+) {
+    val dotWidth by animateDpAsState(
+        targetValue = if (isSelected) 24.dp else 8.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "width"
+    )
+
+    val dotColor by animateColorAsState(
+        targetValue = when {
+            isSelected -> EmeraldPrimary
+            isReached -> EmeraldPrimary.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+        },
+        animationSpec = tween(durationMillis = 300),
+        label = "color"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.2f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "scale"
+    )
+
+    val appliedPulse = if (isSelected) pulseScale else 1f
+
+    Box(
+        modifier = Modifier
+            .scale(scale * appliedPulse)
+            .size(width = dotWidth, height = 8.dp)
+            .background(
+                color = dotColor,
+                shape = CircleShape
+            )
+            .shadow(
+                elevation = if (isSelected) 3.dp else 0.dp,
+                shape = CircleShape
+            )
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

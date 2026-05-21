@@ -12,6 +12,8 @@ import com.aditya.expent.domain.usecase.AddTransactionsUseCase
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.domain.usecase.GetCustomizationUseCase
+import com.aditya.expent.domain.usecase.ParseTransactionUseCase
+import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +40,9 @@ class DashboardViewModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getAccountsUseCase: GetAccountsUseCase,
     private val addTransactionsUseCase: AddTransactionsUseCase,
-    private val getCustomizationUseCase: GetCustomizationUseCase
+    private val getCustomizationUseCase: GetCustomizationUseCase,
+    private val parseTransactionUseCase: ParseTransactionUseCase,
+    private val updateCustomizationUseCase: UpdateCustomizationUseCase
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(DashboardState())
@@ -152,22 +156,51 @@ class DashboardViewModel @Inject constructor(
 
     fun addAiTransaction(rawText: String) {
         viewModelScope.launch {
-            // TODO: Implement actual AI endpoint calling.
-            // Temporarily mock it as an unknown expense for UI demonstration
-            val newTransaction = Transaction(
-                id = java.util.UUID.randomUUID().toString(),
-                title = rawText,
-                amount = -10.0,
-                date = LocalDate.now().toString(),
-                category = "Others",
-                type = TransactionType.EXPENSE,
-                accountId = _state.value.accounts.firstOrNull()?.id ?: "0",
-                categoryId = _state.value.categories.firstOrNull { it.name == "Others" }?.id,
-                paymentMethod = "Cash"
-            )
-            
-            val updatedList = listOf(newTransaction) + _state.value.recentTransactions
-            updateStateWithList(updatedList)
+            if (!_state.value.aiTransaction) {
+                Log.d("DashboardViewModel", "AI transaction parsing is disabled. Enabling it via updateCustomizationUseCase.")
+                updateCustomizationUseCase(aiTransaction = true, reminder = _state.value.reminder).onSuccess {
+                    Log.d("DashboardViewModel", "Successfully enabled AI transactions on server.")
+                    _state.value = _state.value.copy(aiTransaction = true)
+                }.onFailure { error ->
+                    Log.e("DashboardViewModel", "Failed to enable AI transactions on server", error)
+                }
+            }
+
+            val result = parseTransactionUseCase(rawText)
+            result.onSuccess { response ->
+                if (response.success && !response.requiresUserInput && response.data != null) {
+                    val data = response.data
+                    val amount = data.amount
+                    val type = if (data.transactionType.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
+                    val categoryName = data.categoryName ?: "Others"
+                    val categoryId = data.categoryId ?: _state.value.categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }?.id ?: _state.value.categories.firstOrNull { it.name == "Others" }?.id
+                    
+                    val accountId = data.accountId ?: _state.value.accounts.firstOrNull()?.id ?: "0"
+                    val accountName = data.accountName ?: data.paymentMethod ?: _state.value.accounts.firstOrNull { it.id == accountId }?.name ?: "Cash"
+
+                    val newTransaction = Transaction(
+                        id = java.util.UUID.randomUUID().toString(),
+                        title = data.note ?: data.merchant ?: rawText,
+                        amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
+                        date = data.date,
+                        category = categoryName,
+                        type = type,
+                        accountId = accountId,
+                        categoryId = categoryId,
+                        paymentMethod = accountName
+                    )
+
+                    // Save transaction to server
+                    addTransactionsUseCase(newTransaction)
+
+                    // Refresh transactions
+                    loadTransactions()
+                } else {
+                    Log.e("DashboardViewModel", "AI parse failed or requires user input: $response")
+                }
+            }.onFailure { error ->
+                Log.e("DashboardViewModel", "Failed to parse AI transaction", error)
+            }
         }
     }
 

@@ -17,10 +17,13 @@ import com.aditya.expent.data.remote.dto.PaginatedTransactionsResponseDto
 import com.aditya.expent.data.remote.dto.CreateTransactionRequestDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
+import com.aditya.expent.data.remote.dto.ParseTransactionRequestDto
+import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -75,6 +78,9 @@ interface ApiService {
     @GET("user-customization")
     suspend fun getUserCustomization(): UserCustomizationResponseDto
 
-    @POST("user-customization")
+    @PUT("user-customization")
     suspend fun updateUserCustomization(@Body request: UserCustomizationResponseDto): UserCustomizationResponseDto
+
+    @POST("parse-transaction")
+    suspend fun parseTransaction(@Body request: ParseTransactionRequestDto): ParseTransactionResponseDto
 }
