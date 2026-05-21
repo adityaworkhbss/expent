@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -63,9 +65,14 @@ import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.absoluteValue
 import javax.inject.Inject
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @AndroidEntryPoint
 class DashboardActivity : ComponentActivity() {
@@ -134,6 +141,7 @@ fun DashboardScreen(
     onAddAiTransaction: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     Log.d("DashboardActivity", "DashboardScreen Composing: state.reminder = ${state.reminder}, state.aiTransaction = ${state.aiTransaction}")
     var isExpanded by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -143,12 +151,7 @@ fun DashboardScreen(
     var showEditReminderSheet by remember { mutableStateOf(false) }
     var selectedReminderForEdit by remember { mutableStateOf<Reminder?>(null) }
     
-    val reminderListState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val activeReminderIndex by remember {
-        derivedStateOf {
-            reminderListState.firstVisibleItemIndex
-        }
-    }
+    val dismissingReminderIds = remember { mutableStateListOf<String>() }
     val reminders = remember {
         mutableStateListOf(
             Reminder(
@@ -180,6 +183,8 @@ fun DashboardScreen(
             )
         )
     }
+    
+    val pagerState = rememberPagerState(pageCount = { reminders.size })
     
     val visibleTransactions = if (isExpanded) state.recentTransactions else state.recentTransactions.take(3)
     val groupedTransactions = visibleTransactions.groupBy { formatDisplayDate(it.date) }
@@ -260,21 +265,90 @@ fun DashboardScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp)
                         ) {
-                            Text(
-                                text = "Upcoming Reminders",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp, top = 12.dp)
-                            )
-                            
-                            LazyRow(
-                                state = reminderListState,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                            // Enhanced section header with icon and count badge
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 4.dp, end = 4.dp, bottom = 12.dp, top = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                items(reminders, key = { it.id }) { reminder ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Notifications,
+                                        contentDescription = null,
+                                        tint = EmeraldPrimary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Text(
+                                        text = "Upcoming Reminders",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = EmeraldPrimary.copy(alpha = 0.1f)
+                                ) {
+                                    Text(
+                                        text = "${reminders.size}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = EmeraldPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            // Animated snap-scrolling pager
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 28.dp),
+                                pageSpacing = 16.dp
+                            ) { page ->
+                                val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
+                                val absPageOffset = pageOffset.absoluteValue
+                                val reminder = reminders[page]
+
+                                val isDismissing = reminder.id in dismissingReminderIds
+                                val animatedAlpha by animateFloatAsState(
+                                    targetValue = if (isDismissing) 0f else 1f,
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    label = "DismissAlpha"
+                                )
+                                val animatedScale by animateFloatAsState(
+                                    targetValue = if (isDismissing) 0.6f else 1f,
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    label = "DismissScale"
+                                )
+                                val animatedTranslationY by animateFloatAsState(
+                                    targetValue = if (isDismissing) (-100f) else 0f,
+                                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                                    label = "DismissTranslationY"
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .graphicsLayer {
+                                            cameraDistance = 12f * density
+                                            rotationY = pageOffset * -22f
+                                            rotationZ = pageOffset * -3f
+                                            
+                                            val scaleVal = (0.88f + (1f - absPageOffset.coerceIn(0f, 1f)) * 0.12f) * animatedScale
+                                            scaleX = scaleVal
+                                            scaleY = scaleVal
+                                            
+                                            alpha = (0.5f + (1f - absPageOffset.coerceIn(0f, 1f)) * 0.5f) * animatedAlpha
+                                            translationY = animatedTranslationY
+                                            translationX = pageOffset * -12.dp.toPx()
+                                        }
+                                ) {
                                     ReminderCard(
                                         reminder = reminder,
                                         onTick = {
@@ -288,12 +362,12 @@ fun DashboardScreen(
                                     )
                                 }
                             }
-                            
+
                             Spacer(modifier = Modifier.height(12.dp))
-                            
+
                             ReminderDotsIndicator(
                                 count = reminders.size.coerceAtMost(5),
-                                activeIndex = activeReminderIndex,
+                                activeIndex = pagerState.currentPage,
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
                             )
                         }
@@ -538,7 +612,12 @@ fun DashboardScreen(
                                     accountId
                                 )
                                 
-                                reminders.remove(reminder)
+                                coroutineScope.launch {
+                                    dismissingReminderIds.add(reminder.id)
+                                    delay(350)
+                                    reminders.remove(reminder)
+                                    dismissingReminderIds.remove(reminder.id)
+                                }
                                 
                                 showConfirmDialog = false
                                 selectedReminderForDialog = null
@@ -588,7 +667,12 @@ fun DashboardScreen(
                     onDelete = {
                         val reminderToDelete = selectedReminderForEdit
                         if (reminderToDelete != null) {
-                            reminders.remove(reminderToDelete)
+                            coroutineScope.launch {
+                                dismissingReminderIds.add(reminderToDelete.id)
+                                delay(350)
+                                reminders.remove(reminderToDelete)
+                                dismissingReminderIds.remove(reminderToDelete.id)
+                            }
                         }
                         showEditReminderSheet = false
                         selectedReminderForEdit = null
@@ -616,54 +700,52 @@ fun ReminderCard(
         else -> MaterialTheme.colorScheme.primary
     }
 
+    val accentColor = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+    val (daysLeftText, badgeColor) = getDaysLeftInfo(reminder.dueDate)
+
+    val icon = when (reminder.category.lowercase()) {
+        "food" -> Icons.Default.Restaurant
+        "subscription" -> Icons.Default.Subscriptions
+        "work" -> Icons.Default.Work
+        "job" -> Icons.Default.BusinessCenter
+        "shopping" -> Icons.Default.ShoppingCart
+        "travel" -> Icons.Default.Flight
+        "entertainment", "leisure" -> Icons.Default.LocalPlay
+        else -> Icons.Default.Alarm
+    }
+
     Card(
         modifier = Modifier
-            .width(280.dp)
-            .height(130.dp)
-            .shadow(6.dp, RoundedCornerShape(24.dp))
-            .border(
-                1.dp,
-                if (reminder.type == TransactionType.INCOME) ColorIncome.copy(alpha = 0.3f) else ColorExpense.copy(alpha = 0.3f),
-                RoundedCornerShape(24.dp)
+            .width(300.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp),
+                ambientColor = accentColor.copy(alpha = 0.2f),
+                spotColor = accentColor.copy(alpha = 0.15f)
             )
             .clickable { onEdit() },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(6.dp)
-                    .background(
-                        if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
-                    )
-                    .align(Alignment.CenterStart)
-            )
-
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Top Row: Icon + Title/Description + Amount
             Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 18.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Category Icon
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(categoryColor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    val icon = when (reminder.category.lowercase()) {
-                        "food" -> Icons.Default.Restaurant
-                        "subscription" -> Icons.Default.Subscriptions
-                        "work" -> Icons.Default.Work
-                        "job" -> Icons.Default.BusinessCenter
-                        "shopping" -> Icons.Default.ShoppingCart
-                        "travel" -> Icons.Default.Flight
-                        "entertainment", "leisure" -> Icons.Default.LocalPlay
-                        else -> Icons.Default.Alarm
-                    }
                     Icon(
                         imageVector = icon,
                         contentDescription = reminder.category,
@@ -674,77 +756,86 @@ fun ReminderCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = reminder.title,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = reminder.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarToday,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = reminder.dueDate,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                // Title + Description (weighted to fill)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = reminder.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = reminder.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Column(
-                    modifier = Modifier.fillMaxHeight(),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    IconButton(
-                        onClick = onTick,
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = if (reminder.type == TransactionType.INCOME) ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
-                            contentColor = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
-                        ),
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Confirm Reminder",
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                // Amount
+                Text(
+                    text = if (reminder.type == TransactionType.INCOME)
+                        "+$${String.format("%.2f", reminder.amount)}"
+                    else
+                        "-$${String.format("%.2f", reminder.amount)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor
+                )
+            }
 
+            // Divider
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            )
+
+            // Bottom Row: Due Badge + Done Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Due date badge
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(badgeColor)
+                    )
                     Text(
-                        text = "$${String.format("%.2f", reminder.amount)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Black,
-                        color = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
+                        text = daysLeftText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = badgeColor
+                    )
+                }
+
+                // Done button
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(accentColor.copy(alpha = 0.1f))
+                        .clickable { onTick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Mark Done",
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -2105,6 +2196,32 @@ fun AddTransactionBottomSheet(
     )
 }
 
+
+fun getDaysLeftInfo(dueDateStr: String): Pair<String, Color> {
+    try {
+        val parser = SimpleDateFormat("MMM dd, yyyy", Locale.US)
+        val dueDate = parser.parse(dueDateStr) ?: return Pair(dueDateStr, EmeraldPrimary)
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.time
+        
+        val diffTime = dueDate.time - today.time
+        val diffDays = (diffTime / (1000 * 60 * 60 * 24)).toInt()
+        
+        return when {
+            diffDays < 0 -> Pair("Overdue", Color(0xFFEF5350))
+            diffDays == 0 -> Pair("Due Today", Color(0xFFFF7043))
+            diffDays == 1 -> Pair("Due Tomorrow", Color(0xFFFFB74D))
+            diffDays <= 3 -> Pair("Due in $diffDays days", Color(0xFFFFCA28))
+            else -> Pair("In $diffDays days", EmeraldPrimary)
+        }
+    } catch (e: Exception) {
+        return Pair(dueDateStr, EmeraldPrimary)
+    }
+}
 
 fun getTodayDateString(): String {
     val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
