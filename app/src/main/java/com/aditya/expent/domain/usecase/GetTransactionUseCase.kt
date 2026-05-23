@@ -7,4 +7,5 @@ class GetTransactionUseCase @Inject constructor(
     private val repository: TransactionRepository
 ) {
     suspend operator fun invoke(from : String, to: String) = repository.getTransactions(from, to)
+    suspend operator fun invoke(page: Int, limit: Int) = repository.getTransactions(page, limit)
 }

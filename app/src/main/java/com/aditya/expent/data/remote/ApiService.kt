@@ -55,12 +55,13 @@ interface ApiService {
     @GET("transactions")
     suspend fun getTransactions(
         @Query("from") from: String? = null,
-        @Query("to") to: String? = null,
-        @Query("type") type: String? = null,
-        @Query("categoryId") categoryId: String? = null,
-        @Query("accountId") accountId: String? = null,
-        @Query("page") page: Int? = null,
-        @Query("limit") limit: Int? = null
+        @Query("to") to: String? = null
+    ): PaginatedTransactionsResponseDto
+
+    @GET("transactions")
+    suspend fun getTransactions(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
     ): PaginatedTransactionsResponseDto
 
     @POST("transactions")
@@ -83,4 +84,15 @@ interface ApiService {
 
     @POST("parse-transaction")
     suspend fun parseTransaction(@Body request: ParseTransactionRequestDto): ParseTransactionResponseDto
+
+//    @GET("transactions")
+//    suspend fun getTransactions(
+//        @Query("from") from: String? = null,
+//        @Query("to") to: String? = null,
+//        @Query("type") type: String? = null,
+//        @Query("categoryId") categoryId: String? = null,
+//        @Query("accountId") accountId: String? = null,
+//        @Query("page") page: Int? = null,
+//        @Query("limit") limit: Int? = null
+//    ): PaginatedTransactionsResponseDto
 }

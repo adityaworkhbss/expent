@@ -71,6 +71,7 @@ import java.util.Locale
 import kotlin.math.absoluteValue
 import javax.inject.Inject
 import androidx.compose.ui.graphics.graphicsLayer
+import com.aditya.expent.utils.AppUtils
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -146,7 +147,7 @@ fun DashboardScreen(
     Log.d("DashboardActivity", "DashboardScreen Composing: state.reminder = ${state.reminder}, state.aiTransaction = ${state.aiTransaction}")
     var isExpanded by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
-    
+
     var showConfirmDialog by remember { mutableStateOf(false) }
     var selectedReminderForDialog by remember { mutableStateOf<Reminder?>(null) }
     var showEditReminderSheet by remember { mutableStateOf(false) }
@@ -681,6 +682,10 @@ fun DashboardScreen(
                 )
             }
         }
+    }
+
+    if (state.isLoading) {
+        AppUtils().ShowProgressAnimation()
     }
 }
 
@@ -1538,9 +1543,9 @@ fun SeeMoreButton(
                     letterSpacing = 0.5.sp
                 )
             }
-            
+
             Spacer(modifier = Modifier.width(6.dp))
-            
+
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
@@ -1552,6 +1557,7 @@ fun SeeMoreButton(
         }
     }
 }
+
 
 @Composable
 fun GlowFloatingActionButton(
@@ -1587,7 +1593,7 @@ fun GlowFloatingActionButton(
     val gradient = Brush.linearGradient(
         colors = listOf(
             Color(0xFF009688), // Brand Teal / Emerald Primary
-            Color(0xFF00E676)  // Glowing Neon Green
+            Color(0xFF075730)  // Glowing Neon Green
         )
     )
 
@@ -1598,8 +1604,8 @@ fun GlowFloatingActionButton(
                 elevation = 16.dp,
                 shape = RoundedCornerShape(24.dp),
                 clip = false,
-                ambientColor = Color(0xFF237048),
-                spotColor = Color(0xFF008176)
+                ambientColor = EmeraldPrimary,
+                spotColor = Color(0xFF004D40)
             )
             .background(
                 brush = gradient,
@@ -1629,7 +1635,7 @@ fun GlowFloatingActionButton(
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.Default.AddTask,
                 contentDescription = "Add Transaction",
                 tint = Color.White,
                 modifier = Modifier

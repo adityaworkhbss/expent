@@ -29,7 +29,8 @@ data class ProfileState(
     val userName: String = "User",
     val email: String = "",
     val aiTransaction: Boolean = false,
-    val reminder: Boolean = false
+    val reminder: Boolean = false,
+    val isLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -55,20 +56,22 @@ class ProfileViewModel @Inject constructor(
 
     fun loadCategories() {
         viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
             getCategoriesUseCase().onSuccess { categoryList ->
-                _state.value = _state.value.copy(categories = categoryList)
+                _state.value = _state.value.copy(categories = categoryList, isLoading = false)
             }.onFailure {
-                // Keep default empty on error
+                _state.value = _state.value.copy(isLoading = false)
             }
         }
     }
 
     fun loadAccounts() {
         viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
             getAccountsUseCase().onSuccess { accountList ->
-                _state.value = _state.value.copy(accounts = accountList)
+                _state.value = _state.value.copy(accounts = accountList, isLoading = false)
             }.onFailure {
-                // Keep default empty on error
+                _state.value = _state.value.copy(isLoading = false)
             }
         }
     }

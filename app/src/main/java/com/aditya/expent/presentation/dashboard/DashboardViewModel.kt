@@ -35,7 +35,8 @@ data class DashboardState(
     val userName: String = "User",
     val aiTransaction: Boolean = false,
     val reminder: Boolean = false,
-    val greetingMessage: String = "Welcome"
+    val greetingMessage: String = "Welcome",
+    val isLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -95,6 +96,7 @@ class DashboardViewModel @Inject constructor(
 
     fun loadTransactions() {
         viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
             val endDate = now()
             val startDate = endDate.minusDays(7)
 
@@ -122,8 +124,10 @@ class DashboardViewModel @Inject constructor(
                     )
                 }
                 updateStateWithList(transactions)
+                _state.value = _state.value.copy(isLoading = false)
             }.onFailure {
                 updateStateWithList(emptyList())
+                _state.value = _state.value.copy(isLoading = false)
             }
         }
     }
@@ -150,6 +154,7 @@ class DashboardViewModel @Inject constructor(
 
     fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String, accountName: String, accountId: String) {
         viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
             val categoryId = _state.value.categories.firstOrNull { it.name.equals(category, ignoreCase = true) }?.id
 
             val newTransaction = Transaction(
@@ -178,6 +183,7 @@ class DashboardViewModel @Inject constructor(
 
     fun addAiTransaction(rawText: String) {
         viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
             if (!_state.value.aiTransaction) {
                 Log.d("DashboardViewModel", "AI transaction parsing is disabled. Enabling it via updateCustomizationUseCase.")
                 updateCustomizationUseCase(aiTransaction = true, reminder = _state.value.reminder).onSuccess {
@@ -219,9 +225,11 @@ class DashboardViewModel @Inject constructor(
                     loadTransactions()
                 } else {
                     Log.e("DashboardViewModel", "AI parse failed or requires user input: $response")
+                    _state.value = _state.value.copy(isLoading = false)
                 }
             }.onFailure { error ->
                 Log.e("DashboardViewModel", "Failed to parse AI transaction", error)
+                _state.value = _state.value.copy(isLoading = false)
             }
         }
     }

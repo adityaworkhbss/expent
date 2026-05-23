@@ -38,6 +38,7 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.presentation.theme.ColorExpense
+import com.aditya.expent.utils.AppUtils
 import com.airbnb.lottie.compose.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -145,25 +146,8 @@ fun OnboardRoute(
                         OnboardStep.FINISH -> FinishStep(onFinish = onFinish)
                     }
 
-                    if (state.isLoading) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.4f))
-                                .clickable(enabled = false) { },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.sandy_loading))
-                            val progress by animateLottieCompositionAsState(
-                                composition,
-                                iterations = LottieConstants.IterateForever
-                            )
-                            LottieAnimation(
-                                composition = composition,
-                                progress = { progress },
-                                modifier = Modifier.size(180.dp)
-                            )
-                        }
+                    if (state.isLoading && step != OnboardStep.FINISH) {
+                        AppUtils().ShowProgressAnimation()
                     }
                 }
             }

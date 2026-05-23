@@ -10,6 +10,10 @@ interface TransactionRepository {
         to: String
     ): Result<PaginatedTransactionsResponseDto>
 
+    suspend fun getTransactions(
+        page: Int,
+        limit: Int
+    ): Result<PaginatedTransactionsResponseDto>
 
     suspend fun addTransaction(
         transaction: Transaction

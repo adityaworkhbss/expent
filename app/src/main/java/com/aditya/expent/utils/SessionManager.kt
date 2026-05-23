@@ -7,6 +7,7 @@ import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.core.content.edit
 
 @Singleton
 class SessionManager @Inject constructor(
@@ -17,7 +18,7 @@ class SessionManager @Inject constructor(
     private val gson = Gson()
 
     fun saveUser(user: User) {
-        prefs.edit().putString("user_data", gson.toJson(user)).apply()
+        prefs.edit { putString("user_data", gson.toJson(user)) }
     }
 
     fun getUser(): User? {
@@ -26,7 +27,7 @@ class SessionManager @Inject constructor(
     }
 
     fun saveCustomization(customization: com.aditya.expent.data.remote.dto.UserCustomizationResponseDto) {
-        prefs.edit().putString("user_customization", gson.toJson(customization)).apply()
+        prefs.edit { putString("user_customization", gson.toJson(customization)) }
     }
 
     fun getCustomization(): com.aditya.expent.data.remote.dto.UserCustomizationResponseDto? {
@@ -35,7 +36,7 @@ class SessionManager @Inject constructor(
     }
 
     fun setOnboardingComplete(complete: Boolean) {
-        prefs.edit().putBoolean("onboarding_complete", complete).apply()
+        prefs.edit { putBoolean("onboarding_complete", complete) }
     }
 
     fun isOnboardingComplete(): Boolean {
@@ -47,14 +48,14 @@ class SessionManager @Inject constructor(
     }
 
     fun setOnboardingStep(step: Int) {
-        prefs.edit().putInt("onboarding_step", step).apply()
+        prefs.edit { putInt("onboarding_step", step) }
     }
 
     fun clearSession() {
-        prefs.edit().remove("user_data").apply()
+        prefs.edit { remove("user_data") }
     }
 
     fun logout() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 }

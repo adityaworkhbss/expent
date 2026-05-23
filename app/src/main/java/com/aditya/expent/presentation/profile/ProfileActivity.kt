@@ -47,6 +47,7 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.presentation.theme.ColorIncome
+import com.aditya.expent.utils.AppUtils
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -1314,6 +1315,11 @@ fun ProfileScreen(
             }
         }
     }
+
+    if (state.isLoading) {
+        AppUtils().ShowProgressAnimation()
+    }
+
 }
 
 @Composable

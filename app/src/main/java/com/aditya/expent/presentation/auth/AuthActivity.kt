@@ -68,6 +68,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.aditya.expent.presentation.dashboard.DashboardActivity
 import com.aditya.expent.presentation.onboard.OnboardActivity
+import com.aditya.expent.utils.AppUtils
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -285,26 +286,7 @@ fun AuthScreen(
         }
 
         if (state.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .clickable(enabled = false) { },
-                contentAlignment = Alignment.Center
-            ) {
-                val composition by rememberLottieComposition(
-                    LottieCompositionSpec.RawRes(R.raw.sandy_loading)
-                )
-                val progress by animateLottieCompositionAsState(
-                    composition,
-                    iterations = LottieConstants.IterateForever
-                )
-                LottieAnimation(
-                    composition = composition,
-                    progress = { progress },
-                    modifier = Modifier.size(200.dp)
-                )
-            }
+            AppUtils().ShowProgressAnimation()
         }
 
         if (showBottomSheet) {

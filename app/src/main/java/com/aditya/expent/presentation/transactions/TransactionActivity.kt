@@ -1,8 +1,10 @@
 package com.aditya.expent.presentation.transactions
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -25,8 +27,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -40,16 +42,28 @@ import androidx.compose.ui.unit.sp
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.presentation.theme.ExpentTheme
-import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.presentation.theme.ColorExpense
+import com.aditya.expent.utils.CategoryUtils
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import com.aditya.expent.R
+import com.aditya.expent.utils.AppUtils
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 
 @AndroidEntryPoint
 class TransactionActivity : ComponentActivity() {
+
+    private val viewModel: TransactionViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +74,12 @@ class TransactionActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    TransactionScreen(onBack = { finish() })
+                    val state by viewModel.state.collectAsState()
+                    TransactionScreen(
+                        viewModel = viewModel,
+                        state = state,
+                        onBack = { finish() }
+                    )
                 }
             }
         }
@@ -69,33 +88,22 @@ class TransactionActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionScreen(onBack: () -> Unit) {
+fun TransactionScreen(
+    viewModel: TransactionViewModel,
+    state: TransactionsState,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var searchText by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
     var selectedTypeFilter by remember { mutableStateOf("All") }
 
-    // Rich mock transaction history list
-    val mockTransactions = remember {
-        mutableStateListOf(
-            Transaction("1", "Salary Credited", 5000.0, "15/05/2026", "Job", TransactionType.INCOME),
-            Transaction("2", "Weekly Grocery", -120.0, "14/05/2026", "Food", TransactionType.EXPENSE),
-            Transaction("3", "Netflix Subscription", -15.0, "14/05/2026", "Subscription", TransactionType.EXPENSE),
-            Transaction("4", "Freelance Coding", 800.0, "10/05/2026", "Work", TransactionType.INCOME),
-            Transaction("5", "Dinner at Bistro", -45.50, "10/05/2026", "Food", TransactionType.EXPENSE),
-            Transaction("6", "Gym Membership", -50.00, "08/05/2026", "Subscription", TransactionType.EXPENSE),
-            Transaction("7", "Train Ticket", -32.00, "05/05/2026", "Travel", TransactionType.EXPENSE),
-            Transaction("8", "Consulting Fee", 1200.0, "03/05/2026", "Work", TransactionType.INCOME),
-            Transaction("9", "Fresh Groceries", -18.75, "03/05/2026", "Food", TransactionType.EXPENSE),
-            Transaction("10", "Sneakers Purchase", -110.0, "01/05/2026", "Shopping", TransactionType.EXPENSE),
-            Transaction("11", "Movie Ticket", -15.0, "01/05/2026", "Leisure", TransactionType.EXPENSE),
-            Transaction("12", "Electricity Bill", -85.00, "28/04/2026", "Others", TransactionType.EXPENSE)
-        )
-    }
+    val currentTransactions = state.transactions
+    val currentCategories = state.category
 
-    // Dynamic search and filter computations
-    val filteredTransactions = remember(searchText, selectedCategory, selectedTypeFilter, mockTransactions.size) {
-        mockTransactions.filter { transaction ->
+    val filteredTransactions = remember(searchText, selectedCategory, selectedTypeFilter, currentTransactions.size) {
+        currentTransactions.filter { transaction ->
             val matchesSearch = transaction.title.contains(searchText, ignoreCase = true) ||
                     transaction.category.contains(searchText, ignoreCase = true)
             val matchesCategory = selectedCategory == "All" || transaction.category.equals(selectedCategory, ignoreCase = true)
@@ -106,7 +114,20 @@ fun TransactionScreen(onBack: () -> Unit) {
         }
     }
 
+    var expanded = false
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "ArrowRotation"
+    )
+
     val groupedTransactions = filteredTransactions.groupBy { formatDisplayDate(it.date) }
+
+    if (state.error?.isNotEmpty() == true) {
+        LaunchedEffect(state.error) {
+            Toast.makeText(context, state.error, Toast.LENGTH_LONG).show()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -144,31 +165,57 @@ fun TransactionScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Search Bar with rounded glass style
         OutlinedTextField(
             value = searchText,
             onValueChange = { searchText = it },
-            placeholder = { Text("Search transactions...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            placeholder = {
+                Text(
+                    "Search transactions...",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
             trailingIcon = {
                 if (searchText.isNotEmpty()) {
                     IconButton(onClick = { searchText = "" }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(
+                            Icons.Default.Clear,
+                            contentDescription = "Clear",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Search
+            ),
+            keyboardActions = KeyboardActions(
+                onSearch = { focusManager.clearFocus() }
+            ),
+            shape = RoundedCornerShape(18.dp),
+
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(24.dp)),
-            shape = RoundedCornerShape(24.dp),
+                .height(58.dp),
+
             colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+
+                cursorColor = MaterialTheme.colorScheme.primary
             )
         )
 
@@ -227,21 +274,17 @@ fun TransactionScreen(onBack: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(horizontal = 2.dp)
         ) {
-            val categories = listOf(
-                Pair("All", Icons.Default.FilterList),
-                Pair("Food", Icons.Default.Restaurant),
-                Pair("Subscription", Icons.Default.Subscriptions),
-                Pair("Work", Icons.Default.Work),
-                Pair("Job", Icons.Default.BusinessCenter),
-                Pair("Shopping", Icons.Default.ShoppingCart),
-                Pair("Travel", Icons.Default.Flight),
-                Pair("Leisure", Icons.Default.LocalPlay),
-                Pair("Others", Icons.Default.Category)
-            )
+            var categories = currentCategories.map { it ->
+                Pair(it.name, CategoryUtils.getCategoryIconAndColor(it.name).first)
+            }
+            categories = listOf(Pair("All", Icons.Default.Category)) + categories
+
             items(categories) { (catName, icon) ->
                 val isSelected = selectedCategory == catName
                 val containerColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(
+                        alpha = 0.5f
+                    ),
                     label = "HistChipBg"
                 )
                 val contentColor by animateColorAsState(
@@ -288,7 +331,6 @@ fun TransactionScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // History day-grouped list
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -344,7 +386,6 @@ fun TransactionScreen(onBack: () -> Unit) {
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-
                             val isPositive = netTotal >= 0
                             val totalColor = if (isPositive) ColorIncome else ColorExpense
                             val sign = if (isPositive) "+" else "-"
@@ -364,12 +405,107 @@ fun TransactionScreen(onBack: () -> Unit) {
                     items(transactionsForDay, key = { it.id }) { transaction ->
                         HistoryTransactionItem(
                             transaction = transaction,
-                            onDelete = { mockTransactions.remove(transaction) }
+                            onDelete = { }
                         )
                     }
                 }
             }
+
+            if (groupedTransactions.isNotEmpty()) {
+
+                item {
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp)
+                            .clickable{
+                                viewModel.onExpandClick()
+                            },
+
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable {
+                                    if (!state.isExpanded){
+                                        viewModel.onExpandClick()
+                                    }
+                                }
+                        ) {
+
+                            Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+
+                                AnimatedContent(
+                                    targetState = expanded,
+
+                                    transitionSpec = {
+
+                                        (
+                                                slideInVertically(
+                                                    initialOffsetY = { it / 2 }
+                                                ) + fadeIn()
+
+                                                        togetherWith
+
+                                                        slideOutVertically(
+                                                            targetOffsetY = { -it / 2 }
+                                                        ) + fadeOut()
+
+                                                ).using(
+                                                SizeTransform(clip = false)
+                                            )
+                                    },
+
+                                    label = "SeeMoreAnimation"
+                                ) { targetExpanded ->
+
+                                    Text(
+                                        text = if (targetExpanded) "See Less" else "See More",
+
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            letterSpacing = 0.3.sp
+                                        ),
+
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+
+                                    tint = MaterialTheme.colorScheme.primary,
+
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .rotate(rotationAngle)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
+
+    }
+
+    if (state.isLoading) {
+        AppUtils().ShowProgressAnimation()
     }
 }
 
@@ -467,7 +603,7 @@ fun HistoryTransactionItem(
         Box(
             contentAlignment = Alignment.CenterEnd
         ) {
-            androidx.compose.animation.AnimatedVisibility(
+            this@Row.AnimatedVisibility(
                 visible = showDeleteIcon,
                 enter = fadeIn() + expandHorizontally(),
                 exit = fadeOut() + shrinkHorizontally()
@@ -487,7 +623,7 @@ fun HistoryTransactionItem(
                 }
             }
 
-            androidx.compose.animation.AnimatedVisibility(
+            this@Row.AnimatedVisibility(
                 visible = !showDeleteIcon,
                 enter = fadeIn(),
                 exit = fadeOut()
@@ -572,7 +708,50 @@ private fun formatDisplayDate(dateStr: String): String {
 fun TransactionScreenPreview() {
     ExpentTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            TransactionScreen(onBack = {})
+            TransactionScreen(
+                viewModel = null!!, // Pass a mock or null since it's not used in the preview
+                onBack = {},
+                state = TransactionsState(
+                    transactions = listOf(
+                        Transaction(
+                            id = "1",
+                            title = "Salary for June",
+                            amount = 5000.00,
+                            date = "2024-06-30T10:00:00.000Z",
+                            category = "Job",
+                            type = TransactionType.INCOME,
+                            paymentMethod = "Bank Transfer"
+                        ),
+                        Transaction(
+                            id = "2",
+                            title = "Grocery Shopping",
+                            amount = -150.75,
+                            date = "2024-06-29T15:30:00.000Z",
+                            category = "Food",
+                            type = TransactionType.EXPENSE,
+                            paymentMethod = "Credit Card"
+                        ),
+                        Transaction(
+                            id = "3",
+                            title = "Netflix Subscription",
+                            amount = -12.99,
+                            date = "2024-06-28T20:00:00.000Z",
+                            category = "Subscription",
+                            type = TransactionType.EXPENSE,
+                            paymentMethod = "Debit Card"
+                        ),
+                        Transaction(
+                            id = "4",
+                            title = "Freelance Project",
+                            amount = 1200.00,
+                            date = "2024-06-27T09:00:00.000Z",
+                            category = "Work",
+                            type = TransactionType.INCOME,
+                            paymentMethod = "PayPal"
+                        )
+                    )
+                )
+            )
         }
     }
 }

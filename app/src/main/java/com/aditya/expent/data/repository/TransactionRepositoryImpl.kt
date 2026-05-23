@@ -36,6 +36,23 @@ class TransactionRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getTransactions(
+        page: Int,
+        limit: Int
+    ) : Result <PaginatedTransactionsResponseDto>{
+        return try {
+
+            Log.d("rest re", "Request getTransactions: page=$page, limit=$limit")
+            val response = apiService.getTransactions(page, limit)
+            Log.d("rest re", "Response getTransactions: $response")
+
+            Result.success(response)
+        } catch (e: Exception) {
+            Log.d("rest re", "Error getTransactions: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
     override suspend fun addTransaction(transaction: Transaction): Result<Unit> {
         return try {
             val request = CreateTransactionRequestDto(

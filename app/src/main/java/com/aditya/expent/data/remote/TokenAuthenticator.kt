@@ -1,6 +1,7 @@
 package com.aditya.expent.data.remote
 
 import android.util.Log
+import com.aditya.expent.data.remote.dto.TokenRefreshRequestDto
 import com.aditya.expent.utils.SessionManager
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator
@@ -15,26 +16,40 @@ class TokenAuthenticator @Inject constructor(
     private val apiServiceProvider: Provider<ApiService>
 ) : Authenticator {
 
+    private companion object {
+        const val TAG = "TokenAuthenticator"
+    }
+
+
     override fun authenticate(route: Route?, response: Response): Request? {
         if (response.code != 401) return null
 
+        Log.d(TAG, "Received 401 Unauthorized for ${response.request.url.encodedPath}, attempting to refresh token")
+
         if (response.request.url.encodedPath.contains("auth/refresh")) {
 
-            Log.e("TokenAuthenticator", "Refresh token is invalid or expired")
+            Log.e(TAG, "Refresh token is invalid or expired")
             return null
         }
 
+        Log.d(TAG, "Attempting to refresh token")
         val user = sessionManager.getUser() ?: return null
         val refreshToken = user.refreshToken
+
+        Log.d(TAG, "Current refresh token: ${refreshToken.take(10)}...${refreshToken.takeLast(10)}")
 
         synchronized(this) {
             val newUser = sessionManager.getUser()
             val currentToken = newUser?.accessToken
+
+            Log.d(TAG, "Current access token in session: ${currentToken?.take(10)}...${currentToken?.takeLast(10)}")
             
             val requestToken = response.request.header("Authorization")?.removePrefix("Bearer ")?.trim()
-            
+
+            Log.d(TAG, "Access token used in failed request: ${requestToken?.take(10)}...${requestToken?.takeLast(10)}")
+
             if (currentToken != null && currentToken != requestToken) {
-                Log.d("TokenAuthenticator", "Token already refreshed by another thread, retrying request")
+                Log.d(TAG, "Token already refreshed by another thread, retrying request")
                 return response.request.newBuilder()
                     .header("Authorization", "Bearer $currentToken")
                     .build()
@@ -42,19 +57,20 @@ class TokenAuthenticator @Inject constructor(
 
             // Otherwise, perform the refresh call
             return try {
+                Log.d(TAG, "Performing token refresh with refresh token: ${refreshToken.take(10)}...${refreshToken.takeLast(10)}")
                 if (refreshToken.isBlank()) {
-                    Log.e("TokenAuthenticator", "Refresh token is blank, clearing session")
+                    Log.e(TAG, "Refresh token is blank, clearing session")
                     sessionManager.clearSession()
                     return null
                 }
 
-                Log.d("TokenAuthenticator", "Attempting to refresh token with: ${refreshToken.take(10)}...${refreshToken.takeLast(10)}")
+                Log.d(TAG, "Attempting to refresh token with: ${refreshToken.take(10)}...${refreshToken.takeLast(10)}")
                 
                 val refreshResponse = runBlocking {
-                    apiServiceProvider.get().refreshToken(com.aditya.expent.data.remote.dto.TokenRefreshRequestDto(refreshToken))
+                    apiServiceProvider.get().refreshToken(TokenRefreshRequestDto(refreshToken))
                 }
 
-                Log.d("TokenAuthenticator", "Token refreshed successfully")
+                Log.d(TAG, "Token refreshed successfully")
                 val updatedUser = user.copy(
                     accessToken = refreshResponse.accessToken,
                     refreshToken = refreshResponse.refreshToken
@@ -65,10 +81,10 @@ class TokenAuthenticator @Inject constructor(
                     .header("Authorization", "Bearer ${refreshResponse.accessToken}")
                     .build()
             } catch (e: Exception) {
-                Log.e("TokenAuthenticator", "Failed to refresh token: ${e.message}")
+                Log.e(TAG, "Failed to refresh token: ${e.message}")
 
                 if (e is retrofit2.HttpException && e.code() == 401) {
-                    Log.e("TokenAuthenticator", "Refresh token expired/invalid, clearing session")
+                    Log.e(TAG, "Refresh token expired/invalid, clearing session")
                     sessionManager.clearSession()
                 }
                 
