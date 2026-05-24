@@ -75,6 +75,8 @@ class TokenAuthenticator @Inject constructor(
                     accessToken = refreshResponse.accessToken,
                     refreshToken = refreshResponse.refreshToken
                 )
+
+                Log.d("SAVEUSER", "Saving updated user with new tokens: accessToken=${updatedUser.accessToken.take(10)}...${updatedUser.accessToken.takeLast(10)}, refreshToken=${updatedUser.refreshToken.take(10)}...${updatedUser.refreshToken.takeLast(10)}")
                 sessionManager.saveUser(updatedUser)
 
                 response.request.newBuilder()
@@ -85,7 +87,7 @@ class TokenAuthenticator @Inject constructor(
 
                 if (e is retrofit2.HttpException && e.code() == 401) {
                     Log.e(TAG, "Refresh token expired/invalid, clearing session")
-                    sessionManager.clearSession()
+                    sessionManager.clearSession() // might have problem in going debugs
                 }
                 
                 null
