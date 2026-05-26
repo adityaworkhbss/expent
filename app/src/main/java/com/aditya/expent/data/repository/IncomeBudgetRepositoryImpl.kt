@@ -1,7 +1,9 @@
 package com.aditya.expent.data.repository
 
+import android.util.Log
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.BudgetRequestDto
+import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.presentation.onboard.RecurringIncome
 import javax.inject.Inject
@@ -62,6 +64,18 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             apiService.saveBudgets(listOf(request))
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getBudgets(): Result<List<BudgetResponseDto>> {
+        return try {
+            Log.d("rest re", "Get Budget Called")
+            val response = apiService.getBudgets()
+            Log.d("rest re", "Get Budget response : $response")
+            Result.success(response)
+        } catch (e: Exception){
+            Log.d("rest re", "Error Get Budget Response : $e")
             Result.failure(e)
         }
     }

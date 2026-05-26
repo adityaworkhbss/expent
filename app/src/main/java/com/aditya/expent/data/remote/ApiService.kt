@@ -43,6 +43,9 @@ interface ApiService {
     @GET("categories")
     suspend fun getCategories(): List<CategoryResponseDto>
 
+    @GET("budgets")
+    suspend fun getBudgets(): List<BudgetResponseDto>
+
     @POST("budgets")
     suspend fun saveBudgets(@Body request: List<BudgetRequestDto>): List<BudgetResponseDto>
 

@@ -1,5 +1,6 @@
 package com.aditya.expent.presentation.dashboard
 
+import android.content.Context
 import android.util.Log
 import android.content.Intent
 import android.os.Bundle
@@ -71,6 +72,8 @@ import java.util.Locale
 import kotlin.math.absoluteValue
 import javax.inject.Inject
 import androidx.compose.ui.graphics.graphicsLayer
+import com.aditya.expent.presentation.analysis.AnalysisActivity
+import com.aditya.expent.presentation.cashflow.CashflowActivity
 import com.aditya.expent.utils.AppUtils
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -256,7 +259,8 @@ fun DashboardScreen(
                     BalanceCard(
                         totalBalance = state.totalBalance,
                         income = state.totalIncome,
-                        expense = state.totalExpense
+                        expense = state.totalExpense,
+                        context = context
                     )
 
                     Spacer(modifier = Modifier.height(32.dp))
@@ -1209,7 +1213,8 @@ fun EditReminderBottomSheet(
 fun BalanceCard(
     totalBalance: Double,
     income: Double,
-    expense: Double
+    expense: Double,
+    context: Context
 ) {
     Card(
         modifier = Modifier
@@ -1257,19 +1262,50 @@ fun BalanceCard(
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
+                                .clickable(
+                                    onClick = {
+                                        context.startActivity(Intent(context, AnalysisActivity::class.java))
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Analytics,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
+                                .clickable(
+                                    onClick = {
+                                        context.startActivity(Intent(context, CashflowActivity::class.java))
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccountBalanceWallet,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
