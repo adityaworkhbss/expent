@@ -17,6 +17,11 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
+import java.text.SimpleDateFormat
+import java.time.ZoneId
+import java.util.Locale
+import java.util.TimeZone
+import kotlin.time.Instant
 
 class AppUtils {
 
@@ -42,5 +47,31 @@ class AppUtils {
                 modifier = Modifier.size(200.dp)
             )
         }
+    }
+
+    fun getDayWithSuffix(dateString: String): String {
+
+        val parser = SimpleDateFormat(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            Locale.ENGLISH
+        )
+
+        parser.timeZone = TimeZone.getTimeZone("UTC")
+
+        val date = parser.parse(dateString)
+
+        val formatter = SimpleDateFormat("d", Locale.ENGLISH)
+
+        val day = formatter.format(date!!).toInt()
+
+        val suffix = when {
+            day in 11..13 -> "th"
+            day % 10 == 1 -> "st"
+            day % 10 == 2 -> "nd"
+            day % 10 == 3 -> "rd"
+            else -> "th"
+        }
+
+        return "$day$suffix"
     }
 }

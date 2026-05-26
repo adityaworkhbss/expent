@@ -3,6 +3,7 @@ package com.aditya.expent.presentation.cashflow
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -32,10 +33,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.presentation.dashboard.DashboardViewModel
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.presentation.theme.ExpentTheme
+import com.aditya.expent.utils.AppUtils
+import dagger.hilt.android.AndroidEntryPoint
+import java.util.Locale
+import kotlin.getValue
 
 
 enum class CashflowTab {
@@ -43,7 +50,10 @@ enum class CashflowTab {
     OUTGOING
 }
 
+@AndroidEntryPoint
 class CashflowActivity : ComponentActivity() {
+
+    private val viewModel: CashflowViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,8 +64,12 @@ class CashflowActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val state by viewModel.budgetState.collectAsState()
                     CashflowScreen(
-                        onBack = { finish() }
+                        state.budgets,
+                        onBack = {
+                            finish()
+                        }
                     )
                 }
             }
@@ -65,6 +79,7 @@ class CashflowActivity : ComponentActivity() {
 
 @Composable
 fun CashflowScreen(
+    income : List<BudgetResponseDto>,
     onBack : () -> Unit
 ) {
 
@@ -120,6 +135,7 @@ fun CashflowScreen(
         CashflowContentScreen(
             modifier = Modifier.padding(paddingValues),
             title = title,
+            income = income,
             themeColor = themeColor,
             onBack = onBack
         )
@@ -130,6 +146,7 @@ fun CashflowScreen(
 fun CashflowContentScreen(
     modifier: Modifier = Modifier,
     title: String,
+    income: List<BudgetResponseDto>,
     themeColor: Color,
     onBack: () -> Unit
 ) {
@@ -168,18 +185,11 @@ fun CashflowContentScreen(
         )
     }
 
-    val incomes = remember {
-        listOf(
-            Subscription(
-                name = "Primary Salary",
-                amount = "5200",
-                billingDate = "1st"
-            ),
-            Subscription(
-                name = "Freelance Consulting",
-                amount = "1200",
-                billingDate = "15th"
-            )
+    val incomes = income.map { it ->
+        Subscription(
+            name = it.category?.name.toString(),
+            amount = it.limitAmount,
+            billingDate = AppUtils().getDayWithSuffix(it.startDate)
         )
     }
 
@@ -641,66 +651,67 @@ fun EnhancedSubscriptionCard(
         }
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun CashflowPreview() {
-
-    ExpentTheme {
-
-        Surface(
-            modifier = Modifier.fillMaxSize()
-        ) {
-
-            CashflowScreen(
-                onBack = {}
-            )
-        }
-    }
-}
-
-@Preview(
-    showBackground = true,
-    showSystemUi = true,
-    name = "Incoming Flow Screen"
-)
-@Composable
-fun IncomingFlowPreview() {
-
-    ExpentTheme {
-
-        Surface(
-            modifier = Modifier.fillMaxSize()
-        ) {
-
-            CashflowContentScreen(
-                title = "Incoming",
-                themeColor = Color(0xFF00ACC1),
-                onBack = {}
-            )
-        }
-    }
-}
-
-@Preview(
-    showBackground = true,
-    showSystemUi = true,
-    name = "Outgoing Flow Screen"
-)
-@Composable
-fun OutgoingFlowPreview() {
-
-    ExpentTheme {
-
-        Surface(
-            modifier = Modifier.fillMaxSize()
-        ) {
-
-            CashflowContentScreen(
-                title = "Outgoing",
-                themeColor = ColorExpense,
-                onBack = {}
-            )
-        }
-    }
-}
+//
+//@Preview(showBackground = true)
+//@Composable
+//fun CashflowPreview() {
+//
+//    ExpentTheme {
+//
+//        Surface(
+//            modifier = Modifier.fillMaxSize()
+//        ) {
+//
+//            CashflowScreen(
+//                onBack = {}
+//            )
+//        }
+//    }
+//}
+//
+//@Preview(
+//    showBackground = true,
+//    showSystemUi = true,
+//    name = "Incoming Flow Screen"
+//)
+//@Composable
+////fun IncomingFlowPreview() {
+////
+////    ExpentTheme {
+////
+////        Surface(
+////            modifier = Modifier.fillMaxSize()
+////        ) {
+////
+////            CashflowContentScreen(
+////                title = "Incoming",
+////                themeColor = Color(0xFF00ACC1),
+////
+////                onBack = {}
+////            )
+////        }
+////    }
+////}
+//
+//@Preview(
+//    showBackground = true,
+//    showSystemUi = true,
+//    name = "Outgoing Flow Screen"
+//)
+//@Composable
+//fun OutgoingFlowPreview() {
+//
+//    ExpentTheme {
+//
+//        Surface(
+//            modifier = Modifier.fillMaxSize()
+//        ) {
+//
+//            CashflowContentScreen(
+//                title = "Outgoing",
+//                themeColor = ColorExpense,
+//                onBack = {}
+//            )
+//        }
+//    }
+//}
