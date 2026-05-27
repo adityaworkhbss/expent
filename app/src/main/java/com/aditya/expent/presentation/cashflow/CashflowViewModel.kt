@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.domain.usecase.GetBudgetUseCase
+import com.aditya.expent.domain.usecase.DeleteBudgetUseCase
+import com.aditya.expent.domain.usecase.UpdateBudgetUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +21,9 @@ data class BudgetUiState(
 
 @HiltViewModel
 class CashflowViewModel @Inject constructor(
-    private val getBudgetUseCase: GetBudgetUseCase
+    private val getBudgetUseCase: GetBudgetUseCase,
+    private val deleteBudgetUseCase: DeleteBudgetUseCase,
+    private val updateBudgetUseCase: UpdateBudgetUseCase
 ) : ViewModel() {
 
     private val _budgetState = MutableStateFlow(BudgetUiState())
@@ -39,6 +43,45 @@ class CashflowViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _budgetState.value = BudgetUiState(error = error.message ?: "Unknown error")
+                }
+        }
+    }
+
+    fun deleteBudget(id: String) {
+        viewModelScope.launch {
+            _budgetState.value = _budgetState.value.copy(isLoading = true)
+            deleteBudgetUseCase(id)
+                .onSuccess {
+                    fetchBudgets()
+                }
+                .onFailure { error ->
+                    _budgetState.value = _budgetState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "Failed to delete budget"
+                    )
+                }
+        }
+    }
+
+    fun updateBudget(
+        id: String,
+        categoryId: String?,
+        periodType: String,
+        amount: Double,
+        startDate: String,
+        endDate: String?
+    ) {
+        viewModelScope.launch {
+            _budgetState.value = _budgetState.value.copy(isLoading = true)
+            updateBudgetUseCase(id, categoryId, periodType, amount, startDate, endDate)
+                .onSuccess {
+                    fetchBudgets()
+                }
+                .onFailure { error ->
+                    _budgetState.value = _budgetState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "Failed to update budget"
+                    )
                 }
         }
     }

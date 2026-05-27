@@ -79,4 +79,39 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun deleteBudget(id: String): Result<Unit> {
+        return try {
+            apiService.deleteBudget(id)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateBudget(
+        id: String,
+        categoryId: String?,
+        periodType: String,
+        amount: Double,
+        startDate: String,
+        endDate: String?
+    ): Result<Unit> {
+        return try {
+            val categories = apiService.getCategories()
+            val resolvedCategoryId = categories.find { it.name == categoryId }?.id ?: categoryId
+
+            val request = BudgetRequestDto(
+                categoryId = resolvedCategoryId,
+                periodType = periodType,
+                limitAmount = amount,
+                startDate = startDate,
+                endDate = if (endDate.isNullOrBlank()) null else endDate
+            )
+            apiService.updateBudget(id, request)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

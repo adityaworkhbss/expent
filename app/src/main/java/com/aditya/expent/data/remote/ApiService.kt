@@ -79,6 +79,12 @@ interface ApiService {
     @DELETE("accounts/{id}")
     suspend fun deleteAccount( @Path("id") accountId: String)
 
+    @DELETE("budgets/{id}")
+    suspend fun deleteBudget(@Path("id") budgetId: String)
+
+    @PUT("budgets/{id}")
+    suspend fun updateBudget(@Path("id") budgetId: String, @Body request: BudgetRequestDto): BudgetResponseDto
+
     @GET("user-customization")
     suspend fun getUserCustomization(): UserCustomizationResponseDto
 
