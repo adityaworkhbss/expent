@@ -1,5 +1,7 @@
 package com.aditya.expent.utils
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -18,7 +20,9 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import java.text.SimpleDateFormat
+import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.time.Instant
@@ -73,5 +77,36 @@ class AppUtils {
         }
 
         return "$day$suffix"
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun formatIsoDate(
+        date: String
+    ): String {
+
+        return try {
+
+            if(date.isEmpty()) return ""
+
+            if (
+                Regex("""\d{2}/\d{2}/\d{4}""")
+                    .matches(date)
+            ) {
+                return date
+            }
+
+            val formatter =
+                DateTimeFormatter.ofPattern(
+                    "dd/MM/yyyy"
+                )
+
+            OffsetDateTime
+                .parse(date)
+                .format(formatter)
+
+        } catch (e: Exception) {
+
+            date
+        }
     }
 }

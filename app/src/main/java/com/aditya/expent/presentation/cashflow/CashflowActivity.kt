@@ -1,9 +1,11 @@
 package com.aditya.expent.presentation.cashflow
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -42,6 +44,8 @@ import com.aditya.expent.presentation.onboard.Subscription
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.AppUtils
+import com.aditya.expent.presentation.component.ExpentDatePicker
+import androidx.compose.material.icons.filled.DateRange
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Locale
 import kotlin.getValue
@@ -76,6 +80,9 @@ class CashflowActivity : ComponentActivity() {
                         onDeleteBudget = { id -> viewModel.deleteBudget(id) },
                         onUpdateBudget = { id, categoryId, periodType, amount, startDate, endDate ->
                             viewModel.updateBudget(id, categoryId, periodType, amount, startDate, endDate)
+                        },
+                        onAddBudget = { categoryId, periodType, amount, startDate, endDate ->
+                            viewModel.saveBudget(categoryId, periodType, amount, startDate, endDate)
                         }
                     )
                 }
@@ -89,7 +96,8 @@ fun CashflowScreen(
     income : List<BudgetResponseDto>,
     onBack : () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
-    onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> }
+    onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
+    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> }
 ) {
 
     var selectedTab by remember {
@@ -148,11 +156,13 @@ fun CashflowScreen(
             themeColor = themeColor,
             onBack = onBack,
             onDeleteBudget = onDeleteBudget,
-            onUpdateBudget = onUpdateBudget
+            onUpdateBudget = onUpdateBudget,
+            onAddBudget = onAddBudget
         )
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CashflowContentScreen(
@@ -162,7 +172,8 @@ fun CashflowContentScreen(
     themeColor: Color,
     onBack: () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
-    onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> }
+    onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
+    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> }
 ) {
 
     val recurringExpenses = remember {
@@ -203,7 +214,7 @@ fun CashflowContentScreen(
         Subscription(
             name = it.category?.name.toString(),
             amount = it.limitAmount,
-            billingDate = AppUtils().getDayWithSuffix(it.startDate),
+            billingDate = it.startDate,
             id = it.id
         )
     }
@@ -268,7 +279,10 @@ fun CashflowContentScreen(
                 SectionHeader(
                     title = if (title.contentEquals("Incoming")) "Active Incomes" else "Active Subscriptions",
                     themeColor = themeColor,
-                    onAddClick = {}
+                    onAddClick = {
+                        selectedSubscriptionForEdit = null
+                        showBottomSheet = true
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -291,17 +305,24 @@ fun CashflowContentScreen(
             }
         }
 
-        if (showBottomSheet && selectedSubscriptionForEdit != null) {
-            val subscription = selectedSubscriptionForEdit!!
-            val sheetState = rememberModalBottomSheetState()
+        if (showBottomSheet) {
+            var subscription: Subscription? = null
+            if (selectedSubscriptionForEdit != null) subscription = selectedSubscriptionForEdit!!
 
-            var amountText by remember { mutableStateOf(subscription.amount) }
-            var nameText by remember { mutableStateOf(subscription.name) }
-            var dateText by remember { mutableStateOf(subscription.billingDate) }
+            val editSheetState = rememberModalBottomSheetState()
+            val addSheetState = rememberModalBottomSheetState()
+
+            var amountText by remember { mutableStateOf(subscription?.amount ?: "") }
+            var nameText by remember { mutableStateOf(subscription?.name ?: "") }
+            var dateText by remember { mutableStateOf(subscription?.billingDate ?: "") }
+            var showDatePicker by remember { mutableStateOf(false) }
 
             ModalBottomSheet(
                 onDismissRequest = { showBottomSheet = false },
-                sheetState = sheetState,
+                sheetState = if (subscription != null)
+                                editSheetState
+                            else
+                                addSheetState,
                 dragHandle = { BottomSheetDefaults.DragHandle() }
             ) {
                 Column(
@@ -312,7 +333,11 @@ fun CashflowContentScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Edit Active Flow",
+                        text = if (subscription != null) {
+                                    "Edit Active Flow"
+                                } else {
+                                    "Add new incoming flow"
+                                },
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.1.sp
@@ -343,18 +368,33 @@ fun CashflowContentScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
-                        value = dateText,
-                        onValueChange = { dateText = it },
+                        value = AppUtils().formatIsoDate(dateText),
+                        onValueChange = { },
                         label = { Text("Billing Date / Start Date") },
+                        readOnly = true,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
+                            }
+                        }
+                    )
+
+                    ExpentDatePicker(
+                        showDialog = showDatePicker,
+                        onDismiss = { showDatePicker = false },
+                        onDateSelected = {
+                            dateText = it
+                            showDatePicker = false
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
                         onClick = {
-                            val budgetId = subscription.id
+                            val budgetId = subscription?.id
                             if (budgetId != null) {
                                 val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
                                 val origBudget = income.find { it.id == budgetId }
@@ -381,7 +421,7 @@ fun CashflowContentScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (subscription.id != null) {
+                    if (subscription?.id != null) {
                         TextButton(
                             onClick = {
                                 onDeleteBudget(subscription.id)
@@ -393,6 +433,27 @@ fun CashflowContentScreen(
                             colors = ButtonDefaults.textButtonColors(contentColor = ColorExpense)
                         ) {
                             Text("Delete Flow", fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        TextButton(
+                            onClick = {
+                                val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
+                                val startDate = if (dateText.isBlank()) java.time.OffsetDateTime.now().toString() else dateText
+                                onAddBudget(
+                                    nameText,
+                                    "MONTHLY",
+                                    doubleAmount,
+                                    startDate,
+                                    null
+                                )
+                                showBottomSheet = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            colors = ButtonDefaults.textButtonColors(contentColor = ColorExpense)
+                        ) {
+                            Text("Add Flow", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -744,7 +805,7 @@ fun EnhancedSubscriptionCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Billing on ${subscription.billingDate}",
+                    text = "Billing on ${AppUtils().getDayWithSuffix(subscription.billingDate)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
