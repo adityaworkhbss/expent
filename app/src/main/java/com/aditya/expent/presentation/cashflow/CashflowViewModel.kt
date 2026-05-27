@@ -3,8 +3,10 @@ package com.aditya.expent.presentation.cashflow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.usecase.GetBudgetUseCase
 import com.aditya.expent.domain.usecase.DeleteBudgetUseCase
+import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.UpdateBudgetUseCase
 import com.aditya.expent.domain.usecase.SaveBudgetUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +19,7 @@ import javax.inject.Inject
 data class BudgetUiState(
     val isLoading: Boolean = false,
     val budgets: List<BudgetResponseDto> = emptyList(),
+    val categories: List<CategoryResponseDto> = emptyList(),
     val error: String? = null
 )
 
@@ -25,7 +28,8 @@ class CashflowViewModel @Inject constructor(
     private val getBudgetUseCase: GetBudgetUseCase,
     private val deleteBudgetUseCase: DeleteBudgetUseCase,
     private val updateBudgetUseCase: UpdateBudgetUseCase,
-    private val saveBudgetUseCase: SaveBudgetUseCase
+    private val saveBudgetUseCase: SaveBudgetUseCase,
+    private val getCategoriesUseCase: GetCategoriesUseCase
 ) : ViewModel() {
 
     private val _budgetState = MutableStateFlow(BudgetUiState())
@@ -33,18 +37,31 @@ class CashflowViewModel @Inject constructor(
 
     init {
         fetchBudgets()
-//        fetch
+        fetchCategories()
+    }
+
+    fun fetchCategories(){
+        viewModelScope.launch {
+            _budgetState.value = _budgetState.value.copy(isLoading = true)
+            getCategoriesUseCase()
+                .onSuccess { categories ->
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, categories = categories)
+                }
+                .onFailure { error ->
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, error = error.message ?: "Unknown error")
+                }
+        }
     }
 
     fun fetchBudgets() {
         viewModelScope.launch {
-            _budgetState.value = BudgetUiState(isLoading = true)
+            _budgetState.value = _budgetState.value.copy(isLoading = true)
             getBudgetUseCase()
                 .onSuccess { budgets ->
-                    _budgetState.value = BudgetUiState(budgets = budgets)
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, budgets = budgets)
                 }
                 .onFailure { error ->
-                    _budgetState.value = BudgetUiState(error = error.message ?: "Unknown error")
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, error = error.message ?: "Unknown error")
                 }
         }
     }

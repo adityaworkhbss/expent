@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -37,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aditya.expent.data.remote.dto.BudgetCategoryDto
+import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.presentation.dashboard.DashboardViewModel
 import com.aditya.expent.presentation.onboard.RecurringExpense
@@ -74,6 +76,7 @@ class CashflowActivity : ComponentActivity() {
                     val state by viewModel.budgetState.collectAsState()
                     CashflowScreen(
                         state.budgets,
+                        state.categories,
                         onBack = {
                             finish()
                         },
@@ -94,6 +97,7 @@ class CashflowActivity : ComponentActivity() {
 @Composable
 fun CashflowScreen(
     income : List<BudgetResponseDto>,
+    categories: List<CategoryResponseDto>,
     onBack : () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
     onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
@@ -107,6 +111,11 @@ fun CashflowScreen(
     val themeColor = when (selectedTab) {
         CashflowTab.INCOMING -> Color(0xFF00ACC1)
         CashflowTab.OUTGOING -> ColorExpense
+    }
+
+    val categoriesType = when (selectedTab) {
+        CashflowTab.INCOMING -> "INCOME"
+        CashflowTab.OUTGOING -> "EXPENSE"
     }
 
     Scaffold(
@@ -153,6 +162,7 @@ fun CashflowScreen(
             modifier = Modifier.padding(paddingValues),
             title = title,
             income = income,
+            categories = categories.filter { it.type == categoriesType },
             themeColor = themeColor,
             onBack = onBack,
             onDeleteBudget = onDeleteBudget,
@@ -169,6 +179,7 @@ fun CashflowContentScreen(
     modifier: Modifier = Modifier,
     title: String,
     income: List<BudgetResponseDto>,
+    categories: List<CategoryResponseDto> = emptyList(),
     themeColor: Color,
     onBack: () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
@@ -313,9 +324,20 @@ fun CashflowContentScreen(
             val addSheetState = rememberModalBottomSheetState()
 
             var amountText by remember { mutableStateOf(subscription?.amount ?: "") }
-            var nameText by remember { mutableStateOf(subscription?.name ?: "") }
+            var selectedCategoryId by remember {
+                mutableStateOf(
+                    if (subscription != null) {
+                        val origBudget = income.find { it.id == subscription.id }
+                        origBudget?.categoryId
+                    } else null
+                )
+            }
+            var selectedCategoryName by remember {
+                mutableStateOf(subscription?.name ?: "")
+            }
             var dateText by remember { mutableStateOf(subscription?.billingDate ?: "") }
             var showDatePicker by remember { mutableStateOf(false) }
+            var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
             ModalBottomSheet(
                 onDismissRequest = { showBottomSheet = false },
@@ -347,13 +369,44 @@ fun CashflowContentScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    OutlinedTextField(
-                        value = nameText,
-                        onValueChange = { nameText = it },
-                        label = { Text("Category / Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    ExposedDropdownMenuBox(
+                        expanded = categoryDropdownExpanded,
+                        onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedCategoryName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Category") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Select Category",
+                                    tint = themeColor
+                                )
+                            }
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = categoryDropdownExpanded,
+                            onDismissRequest = { categoryDropdownExpanded = false }
+                        ) {
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.name) },
+                                    onClick = {
+                                        selectedCategoryId = category.id
+                                        selectedCategoryName = category.name
+                                        categoryDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -392,34 +445,37 @@ fun CashflowContentScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Button(
-                        onClick = {
-                            val budgetId = subscription?.id
-                            if (budgetId != null) {
-                                val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
-                                val origBudget = income.find { it.id == budgetId }
-                                val startDate = origBudget?.startDate ?: now().toString()
-                                onUpdateBudget(
-                                    budgetId,
-                                    nameText,
-                                    origBudget?.periodType ?: "MONTHLY",
-                                    doubleAmount,
-                                    startDate,
-                                    origBudget?.endDate
-                                )
-                            }
-                            showBottomSheet = false
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = themeColor)
-                    ) {
-                        Text("Update", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                    if(subscription?.id != null){
+                        Button(
+                            onClick = {
+                                val budgetId = subscription?.id
+                                if (budgetId != null) {
+                                    val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
+                                    val origBudget = income.find { it.id == budgetId }
+                                    val startDate = if (dateText.isBlank()) origBudget?.startDate ?: now().toString() else dateText
+                                    onUpdateBudget(
+                                        budgetId,
+                                        selectedCategoryId,
+                                        origBudget?.periodType ?: "MONTHLY",
+                                        doubleAmount,
+                                        startDate,
+                                        origBudget?.endDate
+                                    )
+                                }
+                                showBottomSheet = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = themeColor)
+                        ) {
+                            Text("Update", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                    }
 
                     if (subscription?.id != null) {
                         TextButton(
@@ -440,7 +496,7 @@ fun CashflowContentScreen(
                                 val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
                                 val startDate = if (dateText.isBlank()) java.time.OffsetDateTime.now().toString() else dateText
                                 onAddBudget(
-                                    nameText,
+                                    selectedCategoryId,
                                     "MONTHLY",
                                     doubleAmount,
                                     startDate,
@@ -451,7 +507,7 @@ fun CashflowContentScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = ColorExpense)
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF00ACC1))
                         ) {
                             Text("Add Flow", fontWeight = FontWeight.Bold)
                         }
@@ -878,6 +934,19 @@ private val previewBudgets = listOf(
     )
 )
 
+private val previewCategories = listOf(
+    CategoryResponseDto(
+        id = "2390148132-234891",
+        name = "Salary",
+        type = "INCOME"
+    ),
+    CategoryResponseDto(
+        id = "239013246132-234891",
+        name = "Drinks",
+        type = "OUTCOME"
+    )
+)
+
 @Preview(
     showBackground = true,
     showSystemUi = true,
@@ -894,6 +963,7 @@ fun CashflowPreview() {
 
             CashflowScreen(
                 income = previewBudgets,
+                categories = previewCategories,
                 onBack = {}
             )
         }
