@@ -15,7 +15,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,12 +47,10 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.AppUtils
 import com.aditya.expent.presentation.component.ExpentDatePicker
 import androidx.compose.material.icons.filled.DateRange
-import com.aditya.expent.data.remote.dto.AccountDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.OffsetDateTime
 import kotlin.getValue
-import kotlin.math.exp
 import kotlin.time.Clock.System.now
 
 
@@ -205,6 +202,7 @@ fun CashflowContentScreen(
                 totalMonths = item.tenure.toString(),
                 monthsPaid = item.monthsPaid.toString(),
                 startDate = AppUtils().getDayWithSuffix(item.startDate),
+                id = item.id
             )
 
         } else {
@@ -240,7 +238,9 @@ fun CashflowContentScreen(
     val activeList = if (title.contentEquals("Incoming")) incomes else subscriptions
 
     var selectedSubscriptionForEdit by remember { mutableStateOf<Subscription?>(null) }
+    var selectedEmiForEdit by remember { mutableStateOf<RecurringExpense?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedAddNewEmis by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -271,7 +271,12 @@ fun CashflowContentScreen(
                     SectionHeader(
                         title = "Recurring EMIs & Loans",
                         themeColor = themeColor,
-                        onAddClick = {}
+                        onAddClick = {
+                            selectedEmiForEdit = null
+                            selectedSubscriptionForEdit = null
+                            selectedAddNewEmis = true
+                            showBottomSheet = true
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -286,7 +291,13 @@ fun CashflowContentScreen(
                     EnhancedEmiCard(
                         emi = emi,
                         progress = progress,
-                        themeColor = themeColor
+                        themeColor = themeColor,
+                        onEditClick = {
+                            selectedEmiForEdit = emi
+                            selectedSubscriptionForEdit = null
+                            selectedAddNewEmis = true
+                            showBottomSheet = true
+                        }
                     )
                 }
             }
@@ -298,7 +309,9 @@ fun CashflowContentScreen(
                     title = if (title.contentEquals("Incoming")) "Active Incomes" else "Active Subscriptions",
                     themeColor = themeColor,
                     onAddClick = {
+                        selectedEmiForEdit = null
                         selectedSubscriptionForEdit = null
+                        selectedAddNewEmis = false
                         showBottomSheet = true
                     }
                 )
@@ -312,7 +325,9 @@ fun CashflowContentScreen(
                     subscription = sub,
                     themeColor = themeColor,
                     onEditClick = {
+                        selectedEmiForEdit = null
                         selectedSubscriptionForEdit = sub
+                        selectedAddNewEmis = false
                         showBottomSheet = true
                     }
                 )
@@ -327,22 +342,44 @@ fun CashflowContentScreen(
             var subscription: Subscription? = null
             if (selectedSubscriptionForEdit != null) subscription = selectedSubscriptionForEdit!!
 
+            var recurringExpense : RecurringExpense? = null
+            if(selectedEmiForEdit != null) recurringExpense = selectedEmiForEdit
+
             val editSheetState = rememberModalBottomSheetState()
             val addSheetState = rememberModalBottomSheetState()
 
-            var amountText by remember { mutableStateOf(subscription?.amount ?: "") }
+            var expenseName by remember { mutableStateOf(recurringExpense?.amount ?: "") }
+
+            var amountText by remember {
+                mutableStateOf(
+                    subscription?.amount
+                        ?: recurringExpense?.amount
+                        ?: ""
+                )
+            }
+
             var selectedCategoryId by remember {
                 mutableStateOf(
                     if (subscription != null) {
                         val origBudget = income.find { it.id == subscription.id }
                         origBudget?.categoryId
-                    } else null
+                    }
+//                    else if (recurringExpense != null){
+//                        val origBudget = income.find { it.id == recurringExpense.id }
+//                        origBudget?.categoryId
+//                    }
+                    else null
                 )
             }
             var selectedCategoryName by remember {
-                mutableStateOf(subscription?.name ?: "")
+                mutableStateOf(
+                    subscription?.name ?: "")
             }
-            var dateText by remember { mutableStateOf(subscription?.billingDate ?: "") }
+            var dateText by remember { mutableStateOf(
+                subscription?.billingDate
+                    ?: recurringExpense?.startDate
+                    ?: "")
+            }
             var showDatePicker by remember { mutableStateOf(false) }
             var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -365,7 +402,11 @@ fun CashflowContentScreen(
                         text = if (subscription != null) {
                                     "Edit Active Flow"
                                 } else {
-                                    "Add new incoming flow"
+                                    if(title == "Incoming"){
+                                        "Add new incoming flow"
+                                    } else {
+                                        "Add new outgoing flow"
+                                    }
                                 },
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
@@ -375,6 +416,16 @@ fun CashflowContentScreen(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    if(selectedAddNewEmis){
+                        OutlinedTextField(
+                            value = expenseName,
+                            onValueChange = { expenseName = it },
+                            label = { Text("Name the EMI") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
 
                     ExposedDropdownMenuBox(
                         expanded = categoryDropdownExpanded,
@@ -441,6 +492,24 @@ fun CashflowContentScreen(
                         }
                     )
 
+                    if(selectedAddNewEmis){
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = AppUtils().formatIsoDate(dateText),
+                            onValueChange = { },
+                            label = { Text("End Date") },
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                IconButton(onClick = { showDatePicker = true }) {
+                                    Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
+                                }
+                            }
+                        )
+                    }
+
                     ExpentDatePicker(
                         showDialog = showDatePicker,
                         onDismiss = { showDatePicker = false },
@@ -455,20 +524,18 @@ fun CashflowContentScreen(
                     if(subscription?.id != null){
                         Button(
                             onClick = {
-                                val budgetId = subscription?.id
-                                if (budgetId != null) {
-                                    val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
-                                    val origBudget = income.find { it.id == budgetId }
-                                    val startDate = if (dateText.isBlank()) origBudget?.startDate ?: now().toString() else dateText
-                                    onUpdateBudget(
-                                        budgetId,
-                                        selectedCategoryId,
-                                        origBudget?.periodType ?: "MONTHLY",
-                                        doubleAmount,
-                                        startDate,
-                                        origBudget?.endDate
-                                    )
-                                }
+                                val budgetId = subscription.id
+                                val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
+                                val origBudget = income.find { it.id == budgetId }
+                                val startDate = if (dateText.isBlank()) origBudget?.startDate ?: now().toString() else dateText
+                                onUpdateBudget(
+                                    budgetId,
+                                    selectedCategoryId,
+                                    origBudget?.periodType ?: "MONTHLY",
+                                    doubleAmount,
+                                    startDate,
+                                    origBudget?.endDate
+                                )
                                 showBottomSheet = false
                             },
                             modifier = Modifier
@@ -514,7 +581,11 @@ fun CashflowContentScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF00ACC1))
+                            colors = if(title == "Incoming") {
+                                        ButtonDefaults.textButtonColors(contentColor = Color(0xFF00ACC1))
+                                    }else{
+                                        ButtonDefaults.textButtonColors(contentColor = ColorExpense)
+                                    }
                         ) {
                             Text("Add Flow", fontWeight = FontWeight.Bold)
                         }
@@ -615,7 +686,8 @@ fun SectionHeader(
 fun EnhancedEmiCard(
     emi: RecurringExpense,
     progress: Float,
-    themeColor: Color
+    themeColor: Color,
+    onEditClick : () -> Unit
 ) {
 
     var isPressed by remember {
@@ -703,7 +775,10 @@ fun EnhancedEmiCard(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(themeColor.copy(alpha = 0.1f)),
+                            .background(themeColor.copy(alpha = 0.1f))
+                            .clickable{
+                                onEditClick()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -986,6 +1061,26 @@ private val previewExpense = listOf(
         monthlyEmi = "15000",
         startDate = "2026-01-05T00:00:00.000Z",
         endDate = null,
+        nextDueDate = "2026-02-05T00:00:00.000Z",
+        remainingBalance = "0",
+        monthsPaid = 0,
+        active = true,
+        createdAt = "2026-05-17T07:31:12.495Z",
+        updatedAt = "2026-05-17T07:31:12.495Z",
+        account = null
+    ),
+
+    ExpenseIncomeResponseDto(
+        id = "0bcb8bee-261c-4a8d-9bbc-71c24811915a",
+        userId = "bcbe170f-801b-4092-93d0-348c27d32aef",
+        accountId = null,
+        transactionId = null,
+        name = "Rent",
+        principal = "0",
+        tenure = 0,
+        monthlyEmi = "15000",
+        startDate = "2026-01-05T00:00:00.000Z",
+        endDate = "2026-09-05T00:00:00.000Z",
         nextDueDate = "2026-02-05T00:00:00.000Z",
         remainingBalance = "0",
         monthsPaid = 0,

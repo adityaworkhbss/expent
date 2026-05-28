@@ -35,7 +35,8 @@ data class RecurringExpense(
     val amount: String,
     val totalMonths: String,
     val monthsPaid: String,
-    val startDate: String
+    val startDate: String,
+    val id : String? = null
 )
 
 data class Subscription(

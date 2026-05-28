@@ -1431,7 +1431,7 @@ fun OutgoingStep(
                 Button(
                     onClick = {
                         if (emiName.isNotBlank() && emiAmount.isNotBlank() && emiTotalMonths.isNotBlank() && emiMonthsPaid.isNotBlank() && emiStartDate.isNotBlank()) {
-                            onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(), emiStartDate.trim()))
+                            onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(),emiStartDate.trim()))
                             emiName = ""
                             emiAmount = ""
                             emiTotalMonths = ""
