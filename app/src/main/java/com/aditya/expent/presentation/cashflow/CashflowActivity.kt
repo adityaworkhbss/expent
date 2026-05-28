@@ -201,8 +201,9 @@ fun CashflowContentScreen(
                 amount = item.monthlyEmi,
                 totalMonths = item.tenure.toString(),
                 monthsPaid = item.monthsPaid.toString(),
-                startDate = AppUtils().getDayWithSuffix(item.startDate),
-                id = item.id
+                startDate = item.startDate,
+                id = item.id,
+                endDate = item.endDate
             )
 
         } else {
@@ -376,11 +377,16 @@ fun CashflowContentScreen(
                     subscription?.name ?: "")
             }
             var dateText by remember { mutableStateOf(
-                subscription?.billingDate
-                    ?: recurringExpense?.startDate
-                    ?: "")
-            }
-            var showDatePicker by remember { mutableStateOf(false) }
+                    subscription?.billingDate
+                        ?: recurringExpense?.startDate
+                        ?: ""
+                ) }
+
+                var endDateText by remember { mutableStateOf(
+                    recurringExpense?.endDate ?: ""
+                ) }
+                var showDatePicker by remember { mutableStateOf(false) }
+                var showEndDatePicker by remember { mutableStateOf(false) }
             var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
             ModalBottomSheet(
@@ -492,18 +498,18 @@ fun CashflowContentScreen(
                         }
                     )
 
-                    if(selectedAddNewEmis){
+                    if(selectedAddNewEmis || selectedEmiForEdit != null){
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedTextField(
-                            value = AppUtils().formatIsoDate(dateText),
+                            value = AppUtils().formatIsoDate(endDateText),
                             onValueChange = { },
                             label = { Text("End Date") },
                             readOnly = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             trailingIcon = {
-                                IconButton(onClick = { showDatePicker = true }) {
+                                IconButton(onClick = { showEndDatePicker = true }) {
                                     Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
                                 }
                             }
@@ -518,6 +524,14 @@ fun CashflowContentScreen(
                             showDatePicker = false
                         }
                     )
+                    ExpentDatePicker(
+                        showDialog = showEndDatePicker,
+                        onDismiss = { showEndDatePicker = false },
+                        onDateSelected = {
+                            endDateText = it
+                            showEndDatePicker = false
+                        }
+                    )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -528,13 +542,14 @@ fun CashflowContentScreen(
                                 val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
                                 val origBudget = income.find { it.id == budgetId }
                                 val startDate = if (dateText.isBlank()) origBudget?.startDate ?: now().toString() else dateText
+                                val endDate = if (endDateText.isBlank()) origBudget?.endDate else endDateText
                                 onUpdateBudget(
                                     budgetId,
                                     selectedCategoryId,
                                     origBudget?.periodType ?: "MONTHLY",
                                     doubleAmount,
                                     startDate,
-                                    origBudget?.endDate
+                                    endDate
                                 )
                                 showBottomSheet = false
                             },
@@ -569,12 +584,13 @@ fun CashflowContentScreen(
                             onClick = {
                                 val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
                                 val startDate = if (dateText.isBlank()) OffsetDateTime.now().toString() else dateText
+                                val endDate = if (endDateText.isBlank()) null else endDateText
                                 onAddBudget(
                                     selectedCategoryId,
                                     "MONTHLY",
                                     doubleAmount,
                                     startDate,
-                                    null
+                                    endDate
                                 )
                                 showBottomSheet = false
                             },
@@ -820,7 +836,7 @@ fun EnhancedEmiCard(
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = "Started",
+                        text = "Day of Month",
                         style = MaterialTheme.typography.labelSmall.copy(
                             letterSpacing = 0.3.sp
                         ),
@@ -828,7 +844,7 @@ fun EnhancedEmiCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = emi.startDate,
+                        text = AppUtils().getDayWithSuffix(emi.startDate),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
