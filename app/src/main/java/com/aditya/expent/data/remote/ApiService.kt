@@ -49,6 +49,9 @@ interface ApiService {
     @POST("budgets")
     suspend fun saveBudgets(@Body request: List<BudgetRequestDto>): List<BudgetResponseDto>
 
+    @GET("emis")
+    suspend fun getExpensesAndSubscriptions(): List<ExpenseIncomeResponseDto>
+
     @POST("emis")
     suspend fun saveExpensesAndSubscriptions(@Body request: List<ExpenseIncomeRequestDto>): List<ExpenseIncomeResponseDto>
 

@@ -1,7 +1,9 @@
 package com.aditya.expent.data.repository
 
+import android.util.Log
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
+import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
@@ -35,6 +37,17 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             }
             apiService.saveExpensesAndSubscriptions(requests)
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getExpensesAndSubscription(): Result<List<ExpenseIncomeResponseDto>> {
+        return try {
+            Log.d("rest re", "Get ExpensesAndSubscription Req ")
+            val result = apiService.getExpensesAndSubscriptions()
+            Log.d("rest re", "Get ExpensesAndSubscription Res :: $result")
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }

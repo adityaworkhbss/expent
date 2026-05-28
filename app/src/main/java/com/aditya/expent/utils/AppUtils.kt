@@ -21,6 +21,7 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import java.text.SimpleDateFormat
 import java.time.OffsetDateTime
+import java.time.Period
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -107,6 +108,34 @@ class AppUtils {
         } catch (e: Exception) {
 
             date
+        }
+    }
+
+    fun getTotalMonths(
+        endDate: String?,
+        startDate: String?
+    ): String {
+
+        if (endDate.isNullOrEmpty() || startDate.isNullOrEmpty()) {
+            return "0"
+        }
+
+        return try {
+
+            val formatter = DateTimeFormatter.ISO_DATE_TIME
+
+            val start = OffsetDateTime.parse(startDate, formatter)
+            val end = OffsetDateTime.parse(endDate, formatter)
+
+            val period = Period.between(
+                start.toLocalDate(),
+                end.toLocalDate()
+            )
+
+            ((period.years * 12) + period.months).toString()
+
+        } catch (e: Exception) {
+            "0"
         }
     }
 }

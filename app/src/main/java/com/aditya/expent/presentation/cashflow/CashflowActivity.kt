@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import com.aditya.expent.data.remote.dto.BudgetCategoryDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
-import com.aditya.expent.presentation.dashboard.DashboardViewModel
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
 import com.aditya.expent.presentation.theme.ColorExpense
@@ -48,9 +48,12 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.AppUtils
 import com.aditya.expent.presentation.component.ExpentDatePicker
 import androidx.compose.material.icons.filled.DateRange
+import com.aditya.expent.data.remote.dto.AccountDto
+import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.Locale
+import java.time.OffsetDateTime
 import kotlin.getValue
+import kotlin.math.exp
 import kotlin.time.Clock.System.now
 
 
@@ -77,6 +80,7 @@ class CashflowActivity : ComponentActivity() {
                     CashflowScreen(
                         state.budgets,
                         state.categories,
+                        state.expense,
                         onBack = {
                             finish()
                         },
@@ -98,6 +102,7 @@ class CashflowActivity : ComponentActivity() {
 fun CashflowScreen(
     income : List<BudgetResponseDto>,
     categories: List<CategoryResponseDto>,
+    expense : List<ExpenseIncomeResponseDto>,
     onBack : () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
     onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
@@ -162,6 +167,7 @@ fun CashflowScreen(
             modifier = Modifier.padding(paddingValues),
             title = title,
             income = income,
+            expense = expense,
             categories = categories.filter { it.type == categoriesType },
             themeColor = themeColor,
             onBack = onBack,
@@ -179,6 +185,7 @@ fun CashflowContentScreen(
     modifier: Modifier = Modifier,
     title: String,
     income: List<BudgetResponseDto>,
+    expense: List<ExpenseIncomeResponseDto>,
     categories: List<CategoryResponseDto> = emptyList(),
     themeColor: Color,
     onBack: () -> Unit,
@@ -187,38 +194,38 @@ fun CashflowContentScreen(
     onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> }
 ) {
 
-    val recurringExpenses = remember {
-        listOf(
+
+    val recurringExpenses: List<RecurringExpense> = expense.mapNotNull { item ->
+
+        if (!item.endDate.isNullOrBlank()) {
+
             RecurringExpense(
-                name = "Car Loan",
-                amount = "300",
-                totalMonths = "48",
-                monthsPaid = "12",
-                startDate = "01/01/2023"
-            ),
-            RecurringExpense(
-                name = "Home Loan",
-                amount = "850",
-                totalMonths = "120",
-                monthsPaid = "30",
-                startDate = "12/03/2022"
+                name = item.name,
+                amount = item.monthlyEmi,
+                totalMonths = item.tenure.toString(),
+                monthsPaid = item.monthsPaid.toString(),
+                startDate = AppUtils().getDayWithSuffix(item.startDate),
             )
-        )
+
+        } else {
+            null
+        }
     }
 
-    val subscriptions = remember {
-        listOf(
+    val subscriptions: List<Subscription> = expense.mapNotNull { item ->
+
+        if (item.endDate.isNullOrBlank()) {
+
             Subscription(
-                name = "Netflix",
-                amount = "15",
-                billingDate = "12th"
-            ),
-            Subscription(
-                name = "Spotify",
-                amount = "10",
-                billingDate = "25th"
+                name = item.name,
+                amount = item.principal,
+                billingDate = item.startDate,
+                id = item.id
             )
-        )
+
+        } else {
+            null
+        }
     }
 
     val incomes = income.map { it ->
@@ -494,7 +501,7 @@ fun CashflowContentScreen(
                         TextButton(
                             onClick = {
                                 val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
-                                val startDate = if (dateText.isBlank()) java.time.OffsetDateTime.now().toString() else dateText
+                                val startDate = if (dateText.isBlank()) OffsetDateTime.now().toString() else dateText
                                 onAddBudget(
                                     selectedCategoryId,
                                     "MONTHLY",
@@ -947,6 +954,48 @@ private val previewCategories = listOf(
     )
 )
 
+private val previewExpense = listOf(
+    ExpenseIncomeResponseDto(
+        id = "6c5441a4-20eb-4f5e-b9df-b82ccdf12365",
+        userId = "bcbe170f-801b-4092-93d0-348c27d32aef",
+        accountId = null,
+        transactionId = null,
+        name = "Parents Support",
+        principal = "0",
+        tenure = 0,
+        monthlyEmi = "40000",
+        startDate = "2026-01-05T00:00:00.000Z",
+        endDate = null,
+        nextDueDate = "2026-02-05T00:00:00.000Z",
+        remainingBalance = "0",
+        monthsPaid = 0,
+        active = true,
+        createdAt = "2026-05-17T07:31:12.281Z",
+        updatedAt = "2026-05-17T07:31:12.281Z",
+        account = null
+    ),
+
+    ExpenseIncomeResponseDto(
+        id = "0bcb8bee-261c-4a8d-9bbc-71c24811915a",
+        userId = "bcbe170f-801b-4092-93d0-348c27d32aef",
+        accountId = null,
+        transactionId = null,
+        name = "Rent",
+        principal = "0",
+        tenure = 0,
+        monthlyEmi = "15000",
+        startDate = "2026-01-05T00:00:00.000Z",
+        endDate = null,
+        nextDueDate = "2026-02-05T00:00:00.000Z",
+        remainingBalance = "0",
+        monthsPaid = 0,
+        active = true,
+        createdAt = "2026-05-17T07:31:12.495Z",
+        updatedAt = "2026-05-17T07:31:12.495Z",
+        account = null
+    )
+)
+
 @Preview(
     showBackground = true,
     showSystemUi = true,
@@ -964,6 +1013,7 @@ fun CashflowPreview() {
             CashflowScreen(
                 income = previewBudgets,
                 categories = previewCategories,
+                expense = previewExpense,
                 onBack = {}
             )
         }
@@ -987,6 +1037,7 @@ fun IncomingFlowPreview() {
             CashflowContentScreen(
                 title = "Incoming",
                 income = previewBudgets,
+                expense = previewExpense,
                 themeColor = Color(0xFF00ACC1),
                 onBack = {}
             )
@@ -1011,6 +1062,7 @@ fun OutgoingFlowPreview() {
             CashflowContentScreen(
                 title = "Outgoing",
                 income = previewBudgets,
+                expense = previewExpense,
                 themeColor = ColorExpense,
                 onBack = {}
             )
