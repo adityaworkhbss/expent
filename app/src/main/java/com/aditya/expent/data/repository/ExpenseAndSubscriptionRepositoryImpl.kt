@@ -52,4 +52,62 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override suspend fun deleteEmi(id: String): Result<Unit> {
+        return try {
+            apiService.deleteEmi(id)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateEmi(
+        id: String,
+        type: String,
+        name: String,
+        amount: String,
+        startDate: String,
+        tenure: String?,
+        monthsPaid: String?
+    ): Result<Unit> {
+        return try {
+            val request = ExpenseIncomeRequestDto(
+                type = type,
+                name = name,
+                amount = amount,
+                startDate = startDate,
+                tenure = tenure,
+                monthsPaid = monthsPaid
+            )
+            apiService.updateEmi(id, request)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun saveEmi(
+        type: String,
+        name: String,
+        amount: String,
+        startDate: String,
+        tenure: String?,
+        monthsPaid: String?
+    ): Result<Unit> {
+        return try {
+            val request = ExpenseIncomeRequestDto(
+                type = type,
+                name = name,
+                amount = amount,
+                startDate = startDate,
+                tenure = tenure,
+                monthsPaid = monthsPaid
+            )
+            apiService.saveExpensesAndSubscriptions(listOf(request))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

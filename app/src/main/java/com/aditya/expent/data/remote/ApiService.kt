@@ -55,6 +55,12 @@ interface ApiService {
     @POST("emis")
     suspend fun saveExpensesAndSubscriptions(@Body request: List<ExpenseIncomeRequestDto>): List<ExpenseIncomeResponseDto>
 
+    @DELETE("emis/{id}")
+    suspend fun deleteEmi(@Path("id") emiId: String)
+
+    @PUT("emis/{id}")
+    suspend fun updateEmi(@Path("id") emiId: String, @Body request: ExpenseIncomeRequestDto): ExpenseIncomeResponseDto
+
     @POST("auth/onboarding/increment")
     suspend fun updateOnboardingCount(@Body request: OnboardingStepRequestDto)
 

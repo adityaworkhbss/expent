@@ -11,4 +11,25 @@ interface ExpenseAndSubscriptionRepository {
     ): Result<Unit>
 
     suspend fun getExpensesAndSubscription() : Result<List<ExpenseIncomeResponseDto>>
+
+    suspend fun deleteEmi(id: String): Result<Unit>
+
+    suspend fun updateEmi(
+        id: String,
+        type: String,
+        name: String,
+        amount: String,
+        startDate: String,
+        tenure: String? = null,
+        monthsPaid: String? = null
+    ): Result<Unit>
+
+    suspend fun saveEmi(
+        type: String,
+        name: String,
+        amount: String,
+        startDate: String,
+        tenure: String? = null,
+        monthsPaid: String? = null
+    ): Result<Unit>
 }

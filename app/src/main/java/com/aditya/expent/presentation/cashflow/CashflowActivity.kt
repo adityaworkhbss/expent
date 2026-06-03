@@ -53,10 +53,30 @@ import java.time.OffsetDateTime
 import kotlin.getValue
 import kotlin.time.Clock.System.now
 
-
 enum class CashflowTab {
     INCOMING,
     OUTGOING
+}
+
+sealed interface CashflowBottomSheetMode {
+
+    data object AddIncome : CashflowBottomSheetMode
+
+    data class EditIncome(
+        val income: Subscription
+    ) : CashflowBottomSheetMode
+
+    data object AddSubscription : CashflowBottomSheetMode
+
+    data class EditSubscription(
+        val subscription: Subscription
+    ) : CashflowBottomSheetMode
+
+    data object AddEmi : CashflowBottomSheetMode
+
+    data class EditEmi(
+        val emi: RecurringExpense
+    ) : CashflowBottomSheetMode
 }
 
 @AndroidEntryPoint
@@ -75,9 +95,9 @@ class CashflowActivity : ComponentActivity() {
                 ) {
                     val state by viewModel.budgetState.collectAsState()
                     CashflowScreen(
-                        state.budgets,
-                        state.categories,
-                        state.expense,
+                        income = state.budgets,
+                        categories = state.categories,
+                        expense = state.expense,
                         onBack = {
                             finish()
                         },
@@ -87,6 +107,13 @@ class CashflowActivity : ComponentActivity() {
                         },
                         onAddBudget = { categoryId, periodType, amount, startDate, endDate ->
                             viewModel.saveBudget(categoryId, periodType, amount, startDate, endDate)
+                        },
+                        onDeleteEmi = { id -> viewModel.deleteEmi(id) },
+                        onUpdateEmi = { id, type, name, amount, startDate, tenure, monthsPaid ->
+                            viewModel.updateEmi(id, type, name, amount, startDate, tenure, monthsPaid)
+                        },
+                        onAddEmi = { type, name, amount, startDate, tenure, monthsPaid ->
+                            viewModel.saveEmi(type, name, amount, startDate, tenure, monthsPaid)
                         }
                     )
                 }
@@ -103,7 +130,10 @@ fun CashflowScreen(
     onBack : () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
     onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
-    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> }
+    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> },
+    onDeleteEmi: (String) -> Unit = {},
+    onUpdateEmi: (String, String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _, _ -> },
+    onAddEmi: (String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _ -> }
 ) {
 
     var selectedTab by remember {
@@ -170,7 +200,10 @@ fun CashflowScreen(
             onBack = onBack,
             onDeleteBudget = onDeleteBudget,
             onUpdateBudget = onUpdateBudget,
-            onAddBudget = onAddBudget
+            onAddBudget = onAddBudget,
+            onDeleteEmi = onDeleteEmi,
+            onUpdateEmi = onUpdateEmi,
+            onAddEmi = onAddEmi
         )
     }
 }
@@ -188,7 +221,10 @@ fun CashflowContentScreen(
     onBack: () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
     onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
-    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> }
+    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> },
+    onDeleteEmi: (String) -> Unit = {},
+    onUpdateEmi: (String, String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _, _ -> },
+    onAddEmi: (String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _ -> }
 ) {
 
 
@@ -238,10 +274,9 @@ fun CashflowContentScreen(
 
     val activeList = if (title.contentEquals("Incoming")) incomes else subscriptions
 
-    var selectedSubscriptionForEdit by remember { mutableStateOf<Subscription?>(null) }
-    var selectedEmiForEdit by remember { mutableStateOf<RecurringExpense?>(null) }
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var selectedAddNewEmis by remember { mutableStateOf(false) }
+    var sheetMode by remember {
+        mutableStateOf<CashflowBottomSheetMode?>(null)
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -273,10 +308,7 @@ fun CashflowContentScreen(
                         title = "Recurring EMIs & Loans",
                         themeColor = themeColor,
                         onAddClick = {
-                            selectedEmiForEdit = null
-                            selectedSubscriptionForEdit = null
-                            selectedAddNewEmis = true
-                            showBottomSheet = true
+                            sheetMode = CashflowBottomSheetMode.AddEmi
                         }
                     )
 
@@ -294,10 +326,7 @@ fun CashflowContentScreen(
                         progress = progress,
                         themeColor = themeColor,
                         onEditClick = {
-                            selectedEmiForEdit = emi
-                            selectedSubscriptionForEdit = null
-                            selectedAddNewEmis = true
-                            showBottomSheet = true
+                            sheetMode = CashflowBottomSheetMode.EditEmi(emi)
                         }
                     )
                 }
@@ -310,10 +339,7 @@ fun CashflowContentScreen(
                     title = if (title.contentEquals("Incoming")) "Active Incomes" else "Active Subscriptions",
                     themeColor = themeColor,
                     onAddClick = {
-                        selectedEmiForEdit = null
-                        selectedSubscriptionForEdit = null
-                        selectedAddNewEmis = false
-                        showBottomSheet = true
+                        sheetMode = if (title == "Incoming") CashflowBottomSheetMode.AddIncome else CashflowBottomSheetMode.AddSubscription
                     }
                 )
 
@@ -326,10 +352,11 @@ fun CashflowContentScreen(
                     subscription = sub,
                     themeColor = themeColor,
                     onEditClick = {
-                        selectedEmiForEdit = null
-                        selectedSubscriptionForEdit = sub
-                        selectedAddNewEmis = false
-                        showBottomSheet = true
+                        sheetMode = if (title == "Incoming") {
+                            CashflowBottomSheetMode.EditIncome(sub)
+                        } else {
+                            CashflowBottomSheetMode.EditSubscription(sub)
+                        }
                     }
                 )
             }
@@ -339,273 +366,344 @@ fun CashflowContentScreen(
             }
         }
 
-        if (showBottomSheet) {
-            var subscription: Subscription? = null
-            if (selectedSubscriptionForEdit != null) subscription = selectedSubscriptionForEdit!!
-
-            var recurringExpense : RecurringExpense? = null
-            if(selectedEmiForEdit != null) recurringExpense = selectedEmiForEdit
-
-            val editSheetState = rememberModalBottomSheetState()
-            val addSheetState = rememberModalBottomSheetState()
-
-            var expenseName by remember { mutableStateOf(recurringExpense?.amount ?: "") }
-
-            var amountText by remember {
-                mutableStateOf(
-                    subscription?.amount
-                        ?: recurringExpense?.amount
-                        ?: ""
-                )
-            }
-
-            var selectedCategoryId by remember {
-                mutableStateOf(
-                    if (subscription != null) {
-                        val origBudget = income.find { it.id == subscription.id }
-                        origBudget?.categoryId
+        sheetMode?.let { mode ->
+            CashflowBottomSheet(
+                mode = mode,
+                categories = categories,
+                incomeList = income,
+                themeColor = themeColor,
+                onDismiss = { sheetMode = null },
+                onSaveBudget = { id, categoryId, amount, startDate, endDate ->
+                    if (id != null) {
+                        onUpdateBudget(id, categoryId, "MONTHLY", amount, startDate, endDate)
+                    } else {
+                        onAddBudget(categoryId, "MONTHLY", amount, startDate, endDate)
                     }
-//                    else if (recurringExpense != null){
-//                        val origBudget = income.find { it.id == recurringExpense.id }
-//                        origBudget?.categoryId
-//                    }
-                    else null
+                },
+                onDeleteBudget = onDeleteBudget,
+                onSaveEmi = { id, typeStr, name, amount, startDate, tenure, monthsPaid ->
+                    if (id != null) {
+                        onUpdateEmi(id, typeStr, name, amount, startDate, tenure, monthsPaid)
+                    } else {
+                        onAddEmi(typeStr, name, amount, startDate, tenure, monthsPaid)
+                    }
+                },
+                onDeleteEmi = onDeleteEmi
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CashflowBottomSheet(
+    mode: CashflowBottomSheetMode,
+    categories: List<CategoryResponseDto>,
+    incomeList: List<BudgetResponseDto>,
+    themeColor: Color,
+    onDismiss: () -> Unit,
+    onSaveBudget: (id: String?, categoryId: String?, amount: Double, startDate: String, endDate: String?) -> Unit,
+    onDeleteBudget: (id: String) -> Unit,
+    onSaveEmi: (id: String?, type: String, name: String, amount: String, startDate: String, tenure: String?, monthsPaid: String?) -> Unit,
+    onDeleteEmi: (id: String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+
+    val initialName = when (mode) {
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.name
+        else -> ""
+    }
+    val initialAmount = when (mode) {
+        is CashflowBottomSheetMode.EditIncome -> mode.income.amount
+        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.amount
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.amount
+        else -> ""
+    }
+    val initialStartDate = when (mode) {
+        is CashflowBottomSheetMode.EditIncome -> mode.income.billingDate
+        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.billingDate
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.startDate
+        else -> ""
+    }
+    val initialEndDate = when (mode) {
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.endDate ?: ""
+        else -> ""
+    }
+    val initialCategoryId = when (mode) {
+        is CashflowBottomSheetMode.EditIncome -> incomeList.find { it.id == mode.income.id }?.categoryId
+        else -> null
+    }
+    val initialCategoryName = when (mode) {
+        is CashflowBottomSheetMode.EditIncome -> mode.income.name
+        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.name
+        else -> ""
+    }
+    val initialTenure = when (mode) {
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.totalMonths
+        else -> ""
+    }
+    val initialMonthsPaid = when (mode) {
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.monthsPaid
+        else -> ""
+    }
+
+    var nameText by remember(mode) { mutableStateOf(initialName) }
+    var amountText by remember(mode) { mutableStateOf(initialAmount) }
+    var selectedCategoryId by remember(mode) { mutableStateOf(initialCategoryId) }
+    var selectedCategoryName by remember(mode) { mutableStateOf(initialCategoryName) }
+    var dateText by remember(mode) { mutableStateOf(initialStartDate) }
+    var endDateText by remember(mode) { mutableStateOf(initialEndDate) }
+    var tenureText by remember(mode) { mutableStateOf(initialTenure) }
+    var monthsPaidText by remember(mode) { mutableStateOf(initialMonthsPaid) }
+
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+
+    val title = when (mode) {
+        is CashflowBottomSheetMode.AddIncome -> "Add new incoming flow"
+        is CashflowBottomSheetMode.EditIncome -> "Edit Active Flow"
+        is CashflowBottomSheetMode.AddSubscription -> "Add new outgoing flow"
+        is CashflowBottomSheetMode.EditSubscription -> "Edit Active Flow"
+        is CashflowBottomSheetMode.AddEmi -> "Add new EMI/Loan"
+        is CashflowBottomSheetMode.EditEmi -> "Edit EMI/Loan"
+    }
+
+    val isEdit = mode is CashflowBottomSheetMode.EditIncome ||
+            mode is CashflowBottomSheetMode.EditSubscription ||
+            mode is CashflowBottomSheetMode.EditEmi
+
+    val isEmi = mode is CashflowBottomSheetMode.AddEmi || mode is CashflowBottomSheetMode.EditEmi
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.1.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 1. Name the EMI Field (only for EMI)
+            if (isEmi) {
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it },
+                    label = { Text("Name the EMI / Loan") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
+                Spacer(modifier = Modifier.height(12.dp))
             }
-            var selectedCategoryName by remember {
-                mutableStateOf(
-                    subscription?.name ?: "")
-            }
-            var dateText by remember { mutableStateOf(
-                    subscription?.billingDate
-                        ?: recurringExpense?.startDate
-                        ?: ""
-                ) }
 
-                var endDateText by remember { mutableStateOf(
-                    recurringExpense?.endDate ?: ""
-                ) }
-                var showDatePicker by remember { mutableStateOf(false) }
-                var showEndDatePicker by remember { mutableStateOf(false) }
-            var categoryDropdownExpanded by remember { mutableStateOf(false) }
-
-            ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
-                sheetState = if (subscription != null)
-                                editSheetState
-                            else
-                                addSheetState,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp)
-                        .navigationBarsPadding(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            // 2. Category Dropdown (only for Income and Subscription)
+            if (!isEmi) {
+                ExposedDropdownMenuBox(
+                    expanded = categoryDropdownExpanded,
+                    onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
                 ) {
-                    Text(
-                        text = if (subscription != null) {
-                                    "Edit Active Flow"
-                                } else {
-                                    if(title == "Incoming"){
-                                        "Add new incoming flow"
-                                    } else {
-                                        "Add new outgoing flow"
-                                    }
-                                },
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.1.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if(selectedAddNewEmis){
-                        OutlinedTextField(
-                            value = expenseName,
-                            onValueChange = { expenseName = it },
-                            label = { Text("Name the EMI") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    }
-
-                    ExposedDropdownMenuBox(
-                        expanded = categoryDropdownExpanded,
-                        onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedCategoryName,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            shape = RoundedCornerShape(12.dp),
-                            trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Select Category",
-                                    tint = themeColor
-                                )
-                            }
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = categoryDropdownExpanded,
-                            onDismissRequest = { categoryDropdownExpanded = false }
-                        ) {
-                            categories.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(category.name) },
-                                    onClick = {
-                                        selectedCategoryId = category.id
-                                        selectedCategoryName = category.name
-                                        categoryDropdownExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     OutlinedTextField(
-                        value = amountText,
-                        onValueChange = { amountText = it },
-                        label = { Text("Amount ($)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = AppUtils().formatIsoDate(dateText),
-                        onValueChange = { },
-                        label = { Text("Billing Date / Start Date") },
+                        value = selectedCategoryName,
+                        onValueChange = {},
                         readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Category") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
                         shape = RoundedCornerShape(12.dp),
                         trailingIcon = {
-                            IconButton(onClick = { showDatePicker = true }) {
-                                Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
-                            }
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Category",
+                                tint = themeColor
+                            )
                         }
                     )
 
-                    if(selectedAddNewEmis || selectedEmiForEdit != null){
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = AppUtils().formatIsoDate(endDateText),
-                            onValueChange = { },
-                            label = { Text("End Date") },
-                            readOnly = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            trailingIcon = {
-                                IconButton(onClick = { showEndDatePicker = true }) {
-                                    Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
+                    ExposedDropdownMenu(
+                        expanded = categoryDropdownExpanded,
+                        onDismissRequest = { categoryDropdownExpanded = false }
+                    ) {
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.name) },
+                                onClick = {
+                                    selectedCategoryId = category.id
+                                    selectedCategoryName = category.name
+                                    categoryDropdownExpanded = false
                                 }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // 3. Amount Field
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { amountText = it },
+                label = { Text("Amount ($)") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 4. Start Date Field
+            OutlinedTextField(
+                value = AppUtils().formatIsoDate(dateText),
+                onValueChange = { },
+                label = { Text(if (isEmi) "Start Date" else "Billing Date / Start Date") },
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
+                    }
+                }
+            )
+
+            // 5. Tenure and Months Paid Fields (only for EMI)
+            if (isEmi) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = tenureText,
+                        onValueChange = { tenureText = it },
+                        label = { Text("Tenure (Months)") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = monthsPaidText,
+                        onValueChange = { monthsPaidText = it },
+                        label = { Text("Months Paid") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 6. End Date Field
+                OutlinedTextField(
+                    value = AppUtils().formatIsoDate(endDateText),
+                    onValueChange = { },
+                    label = { Text("End Date") },
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    trailingIcon = {
+                        IconButton(onClick = { showEndDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
+                        }
+                    }
+                )
+            }
+
+            ExpentDatePicker(
+                showDialog = showDatePicker,
+                onDismiss = { showDatePicker = false },
+                onDateSelected = {
+                    dateText = it
+                    showDatePicker = false
+                }
+            )
+            ExpentDatePicker(
+                showDialog = showEndDatePicker,
+                onDismiss = { showEndDatePicker = false },
+                onDateSelected = {
+                    endDateText = it
+                    showEndDatePicker = false
+                }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Action buttons (Update / Delete / Add)
+            val id = when (mode) {
+                is CashflowBottomSheetMode.EditIncome -> mode.income.id
+                is CashflowBottomSheetMode.EditSubscription -> mode.subscription.id
+                is CashflowBottomSheetMode.EditEmi -> mode.emi.id
+                else -> null
+            }
+
+            if (isEdit) {
+                Button(
+                    onClick = {
+                        if (mode is CashflowBottomSheetMode.EditIncome) {
+                            onSaveBudget(id, selectedCategoryId, amountText.toDoubleOrNull() ?: 0.0, dateText, null)
+                        } else if (mode is CashflowBottomSheetMode.EditSubscription) {
+                            onSaveEmi(id, "subscription", selectedCategoryName, amountText, dateText, null, null)
+                        } else if (mode is CashflowBottomSheetMode.EditEmi) {
+                            onSaveEmi(id, "expense", nameText, amountText, dateText, tenureText, monthsPaidText)
+                        }
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = themeColor)
+                ) {
+                    Text("Update", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = {
+                        id?.let {
+                            if (mode is CashflowBottomSheetMode.EditIncome) {
+                                onDeleteBudget(it)
+                            } else {
+                                onDeleteEmi(it)
                             }
-                        )
-                    }
-
-                    ExpentDatePicker(
-                        showDialog = showDatePicker,
-                        onDismiss = { showDatePicker = false },
-                        onDateSelected = {
-                            dateText = it
-                            showDatePicker = false
                         }
-                    )
-                    ExpentDatePicker(
-                        showDialog = showEndDatePicker,
-                        onDismiss = { showEndDatePicker = false },
-                        onDateSelected = {
-                            endDateText = it
-                            showEndDatePicker = false
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.textButtonColors(contentColor = ColorExpense)
+                ) {
+                    Text("Delete Flow", fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = {
+                        if (mode is CashflowBottomSheetMode.AddIncome) {
+                            onSaveBudget(null, selectedCategoryId, amountText.toDoubleOrNull() ?: 0.0, dateText, null)
+                        } else if (mode is CashflowBottomSheetMode.AddSubscription) {
+                            onSaveEmi(null, "subscription", selectedCategoryName, amountText, dateText, null, null)
+                        } else if (mode is CashflowBottomSheetMode.AddEmi) {
+                            onSaveEmi(null, "expense", nameText, amountText, dateText, tenureText, monthsPaidText)
                         }
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    if(subscription?.id != null){
-                        Button(
-                            onClick = {
-                                val budgetId = subscription.id
-                                val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
-                                val origBudget = income.find { it.id == budgetId }
-                                val startDate = if (dateText.isBlank()) origBudget?.startDate ?: now().toString() else dateText
-                                val endDate = if (endDateText.isBlank()) origBudget?.endDate else endDateText
-                                onUpdateBudget(
-                                    budgetId,
-                                    selectedCategoryId,
-                                    origBudget?.periodType ?: "MONTHLY",
-                                    doubleAmount,
-                                    startDate,
-                                    endDate
-                                )
-                                showBottomSheet = false
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = themeColor)
-                        ) {
-                            Text("Update", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                    }
-
-                    if (subscription?.id != null) {
-                        TextButton(
-                            onClick = {
-                                onDeleteBudget(subscription.id)
-                                showBottomSheet = false
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = ColorExpense)
-                        ) {
-                            Text("Delete Flow", fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        TextButton(
-                            onClick = {
-                                val doubleAmount = amountText.toDoubleOrNull() ?: 0.0
-                                val startDate = if (dateText.isBlank()) OffsetDateTime.now().toString() else dateText
-                                val endDate = if (endDateText.isBlank()) null else endDateText
-                                onAddBudget(
-                                    selectedCategoryId,
-                                    "MONTHLY",
-                                    doubleAmount,
-                                    startDate,
-                                    endDate
-                                )
-                                showBottomSheet = false
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            colors = if(title == "Incoming") {
-                                        ButtonDefaults.textButtonColors(contentColor = Color(0xFF00ACC1))
-                                    }else{
-                                        ButtonDefaults.textButtonColors(contentColor = ColorExpense)
-                                    }
-                        ) {
-                            Text("Add Flow", fontWeight = FontWeight.Bold)
-                        }
-                    }
+                        onDismiss()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = themeColor)
+                ) {
+                    Text("Add Flow", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
