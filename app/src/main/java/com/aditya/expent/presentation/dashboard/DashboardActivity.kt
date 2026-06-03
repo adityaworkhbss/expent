@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -1273,7 +1274,8 @@ fun BalanceCard(
                                 .background(Color.White.copy(alpha = 0.15f))
                                 .clickable(
                                     onClick = {
-                                        context.startActivity(Intent(context, AnalysisActivity::class.java))
+//                                        context.startActivity(Intent(context, AnalysisActivity::class.java))
+                                        Toast.makeText(context, "Analysis screen coming soon!", Toast.LENGTH_SHORT).show()
                                     }
                                 ),
                             contentAlignment = Alignment.Center
