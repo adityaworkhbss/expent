@@ -88,6 +88,7 @@ class TokenAuthenticator @Inject constructor(
                 if (e is retrofit2.HttpException && e.code() == 401) {
                     Log.e(TAG, "Refresh token expired/invalid, clearing session")
                     sessionManager.clearSession() // might have problem in going debugs
+
                 }
                 
                 null

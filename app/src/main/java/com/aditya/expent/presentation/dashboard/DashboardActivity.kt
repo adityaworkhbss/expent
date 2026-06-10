@@ -125,6 +125,12 @@ class DashboardActivity : ComponentActivity() {
         // Reload customizations in case they were updated in ProfileActivity
         viewModel.loadCustomization()
         viewModel.loadAccounts()
+
+        if (sessionManager.getUser() == null) {
+            startActivity(Intent(this, AuthActivity::class.java))
+            finish()
+            return
+        }
     }
 }
 
