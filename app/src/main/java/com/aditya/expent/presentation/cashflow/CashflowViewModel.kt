@@ -18,13 +18,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class BudgetUiState(
     val isLoading: Boolean = false,
     val budgets: List<BudgetResponseDto> = emptyList(),
-    val expense : List<ExpenseIncomeResponseDto> = emptyList(),
+    val expense: List<ExpenseIncomeResponseDto> = emptyList(),
     val categories: List<CategoryResponseDto> = emptyList(),
     val error: String? = null
 )
@@ -51,28 +52,41 @@ class CashflowViewModel @Inject constructor(
         fetchExpenseAndSubscription()
     }
 
-    fun fetchExpenseAndSubscription(){
+    fun fetchExpenseAndSubscription() {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
             getExpensesAndSubscriptionUseCase()
-                .onSuccess { expense ->
-                    _budgetState.value = _budgetState.value.copy(isLoading = false, expense = expense)
+                .catch { error ->
+                    _budgetState.value = _budgetState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "Unknown error"
+                    )
                 }
-                .onFailure { error ->
-                    _budgetState.value = _budgetState.value.copy(isLoading = false, error = error.message ?: "Unknown error")
+                .collect { expense ->
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, expense = expense)
                 }
         }
     }
 
-    fun fetchCategories(){
+    fun fetchCategories() {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
             getCategoriesUseCase()
-                .onSuccess { categories ->
-                    _budgetState.value = _budgetState.value.copy(isLoading = false, categories = categories)
+                .catch { error ->
+                    _budgetState.value = _budgetState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "Unknown error"
+                    )
                 }
-                .onFailure { error ->
-                    _budgetState.value = _budgetState.value.copy(isLoading = false, error = error.message ?: "Unknown error")
+                .collect { categoryList ->
+                    val dtoList = categoryList.map { cat ->
+                        CategoryResponseDto(
+                            id = cat.id ?: "",
+                            name = cat.name,
+                            type = cat.type
+                        )
+                    }
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, categories = dtoList)
                 }
         }
     }
@@ -81,11 +95,14 @@ class CashflowViewModel @Inject constructor(
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
             getBudgetUseCase()
-                .onSuccess { budgets ->
-                    _budgetState.value = _budgetState.value.copy(isLoading = false, budgets = budgets)
+                .catch { error ->
+                    _budgetState.value = _budgetState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "Unknown error"
+                    )
                 }
-                .onFailure { error ->
-                    _budgetState.value = _budgetState.value.copy(isLoading = false, error = error.message ?: "Unknown error")
+                .collect { budgets ->
+                    _budgetState.value = _budgetState.value.copy(isLoading = false, budgets = budgets)
                 }
         }
     }
@@ -93,10 +110,9 @@ class CashflowViewModel @Inject constructor(
     fun deleteBudget(id: String) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            deleteBudgetUseCase(id)
+            runCatching { deleteBudgetUseCase(id) }
                 .onSuccess {
-                    fetchBudgets()
-                    fetchExpenseAndSubscription()
+                    _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
@@ -117,10 +133,9 @@ class CashflowViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            updateBudgetUseCase(id, categoryId, periodType, amount, startDate, endDate)
+            runCatching { updateBudgetUseCase(id, categoryId, periodType, amount, startDate, endDate) }
                 .onSuccess {
-                    fetchBudgets()
-                    fetchExpenseAndSubscription()
+                    _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
@@ -140,10 +155,9 @@ class CashflowViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            saveBudgetUseCase(categoryId, periodType, amount, startDate, endDate)
+            runCatching { saveBudgetUseCase(categoryId, periodType, amount, startDate, endDate) }
                 .onSuccess {
-                    fetchBudgets()
-                    fetchExpenseAndSubscription()
+                    _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
@@ -157,10 +171,9 @@ class CashflowViewModel @Inject constructor(
     fun deleteEmi(id: String) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            deleteEmiUseCase(id)
+            runCatching { deleteEmiUseCase(id) }
                 .onSuccess {
-                    fetchBudgets()
-                    fetchExpenseAndSubscription()
+                    _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
@@ -182,10 +195,9 @@ class CashflowViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            updateEmiUseCase(id, type, name, amount, startDate, tenure, monthsPaid)
+            runCatching { updateEmiUseCase(id, type, name, amount, startDate, tenure, monthsPaid) }
                 .onSuccess {
-                    fetchBudgets()
-                    fetchExpenseAndSubscription()
+                    _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
@@ -206,10 +218,9 @@ class CashflowViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            saveEmiUseCase(type, name, amount, startDate, tenure, monthsPaid)
+            runCatching { saveEmiUseCase(type, name, amount, startDate, tenure, monthsPaid) }
                 .onSuccess {
-                    fetchBudgets()
-                    fetchExpenseAndSubscription()
+                    _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(

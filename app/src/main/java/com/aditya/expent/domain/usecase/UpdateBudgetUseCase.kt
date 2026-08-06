@@ -1,4 +1,4 @@
-package com.aditya.expent.domain.usecase
+﻿package com.aditya.expent.domain.usecase
 
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import javax.inject.Inject
@@ -13,7 +13,5 @@ class UpdateBudgetUseCase @Inject constructor(
         amount: Double,
         startDate: String,
         endDate: String?
-    ): Result<Unit> {
-        return repository.updateBudget(id, categoryId, periodType, amount, startDate, endDate)
-    }
+    ) = repository.updateBudget(id, categoryId, periodType, amount, startDate, endDate)
 }

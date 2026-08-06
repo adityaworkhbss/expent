@@ -1,125 +1,124 @@
 package com.aditya.expent.data.repository
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.aditya.expent.data.local.dao.BudgetDao
 import com.aditya.expent.data.local.dao.PendingSyncDao
+import com.aditya.expent.data.local.entity.BudgetEntity
 import com.aditya.expent.data.local.entity.PendingSyncEntity
+import com.aditya.expent.data.local.entity.SyncStatus
 import com.aditya.expent.data.mapper.toDto
 import com.aditya.expent.data.mapper.toEntity
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.BudgetRequestDto
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.presentation.onboard.RecurringIncome
+import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 class IncomeBudgetRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     private val budgetDao: BudgetDao,
     private val pendingSyncDao: PendingSyncDao,
+    private val syncScheduler: SyncScheduler,
+    private val sessionManager: SessionManager,
     private val gson: Gson
 ) : IncomeBudgetRepository {
 
-    override suspend fun saveIncomeBudget(
-        salary: RecurringIncome,
-        additionalIncome: List<RecurringIncome>
-    ): Result<Unit> {
-        return try {
-            val categories = apiService.getCategories()
-            val allIncomes = listOf(salary) + additionalIncome
-
-            val requests = allIncomes.map { income ->
-                val categoryId = categories.find { it.name == income.categoryId }?.id ?: income.categoryId
-
-                BudgetRequestDto(
-                    categoryId = categoryId,
-                    periodType = income.periodType,
-                    limitAmount = income.amount.toDoubleOrNull() ?: 0.0,
-                    startDate = income.startDate.ifBlank {
-                        java.time.OffsetDateTime.now().toString()
-                    },
-                    endDate = if (income.endDate.isBlank()) null else income.endDate
-                )
-            }
-
-            apiService.saveBudgets(requests)
-            refreshBudgetsCache()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            enqueueSync("budget", "CREATE", gson.toJson(mapOf("salary" to salary, "additional" to additionalIncome)))
-            Result.failure(e)
+    override fun getBudgets(): Flow<List<BudgetResponseDto>> {
+        return budgetDao.getBudgets().map { entities ->
+            entities.map { it.toDto() }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    override suspend fun saveIncomeBudget(
+        salary: RecurringIncome,
+        additionalIncome: List<RecurringIncome>
+    ) {
+        val userId = sessionManager.getUser()?.id.orEmpty()
+        val allIncomes = listOf(salary) + additionalIncome
+
+        val entities = allIncomes.map { income ->
+            BudgetEntity(
+                id = "local-${UUID.randomUUID()}",
+                userId = userId,
+                categoryId = income.categoryId,
+                periodType = income.periodType,
+                limitAmount = income.amount,
+                startDate = income.startDate.ifBlank { nowIso() },
+                endDate = if (income.endDate.isBlank()) null else income.endDate,
+                categoryName = null,
+                syncStatus = SyncStatus.PENDING_CREATE,
+                isDeleted = false
+            )
+        }
+        budgetDao.insert(entities)
+
+        enqueueSync("budget", "CREATE", gson.toJson(mapOf("salary" to salary, "additional" to additionalIncome)))
+        syncScheduler.enqueueBudgetSync()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun saveBudget(
         categoryId: String?,
         periodType: String,
         amount: Double,
         startDate: String,
         endDate: String?
-    ): Result<Unit> {
-        return try {
-            val categories = apiService.getCategories()
-            val resolvedCategoryId = categories.find { it.name == categoryId }?.id ?: categoryId
+    ) {
+        val userId = sessionManager.getUser()?.id.orEmpty()
+        val entity = BudgetEntity(
+            id = "local-${UUID.randomUUID()}",
+            userId = userId,
+            categoryId = categoryId,
+            periodType = periodType,
+            limitAmount = amount.toString(),
+            startDate = startDate.ifBlank { nowIso() },
+            endDate = if (endDate.isNullOrBlank()) null else endDate,
+            categoryName = null,
+            syncStatus = SyncStatus.PENDING_CREATE,
+            isDeleted = false
+        )
+        budgetDao.insert(entity)
 
-            val request = BudgetRequestDto(
-                categoryId = resolvedCategoryId,
-                periodType = periodType,
-                limitAmount = amount,
-                startDate = startDate.ifBlank { java.time.OffsetDateTime.now().toString() },
-                endDate = if (endDate.isNullOrBlank()) null else endDate
-            )
-
-            apiService.saveBudgets(listOf(request))
-            refreshBudgetsCache()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            enqueueSync(
-                "budget",
-                "CREATE",
-                gson.toJson(
-                    mapOf(
-                        "categoryId" to categoryId,
-                        "periodType" to periodType,
-                        "amount" to amount,
-                        "startDate" to startDate,
-                        "endDate" to endDate
-                    )
+        enqueueSync(
+            "budget",
+            "CREATE",
+            gson.toJson(
+                mapOf(
+                    "categoryId" to categoryId,
+                    "periodType" to periodType,
+                    "amount" to amount,
+                    "startDate" to startDate,
+                    "endDate" to endDate
                 )
             )
-            Result.failure(e)
-        }
+        )
+        syncScheduler.enqueueBudgetSync()
     }
 
-    override suspend fun getBudgets(): Result<List<BudgetResponseDto>> {
-        return try {
-            Log.d("rest re", "Get Budget Called")
-            val response = apiService.getBudgets()
-            Log.d("rest re", "Get Budget response : $response")
-            budgetDao.insert(response.map { it.toEntity() })
-            Result.success(response)
-        } catch (e: Exception) {
-            Log.d("rest re", "Error Get Budget Response : $e")
-            val cached = budgetDao.getBudgets().first()
-            if (cached.isNotEmpty()) {
-                Result.success(cached.map { it.toDto() })
-            } else {
-                Result.failure(e)
-            }
-        }
-    }
-
-    override suspend fun deleteBudget(id: String): Result<Unit> {
-        return try {
-            apiService.deleteBudget(id)
-            budgetDao.getBudget(id)?.let { budgetDao.delete(it) }
-            Result.success(Unit)
-        } catch (e: Exception) {
-            enqueueSync("budget", "DELETE", id)
-            Result.failure(e)
-        }
+    override suspend fun deleteBudget(id: String) {
+        val budget = budgetDao.getBudget(id) ?: return
+        budgetDao.update(
+            budget.copy(
+                isDeleted = true,
+                syncStatus = SyncStatus.PENDING_DELETE
+            )
+        )
+        
+        enqueueSync("budget", "DELETE", id)
+        syncScheduler.enqueueBudgetSync()
     }
 
     override suspend fun updateBudget(
@@ -129,31 +128,31 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         amount: Double,
         startDate: String,
         endDate: String?
-    ): Result<Unit> {
-        return try {
-            val categories = apiService.getCategories()
-            val resolvedCategoryId = categories.find { it.name == categoryId }?.id ?: categoryId
-
-            val request = BudgetRequestDto(
-                categoryId = resolvedCategoryId,
+    ) {
+        val budget = budgetDao.getBudget(id) ?: return
+        budgetDao.update(
+            budget.copy(
+                categoryId = categoryId,
                 periodType = periodType,
-                limitAmount = amount,
+                limitAmount = amount.toString(),
                 startDate = startDate,
-                endDate = if (endDate.isNullOrBlank()) null else endDate
+                endDate = endDate,
+                syncStatus = SyncStatus.PENDING_UPDATE
             )
-            apiService.updateBudget(id, request)
-            refreshBudgetsCache()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            enqueueSync("budget", "UPDATE", gson.toJson(mapOf("id" to id, "request" to categoryId)))
-            Result.failure(e)
-        }
+        )
+
+        enqueueSync("budget", "UPDATE", gson.toJson(mapOf("id" to id, "categoryId" to categoryId, "periodType" to periodType, "amount" to amount, "startDate" to startDate, "endDate" to endDate)))
+        syncScheduler.enqueueBudgetSync()
     }
 
-    private suspend fun refreshBudgetsCache() {
-        runCatching {
+    override suspend fun refreshBudgets() {
+        try {
+            Log.d("rest re", "refreshBudgets Called")
             val response = apiService.getBudgets()
-            budgetDao.insert(response.map { it.toEntity() })
+            Log.d("rest re", "refreshBudgets response : $response")
+            budgetDao.replaceAll(response.map { it.toEntity() })
+        } catch (e: Exception) {
+            Log.e("rest re", "Error refreshBudgets: ${e.message}", e)
         }
     }
 
@@ -168,4 +167,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             )
         )
     }
+
+    private fun nowIso(): String =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date())
 }

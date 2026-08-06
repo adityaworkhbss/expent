@@ -3,23 +3,27 @@ package com.aditya.expent.domain.repository
 import com.aditya.expent.data.remote.dto.PaginatedTransactionsResponseDto
 import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
 import com.aditya.expent.domain.model.Transaction
+import kotlinx.coroutines.flow.Flow
 
 interface TransactionRepository {
-    suspend fun getTransactions(
+    fun getTransactions(
         from: String,
         to: String
-    ): Result<PaginatedTransactionsResponseDto>
+    ): Flow<PaginatedTransactionsResponseDto>
 
-    suspend fun getTransactions(
+    fun getTransactions(
         page: Int,
         limit: Int
-    ): Result<PaginatedTransactionsResponseDto>
+    ): Flow<PaginatedTransactionsResponseDto>
 
     suspend fun addTransaction(
         transaction: Transaction
-    ): Result<Unit>
+    )
 
     suspend fun parseTransaction(
         text: String
-    ): Result<ParseTransactionResponseDto>
+    ): ParseTransactionResponseDto
+
+    suspend fun refreshTransactions(from: String, to: String)
+    suspend fun refreshTransactions(page: Int, limit: Int)
 }

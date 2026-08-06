@@ -13,5 +13,9 @@ data class CategoryEntity(
 
     val type: String,
 
-    val userId: String? = null
+    val userId: String? = null,
+
+    val syncStatus: SyncStatus = SyncStatus.SYNCED,
+
+    val isDeleted: Boolean = false
 )

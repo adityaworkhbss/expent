@@ -39,5 +39,9 @@ data class ExpenseEntity(
 
     val updatedAt: String,
 
-    val accountName: String? = null
+    val accountName: String? = null,
+
+    val syncStatus: SyncStatus = SyncStatus.SYNCED,
+
+    val isDeleted: Boolean = false
 )

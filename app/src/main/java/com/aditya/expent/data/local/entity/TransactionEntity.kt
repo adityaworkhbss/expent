@@ -45,5 +45,7 @@ data class TransactionEntity(
 
     val accountName: String? = null,
 
-    val transferToAccountName: String? = null
+    val transferToAccountName: String? = null,
+
+    val syncStatus: SyncStatus = SyncStatus.SYNCED
 )

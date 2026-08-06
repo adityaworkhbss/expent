@@ -25,5 +25,9 @@ data class BudgetEntity(
 
     val updatedAt: String? = null,
 
-    val categoryName: String? = null
+    val categoryName: String? = null,
+
+    val syncStatus: SyncStatus = SyncStatus.SYNCED,
+
+    val isDeleted: Boolean = false
 )

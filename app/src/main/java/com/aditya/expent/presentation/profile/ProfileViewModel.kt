@@ -7,7 +7,6 @@ import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
-import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.domain.usecase.DeleteCategoriesUseCase
 import com.aditya.expent.domain.usecase.DeletePaymentModeUseCase
 import com.aditya.expent.domain.usecase.GetAccountsUseCase
@@ -21,6 +20,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 data class ProfileState(
@@ -57,97 +57,92 @@ class ProfileViewModel @Inject constructor(
     fun loadCategories() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            getCategoriesUseCase().onSuccess { categoryList ->
-                _state.value = _state.value.copy(categories = categoryList, isLoading = false)
-            }.onFailure {
-                _state.value = _state.value.copy(isLoading = false)
-            }
+            getCategoriesUseCase()
+                .catch { _state.value = _state.value.copy(isLoading = false) }
+                .collect { categoryList ->
+                    val dtoList = categoryList.map { cat ->
+                        CategoryResponseDto(
+                            id = cat.id ?: "",
+                            name = cat.name,
+                            type = cat.type
+                        )
+                    }
+                    _state.value = _state.value.copy(categories = dtoList, isLoading = false)
+                }
         }
     }
 
     fun loadAccounts() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            getAccountsUseCase().onSuccess { accountList ->
-                _state.value = _state.value.copy(accounts = accountList, isLoading = false)
-            }.onFailure {
-                _state.value = _state.value.copy(isLoading = false)
-            }
+            getAccountsUseCase()
+                .catch { _state.value = _state.value.copy(isLoading = false) }
+                .collect { accountList ->
+                    _state.value = _state.value.copy(accounts = accountList, isLoading = false)
+                }
         }
     }
 
     fun deleteCategory(categoryId: String) {
         viewModelScope.launch {
-            deleteCategoriesUseCase(categoryId).onSuccess {
-                loadCategories() // Refresh categories after deletion
-            }.onFailure {
-                // Handle error if needed
-            }
+            runCatching { deleteCategoriesUseCase(categoryId) }
+                .onFailure { /* Handle error if needed */ }
         }
     }
 
     fun saveCategory(name: String, type: String) {
         viewModelScope.launch {
-            saveCategoriesUseCase(listOf(OnboardCategory(name = name, type = type))).onSuccess {
-                loadCategories() // Refresh categories after saving
-            }.onFailure {
-                // Handle error if needed
-            }
+            runCatching { saveCategoriesUseCase(listOf(OnboardCategory(name = name, type = type))) }
+                .onFailure { /* Handle error if needed */ }
         }
     }
 
     fun savePaymentMode(name: String, type: String) {
         viewModelScope.launch {
-            savePaymentModesUseCase(listOf(OnboardPaymentMode(name = name, type = type))).onSuccess {
-                loadAccounts() // Refresh accounts after saving
-            }.onFailure {
-                // Handle error if needed
-            }
+            runCatching { savePaymentModesUseCase(listOf(OnboardPaymentMode(name = name, type = type))) }
+                .onFailure { /* Handle error if needed */ }
         }
     }
 
     fun deletePaymentMode(id: String) {
         viewModelScope.launch {
-            deletePaymentModesUseCase(id).onSuccess {
-                loadAccounts() // Refresh accounts after deletion
-            }.onFailure {
-                // Handle error if needed
-            }
+            runCatching { deletePaymentModesUseCase(id) }
+                .onFailure { /* Handle error if needed */ }
         }
     }
 
     fun loadCustomization() {
         Log.d("ProfileViewModel", "loadCustomization: Calling getCustomizationUseCase")
         viewModelScope.launch {
-            getCustomizationUseCase().onSuccess { customization ->
-                Log.d("ProfileViewModel", "loadCustomization SUCCESS: retrieved customization -> aiTransaction = ${customization.aiTransaction}, reminder = ${customization.reminder}")
-                _state.value = _state.value.copy(
-                    aiTransaction = customization.aiTransaction,
-                    reminder = customization.reminder
-                )
-            }.onFailure {
-                Log.e("ProfileViewModel", "loadCustomization FAILURE: unable to load customization from repository", it)
-                // Keep default on error
-            }
+            getCustomizationUseCase()
+                .catch {
+                    Log.e("ProfileViewModel", "loadCustomization FAILURE", it)
+                }
+                .collect { customization ->
+                    Log.d("ProfileViewModel", "loadCustomization SUCCESS: aiTransaction=${customization.aiTransaction}, reminder=${customization.reminder}")
+                    _state.value = _state.value.copy(
+                        aiTransaction = customization.aiTransaction,
+                        reminder = customization.reminder
+                    )
+                }
         }
     }
 
     fun updateCustomization(aiTransaction: Boolean, reminder: Boolean) {
-        Log.d("ProfileViewModel", "updateCustomization: aiTransaction = $aiTransaction, reminder = $reminder")
+        Log.d("ProfileViewModel", "updateCustomization: aiTransaction=$aiTransaction, reminder=$reminder")
         viewModelScope.launch {
             // Optimistic update
             _state.value = _state.value.copy(
                 aiTransaction = aiTransaction,
                 reminder = reminder
             )
-            updateCustomizationUseCase(aiTransaction, reminder).onSuccess {
+            runCatching {
+                updateCustomizationUseCase(aiTransaction, reminder)
                 Log.d("ProfileViewModel", "updateCustomization SUCCESS")
             }.onFailure {
-                Log.e("ProfileViewModel", "updateCustomization FAILURE: reverting to cached customization", it)
-                // Revert or handle error, we could reload
+                Log.e("ProfileViewModel", "updateCustomization FAILURE: reverting", it)
                 loadCustomization()
             }
         }
     }
-
 }

@@ -1,4 +1,4 @@
-package com.aditya.expent.domain.usecase
+﻿package com.aditya.expent.domain.usecase
 
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.presentation.onboard.RecurringExpense
@@ -11,7 +11,5 @@ class SaveExpensesAndSubscriptionsUseCase @Inject constructor(
     suspend operator fun invoke(
         expenses: List<RecurringExpense>,
         subscriptions: List<Subscription>
-    ): Result<Unit> {
-        return repository.saveExpensesAndSubscriptions(expenses, subscriptions)
-    }
+    ) = repository.saveExpensesAndSubscriptions(expenses, subscriptions)
 }

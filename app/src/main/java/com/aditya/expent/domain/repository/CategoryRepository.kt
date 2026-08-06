@@ -1,10 +1,11 @@
 package com.aditya.expent.domain.repository
 
-import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.model.OnboardCategory
+import kotlinx.coroutines.flow.Flow
 
 interface CategoryRepository {
-    suspend fun addCategories(categories: List<OnboardCategory>): Result<Unit>
-    suspend fun getCategories(): Result<List<CategoryResponseDto>>
-    suspend fun deleteCategory(categoryId: String): Result<Unit>
+    fun getCategories(): Flow<List<OnboardCategory>>
+    suspend fun addCategories(categories: List<OnboardCategory>)
+    suspend fun deleteCategory(categoryId: String)
+    suspend fun refreshCategories()
 }

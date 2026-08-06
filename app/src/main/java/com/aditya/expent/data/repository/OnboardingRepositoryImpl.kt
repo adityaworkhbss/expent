@@ -8,12 +8,11 @@ import javax.inject.Inject
 class OnboardingRepositoryImpl @Inject constructor(
     private val apiService: ApiService
 ) : OnboardingRepository {
-    override suspend fun updateOnboardingCount(count: Int): Result<Unit> {
-        return try {
+    override suspend fun updateOnboardingCount(count: Int) {
+        try {
             apiService.updateOnboardingCount(OnboardingStepRequestDto(count))
-            Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(e)
+            // Offline fallback
         }
     }
 }

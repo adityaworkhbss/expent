@@ -1,4 +1,4 @@
-package com.aditya.expent.domain.usecase
+﻿package com.aditya.expent.domain.usecase
 
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import javax.inject.Inject
@@ -14,7 +14,5 @@ class UpdateEmiUseCase @Inject constructor(
         startDate: String,
         tenure: String? = null,
         monthsPaid: String? = null
-    ): Result<Unit> {
-        return repository.updateEmi(id, type, name, amount, startDate, tenure, monthsPaid)
-    }
+    ) = repository.updateEmi(id, type, name, amount, startDate, tenure, monthsPaid)
 }

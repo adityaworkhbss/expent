@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -124,30 +126,23 @@ class OnboardViewModel @Inject constructor(
 
     fun loadCategories() {
         if (state.value.hasFetchedCategories) return
-        
+
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result = getCategoriesUseCase()
-            if (result.isSuccess) {
-                val fetchedCategories = result.getOrNull()?.map { 
-                    OnboardCategory(
-                        id = it.id,
-                        name = it.name,
-                        type = it.type
-                    )
-                } ?: emptyList()
-                
-                _state.update { 
-                    val currentAvailable = it.availableCategories
+            runCatching {
+                getCategoriesUseCase().first()
+            }.onSuccess { fetchedCategories ->
+                _state.update { s ->
+                    val currentAvailable = s.availableCategories
                     val merged = (currentAvailable + fetchedCategories).distinctBy { cat -> "${cat.name}-${cat.type}" }
-                    it.copy(
-                        availableCategories = merged, 
+                    s.copy(
+                        availableCategories = merged,
                         selectedCategories = fetchedCategories,
-                        isLoading = false, 
+                        isLoading = false,
                         hasFetchedCategories = true
-                    ) 
+                    )
                 }
-            } else {
+            }.onFailure {
                 _state.update { it.copy(error = "Failed to load categories", isLoading = false) }
             }
         }
@@ -155,63 +150,64 @@ class OnboardViewModel @Inject constructor(
 
     private suspend fun saveCategories(): Boolean {
         _state.update { it.copy(isLoading = true, error = null) }
-        val result = saveCategoriesUseCase(state.value.selectedCategories)
-        return if (result.isSuccess) {
-            _state.update { it.copy(isLoading = false) }
-            updateOnboardingStep()
-            true
-        } else {
-            _state.update { it.copy(isLoading = false, error = "Failed to save categories") }
-            false
-        }
+        return runCatching { saveCategoriesUseCase(state.value.selectedCategories) }
+            .onSuccess {
+                _state.update { it.copy(isLoading = false) }
+                updateOnboardingStep()
+            }
+            .onFailure {
+                _state.update { it.copy(isLoading = false, error = "Failed to save categories") }
+            }
+            .isSuccess
     }
 
     private suspend fun savePaymentModes(): Boolean {
         _state.update { it.copy(isLoading = true, error = null) }
-        val result = savePaymentModesUseCase(state.value.paymentModes)
-        return if (result.isSuccess) {
-            _state.update { it.copy(isLoading = false) }
-            updateOnboardingStep()
-            true
-        } else {
-            _state.update { it.copy(isLoading = false, error = "Failed to save payment methods") }
-            false
-        }
+        return runCatching { savePaymentModesUseCase(state.value.paymentModes) }
+            .onSuccess {
+                _state.update { it.copy(isLoading = false) }
+                updateOnboardingStep()
+            }
+            .onFailure {
+                _state.update { it.copy(isLoading = false, error = "Failed to save payment methods") }
+            }
+            .isSuccess
     }
 
     private suspend fun saveIncomeBudget(): Boolean {
         _state.update { it.copy(isLoading = true, error = null) }
-
-        val result = saveIncomeBudgetUseCase(
-            salary = state.value.salary,
-            customIncomes = state.value.customIncomes
-        )
-
-        return if (result.isSuccess) {
-            _state.update { it.copy(isLoading = false) }
-            updateOnboardingStep()
-            true
-        } else {
-            _state.update { it.copy(isLoading = false, error = "Failed to save income and budget") }
-            false
+        return runCatching {
+            saveIncomeBudgetUseCase(
+                salary = state.value.salary,
+                customIncomes = state.value.customIncomes
+            )
         }
+            .onSuccess {
+                _state.update { it.copy(isLoading = false) }
+                updateOnboardingStep()
+            }
+            .onFailure {
+                _state.update { it.copy(isLoading = false, error = "Failed to save income and budget") }
+            }
+            .isSuccess
     }
 
-    private suspend fun saveExpensesAndSubscriptions() : Boolean {
+    private suspend fun saveExpensesAndSubscriptions(): Boolean {
         _state.update { it.copy(isLoading = true, error = null) }
-        val result = saveExpensesAndSubscriptionsUseCase(
-            expenses = state.value.recurringExpenses,
-            subscriptions = state.value.subscriptions
-        )
-
-        return if (result.isSuccess)  {
-            _state.update { it.copy(isLoading = false) }
-            updateOnboardingStep()
-            true
-        } else {
-            _state.update { it.copy(isLoading = false, error = "Failed to save expenses and subscriptions") }
-            false
+        return runCatching {
+            saveExpensesAndSubscriptionsUseCase(
+                expenses = state.value.recurringExpenses,
+                subscriptions = state.value.subscriptions
+            )
         }
+            .onSuccess {
+                _state.update { it.copy(isLoading = false) }
+                updateOnboardingStep()
+            }
+            .onFailure {
+                _state.update { it.copy(isLoading = false, error = "Failed to save expenses and subscriptions") }
+            }
+            .isSuccess
     }
 
     fun nextStep() {

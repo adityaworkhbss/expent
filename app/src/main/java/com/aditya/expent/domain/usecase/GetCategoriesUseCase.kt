@@ -1,13 +1,12 @@
 package com.aditya.expent.domain.usecase
 
-import com.aditya.expent.data.remote.dto.CategoryResponseDto
+import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.repository.CategoryRepository
-import jakarta.inject.Inject
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 class GetCategoriesUseCase @Inject constructor(
     private val repository: CategoryRepository
 ) {
-    suspend operator fun invoke(): Result<List<CategoryResponseDto>> {
-        return repository.getCategories()
-    }
+    operator fun invoke(): Flow<List<OnboardCategory>> = repository.getCategories()
 }

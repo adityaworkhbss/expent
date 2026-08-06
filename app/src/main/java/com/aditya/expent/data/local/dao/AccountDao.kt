@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface AccountDao {
 
-    @Query("SELECT * FROM accounts ORDER BY name")
+    @Query("SELECT * FROM accounts WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY name")
     fun getAccounts(): Flow<List<AccountEntity>>
 
     @Query("SELECT * FROM accounts WHERE id = :id")
@@ -19,9 +19,18 @@ interface AccountDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(accounts: List<AccountEntity>)
 
+    @Update
+    suspend fun update(account: AccountEntity)
+
     @Delete
     suspend fun delete(account: AccountEntity)
 
     @Query("DELETE FROM accounts")
     suspend fun clear()
+
+    @Transaction
+    suspend fun replaceAll(accounts: List<AccountEntity>) {
+        clear()
+        insert(accounts)
+    }
 }

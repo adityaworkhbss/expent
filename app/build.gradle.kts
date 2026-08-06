@@ -105,4 +105,7 @@ dependencies {
 
     // Lottie
     implementation(libs.lottie.compose)
+
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
 }

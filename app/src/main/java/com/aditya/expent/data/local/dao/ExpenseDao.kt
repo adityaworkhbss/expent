@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExpenseDao {
 
-    @Query("SELECT * FROM expenses ORDER BY startDate DESC")
+    @Query("SELECT * FROM expenses WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY startDate DESC")
     fun getExpenses(): Flow<List<ExpenseEntity>>
 
-    @Query("SELECT * FROM expenses WHERE active = 1 ORDER BY nextDueDate")
+    @Query("SELECT * FROM expenses WHERE active = 1 AND (isDeleted = 0 OR isDeleted IS NULL) ORDER BY nextDueDate")
     fun getActiveExpenses(): Flow<List<ExpenseEntity>>
 
     @Query("SELECT * FROM expenses WHERE id = :id")
@@ -22,9 +22,18 @@ interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(expenses: List<ExpenseEntity>)
 
+    @Update
+    suspend fun update(expense: ExpenseEntity)
+
     @Delete
     suspend fun delete(expense: ExpenseEntity)
 
     @Query("DELETE FROM expenses")
     suspend fun clear()
+
+    @Transaction
+    suspend fun replaceAll(expenses: List<ExpenseEntity>) {
+        clear()
+        insert(expenses)
+    }
 }

@@ -15,15 +15,45 @@ import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import com.aditya.expent.data.remote.dto.UserDto
+import com.aditya.expent.data.local.entity.SyncStatus
+import com.aditya.expent.domain.model.OnboardCategory
+import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
 
-fun CategoryResponseDto.toEntity(userId: String? = null): CategoryEntity =
+fun CategoryResponseDto.toEntity(
+    userId: String? = null,
+    syncStatus: SyncStatus = SyncStatus.SYNCED,
+    isDeleted: Boolean = false
+): CategoryEntity =
     CategoryEntity(
         id = id,
         name = name,
         type = type,
-        userId = userId
+        userId = userId,
+        syncStatus = syncStatus,
+        isDeleted = isDeleted
+    )
+
+fun OnboardCategory.toEntity(
+    userId: String? = null,
+    syncStatus: SyncStatus = SyncStatus.SYNCED,
+    isDeleted: Boolean = false
+): CategoryEntity =
+    CategoryEntity(
+        id = if (id.isBlank()) java.util.UUID.randomUUID().toString() else id,
+        name = name,
+        type = type,
+        userId = userId,
+        syncStatus = syncStatus,
+        isDeleted = isDeleted
+    )
+
+fun CategoryEntity.toDomain(): OnboardCategory =
+    OnboardCategory(
+        id = id,
+        name = name,
+        type = type
     )
 
 fun CategoryEntity.toDto(): CategoryResponseDto =
@@ -33,15 +63,38 @@ fun CategoryEntity.toDto(): CategoryResponseDto =
         type = type
     )
 
-fun PaymentModeResponseDto.toEntity(userId: String? = null): AccountEntity =
+fun PaymentModeResponseDto.toEntity(
+    userId: String? = null,
+    syncStatus: SyncStatus = SyncStatus.SYNCED,
+    isDeleted: Boolean = false
+): AccountEntity =
     AccountEntity(
         id = id,
         name = name,
         type = type,
-        userId = userId
+        userId = userId,
+        syncStatus = syncStatus,
+        isDeleted = isDeleted
     )
 
-fun BudgetResponseDto.toEntity(): BudgetEntity =
+fun OnboardPaymentMode.toEntity(
+    userId: String? = null,
+    syncStatus: SyncStatus = SyncStatus.SYNCED,
+    isDeleted: Boolean = false
+): AccountEntity =
+    AccountEntity(
+        id = java.util.UUID.randomUUID().toString(),
+        name = name,
+        type = type,
+        userId = userId,
+        syncStatus = syncStatus,
+        isDeleted = isDeleted
+    )
+
+fun BudgetResponseDto.toEntity(
+    syncStatus: SyncStatus = SyncStatus.SYNCED,
+    isDeleted: Boolean = false
+): BudgetEntity =
     BudgetEntity(
         id = id,
         userId = userId,
@@ -52,10 +105,15 @@ fun BudgetResponseDto.toEntity(): BudgetEntity =
         endDate = endDate,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        categoryName = category?.name
+        categoryName = category?.name,
+        syncStatus = syncStatus,
+        isDeleted = isDeleted
     )
 
-fun ExpenseIncomeResponseDto.toEntity(): ExpenseEntity =
+fun ExpenseIncomeResponseDto.toEntity(
+    syncStatus: SyncStatus = SyncStatus.SYNCED,
+    isDeleted: Boolean = false
+): ExpenseEntity =
     ExpenseEntity(
         id = id,
         userId = userId,
@@ -73,10 +131,14 @@ fun ExpenseIncomeResponseDto.toEntity(): ExpenseEntity =
         active = active,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        accountName = account?.name
+        accountName = account?.name,
+        syncStatus = syncStatus,
+        isDeleted = isDeleted
     )
 
-fun TransactionResponseDto.toEntity(): TransactionEntity =
+fun TransactionResponseDto.toEntity(
+    syncStatus: SyncStatus = SyncStatus.SYNCED
+): TransactionEntity =
     TransactionEntity(
         id = id,
         userId = userId,
@@ -97,7 +159,8 @@ fun TransactionResponseDto.toEntity(): TransactionEntity =
         updatedAt = updatedAt,
         categoryName = category?.name,
         accountName = account?.name,
-        transferToAccountName = transferToAccount?.name
+        transferToAccountName = transferToAccount?.name,
+        syncStatus = syncStatus
     )
 
 fun TransactionEntity.toDomain(): Transaction =

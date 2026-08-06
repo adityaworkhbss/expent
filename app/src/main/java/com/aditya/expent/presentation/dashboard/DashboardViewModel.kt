@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDate.now
@@ -50,7 +51,7 @@ class DashboardViewModel @Inject constructor(
     private val updateCustomizationUseCase: UpdateCustomizationUseCase,
     private val sessionManager: SessionManager
 ) : ViewModel() {
-    
+
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
@@ -62,7 +63,7 @@ class DashboardViewModel @Inject constructor(
         loadInfos()
     }
 
-    fun loadInfos(){
+    fun loadInfos() {
         _state.value = _state.value.copy(userName = sessionManager.getUser()?.name ?: "User")
         val hour = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             now().atStartOfDay().hour
@@ -78,19 +79,18 @@ class DashboardViewModel @Inject constructor(
         _state.value = _state.value.copy(greetingMessage = greeting)
     }
 
-    fun loadCustomization(){
+    fun loadCustomization() {
         Log.d("DashboardViewModel", "loadCustomization: Calling getCustomizationUseCase")
         viewModelScope.launch {
-            getCustomizationUseCase().onSuccess { customization ->
-                Log.d("DashboardViewModel", "loadCustomization SUCCESS: retrieved customization -> aiTransaction = ${customization.aiTransaction}, reminder = ${customization.reminder}")
-                _state.value = _state.value.copy(
-                    aiTransaction = customization.aiTransaction,
-                    reminder = customization.reminder
-                )
-            }.onFailure {
-                Log.e("DashboardViewModel", "loadCustomization FAILURE: unable to load customization from repository", it)
-                // Keep default on error
-            }
+            getCustomizationUseCase()
+                .catch { Log.e("DashboardViewModel", "loadCustomization FAILURE", it) }
+                .collect { customization ->
+                    Log.d("DashboardViewModel", "loadCustomization SUCCESS: aiTransaction=${customization.aiTransaction}")
+                    _state.value = _state.value.copy(
+                        aiTransaction = customization.aiTransaction,
+                        reminder = customization.reminder
+                    )
+                }
         }
     }
 
@@ -100,55 +100,59 @@ class DashboardViewModel @Inject constructor(
             val endDate = now()
             val startDate = endDate.minusDays(7)
 
-            val result = getTransactionUseCase(
-                startDate.toString(),
-                endDate.toString()
-            )
-
-            result.onSuccess { paginatedResponse ->
-                val transactions = paginatedResponse.data.map { dto ->
-                    val typeEnum = if (dto.type.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
-                    val rawAmount = dto.amount.toDoubleOrNull() ?: 0.0
-                    val amount = if (typeEnum == TransactionType.EXPENSE) -Math.abs(rawAmount) else Math.abs(rawAmount)
-
-                    Transaction(
-                        id = dto.id,
-                        title = dto.note ?: dto.merchant ?: "Transaction",
-                        amount = amount,
-                        date = dto.transactionDate,
-                        category = dto.category?.name ?: "Other",
-                        type = typeEnum,
-                        accountId = dto.accountId,
-                        categoryId = dto.categoryId,
-                        paymentMethod = dto.paymentMethod ?: dto.account?.name
-                    )
+            getTransactionUseCase(startDate.toString(), endDate.toString())
+                .catch {
+                    updateStateWithList(emptyList())
+                    _state.value = _state.value.copy(isLoading = false)
                 }
-                updateStateWithList(transactions)
-                _state.value = _state.value.copy(isLoading = false)
-            }.onFailure {
-                updateStateWithList(emptyList())
-                _state.value = _state.value.copy(isLoading = false)
-            }
+                .collect { paginatedResponse ->
+                    val transactions = paginatedResponse.data.map { dto ->
+                        val typeEnum = if (dto.type.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
+                        val rawAmount = dto.amount.toDoubleOrNull() ?: 0.0
+                        val amount = if (typeEnum == TransactionType.EXPENSE) -Math.abs(rawAmount) else Math.abs(rawAmount)
+
+                        Transaction(
+                            id = dto.id,
+                            title = dto.note ?: dto.merchant ?: "Transaction",
+                            amount = amount,
+                            date = dto.transactionDate,
+                            category = dto.category?.name ?: "Other",
+                            type = typeEnum,
+                            accountId = dto.accountId,
+                            categoryId = dto.categoryId,
+                            paymentMethod = dto.paymentMethod ?: dto.account?.name
+                        )
+                    }
+                    updateStateWithList(transactions)
+                    _state.value = _state.value.copy(isLoading = false)
+                }
         }
     }
 
     fun loadCategories() {
         viewModelScope.launch {
-            getCategoriesUseCase().onSuccess { categoryList ->
-                _state.value = _state.value.copy(categories = categoryList)
-            }.onFailure {
-                // Keep default empty on error
-            }
+            getCategoriesUseCase()
+                .catch { /* Keep default empty on error */ }
+                .collect { categoryList ->
+                    val dtoList = categoryList.map { cat ->
+                        CategoryResponseDto(
+                            id = cat.id ?: "",
+                            name = cat.name,
+                            type = cat.type
+                        )
+                    }
+                    _state.value = _state.value.copy(categories = dtoList)
+                }
         }
     }
 
     fun loadAccounts() {
         viewModelScope.launch {
-            getAccountsUseCase().onSuccess { accountList ->
-                _state.value = _state.value.copy(accounts = accountList)
-            }.onFailure {
-                // Keep default empty on error
-            }
+            getAccountsUseCase()
+                .catch { /* Keep default empty on error */ }
+                .collect { accountList ->
+                    _state.value = _state.value.copy(accounts = accountList)
+                }
         }
     }
 
@@ -168,16 +172,15 @@ class DashboardViewModel @Inject constructor(
                 categoryId = categoryId,
                 paymentMethod = accountName
             )
-            
+
             // Optimistic local update
             val updatedList = listOf(newTransaction) + _state.value.recentTransactions
             updateStateWithList(updatedList)
 
-            // Save to server
+            // Save to DB (offline-first)
             addTransactionsUseCase(newTransaction)
-            
-            // Refresh list from server to get accurate data
-            loadTransactions()
+
+            _state.value = _state.value.copy(isLoading = false)
         }
     }
 
@@ -185,26 +188,27 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             if (!_state.value.aiTransaction) {
-                Log.d("DashboardViewModel", "AI transaction parsing is disabled. Enabling it via updateCustomizationUseCase.")
-                updateCustomizationUseCase(aiTransaction = true, reminder = _state.value.reminder).onSuccess {
-                    Log.d("DashboardViewModel", "Successfully enabled AI transactions on server.")
+                Log.d("DashboardViewModel", "AI transaction parsing is disabled. Enabling it.")
+                runCatching {
+                    updateCustomizationUseCase(aiTransaction = true, reminder = _state.value.reminder)
                     _state.value = _state.value.copy(aiTransaction = true)
-                }.onFailure { error ->
-                    Log.e("DashboardViewModel", "Failed to enable AI transactions on server", error)
-                }
+                }.onFailure { Log.e("DashboardViewModel", "Failed to enable AI transactions", it) }
             }
 
-            val result = parseTransactionUseCase(rawText)
-            result.onSuccess { response ->
+            runCatching {
+                val response = parseTransactionUseCase(rawText)
                 if (response.success && !response.requiresUserInput && response.data != null) {
                     val data = response.data
                     val amount = data.amount
                     val type = if (data.transactionType.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
                     val categoryName = data.categoryName ?: "Others"
-                    val categoryId = data.categoryId ?: _state.value.categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }?.id ?: _state.value.categories.firstOrNull { it.name == "Others" }?.id
-                    
+                    val categoryId = data.categoryId
+                        ?: _state.value.categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }?.id
+                        ?: _state.value.categories.firstOrNull { it.name == "Others" }?.id
+
                     val accountId = data.accountId ?: _state.value.accounts.firstOrNull()?.id ?: "0"
-                    val accountName = data.accountName ?: data.paymentMethod ?: _state.value.accounts.firstOrNull { it.id == accountId }?.name ?: "Cash"
+                    val accountName = data.accountName ?: data.paymentMethod
+                        ?: _state.value.accounts.firstOrNull { it.id == accountId }?.name ?: "Cash"
 
                     val newTransaction = Transaction(
                         id = java.util.UUID.randomUUID().toString(),
@@ -218,11 +222,8 @@ class DashboardViewModel @Inject constructor(
                         paymentMethod = accountName
                     )
 
-                    // Save transaction to server
                     addTransactionsUseCase(newTransaction)
-
-                    // Refresh transactions
-                    loadTransactions()
+                    _state.value = _state.value.copy(isLoading = false)
                 } else {
                     Log.e("DashboardViewModel", "AI parse failed or requires user input: $response")
                     _state.value = _state.value.copy(isLoading = false)

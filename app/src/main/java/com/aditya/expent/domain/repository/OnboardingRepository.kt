@@ -1,5 +1,5 @@
 package com.aditya.expent.domain.repository
 
 interface OnboardingRepository {
-    suspend fun updateOnboardingCount(count: Int): Result<Unit>
+    suspend fun updateOnboardingCount(count: Int)
 }
