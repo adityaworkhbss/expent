@@ -37,7 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.aditya.expent.data.remote.dto.BudgetCategoryDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.presentation.onboard.RecurringExpense
@@ -229,46 +228,40 @@ fun CashflowContentScreen(
 
 
     val recurringExpenses: List<RecurringExpense> = expense.mapNotNull { item ->
-
         if (!item.endDate.isNullOrBlank()) {
-
             RecurringExpense(
-                name = item.name,
-                amount = item.monthlyEmi,
-                totalMonths = item.tenure.toString(),
-                monthsPaid = item.monthsPaid.toString(),
-                startDate = item.startDate,
+                name = item.resolvedName,
+                amount = item.resolvedAmount,
+                totalMonths = (item.tenure ?: 0).toString(),
+                monthsPaid = (item.monthsPaid ?: 0).toString(),
+                startDate = item.resolvedStartDate,
                 id = item.id,
                 endDate = item.endDate
             )
-
         } else {
             null
         }
     }
 
     val subscriptions: List<Subscription> = expense.mapNotNull { item ->
-
         if (item.endDate.isNullOrBlank()) {
-
             Subscription(
-                name = item.name,
-                amount = item.principal,
-                billingDate = item.startDate,
+                name = item.resolvedName,
+                amount = item.principal ?: item.resolvedAmount,
+                billingDate = item.resolvedStartDate,
                 id = item.id
             )
-
         } else {
             null
         }
     }
 
-    val incomes = income.map { it ->
+    val incomes = income.map { item ->
         Subscription(
-            name = it.category?.name.toString(),
-            amount = it.limitAmount,
-            billingDate = it.startDate,
-            id = it.id
+            name = item.category?.name.toString(),
+            amount = item.limitAmount.toString(),
+            billingDate = item.startDate ?: "",
+            id = item.id
         )
     }
 
@@ -1106,26 +1099,27 @@ private val previewBudgets = listOf(
     BudgetResponseDto(
         id = "1",
         userId = "1278t301",
-        limitAmount = "5000",
+        limitAmount = 5000.0,
         startDate = "2026-01-05T00:00:00.000Z",
         periodType = "MONTHLY",
         categoryId = "943287908312",
-        category = BudgetCategoryDto(
+        category = CategoryResponseDto(
             id = "101",
-            name = "Salary"
+            name = "Salary",
+            type = "INCOME"
         )
     ),
     BudgetResponseDto(
         id = "2",
         userId = "12390-121",
-        limitAmount = "1200",
+        limitAmount = 1200.0,
         startDate = "2026-01-15T00:00:00.000Z",
         periodType = "MONTHLY",
         categoryId = "943287908312",
-        category = BudgetCategoryDto(
+        category = CategoryResponseDto(
             id = "102",
             name = "Freelancing",
-
+            type = "INCOME"
         )
     )
 )

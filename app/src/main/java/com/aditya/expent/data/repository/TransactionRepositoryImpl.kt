@@ -179,7 +179,7 @@ class TransactionRepositoryImpl @Inject constructor(
             transferToAccountId = request.transferToAccountId,
             type = request.type,
             amount = request.amount.toString(),
-            transactionDate = request.transactionDate,
+            transactionDate = request.transactionDate ?: request.date ?: now,
             note = request.note,
             merchant = request.merchant,
             paymentMethod = request.paymentMethod,

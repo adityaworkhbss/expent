@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
+import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveBudgetUseCase
@@ -103,7 +104,8 @@ class OnboardViewModel @Inject constructor(
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val saveIncomeBudgetUseCase: SaveIncomeBudgetUseCase,
     private val saveExpensesAndSubscriptionsUseCase: SaveExpensesAndSubscriptionsUseCase,
-    private val updateOnboardingCountUseCase: UpdateOnboardingCountUseCase
+    private val updateOnboardingCountUseCase: UpdateOnboardingCountUseCase,
+    private val syncScheduler: SyncScheduler
 ) : ViewModel() {
     private val _state = MutableStateFlow(OnboardState())
     val state: StateFlow<OnboardState> = _state.asStateFlow()
@@ -240,6 +242,11 @@ class OnboardViewModel @Inject constructor(
                     OnboardStep.INCOMING -> OnboardStep.OUTGOING
                     OnboardStep.OUTGOING -> OnboardStep.FINISH
                     OnboardStep.FINISH -> OnboardStep.FINISH
+                }
+                if (next == OnboardStep.FINISH) {
+                    // All onboarding data is in Room — trigger full sync to push to API
+                    syncScheduler.scheduleInitialSync()
+                    syncScheduler.schedulePeriodicSync()
                 }
                 _state.update { it.copy(currentStep = next) }
             }

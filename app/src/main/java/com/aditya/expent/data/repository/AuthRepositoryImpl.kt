@@ -1,8 +1,10 @@
 package com.aditya.expent.data.repository
 
 import android.util.Log
+import com.aditya.expent.BuildConfig
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.AuthRequestDto
+import com.aditya.expent.data.remote.dto.AuthTestRequestDto
 import com.aditya.expent.domain.model.User
 import com.aditya.expent.domain.repository.AuthRepository
 import javax.inject.Inject
@@ -13,11 +15,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun loginWithGoogle(idToken: String): Result<User> {
         val request = AuthRequestDto(idToken)
-        Log.d("rest re", "Request loginWithGoogle: $request")
+        Log.d("AuthRepo", "Request loginWithGoogle: $request")
         return try {
-            val response = apiService.verifyGoogleToken(request)
-            Log.d("rest re", "Response loginWithGoogle: $response")
-            Log.d("AuthRepo", "Extracted onboardingStep from response.user: ${response.user.onboardingStep}")
+            val response = if (BuildConfig.USE_TEST_LOGIN) {
+
+                val test_request = AuthTestRequestDto("test@example.com")
+                Log.d("AuthRepo", "Test login mode enabled: calling testLogin endpoint")
+                apiService.testLogin(test_request)
+            } else {
+                Log.d("AuthRepo", "Production mode: calling verifyGoogleToken endpoint")
+                apiService.verifyGoogleToken(request)
+            }
+
+            Log.d("AuthRepo", "Response loginWithGoogle: $response")
             val user = User(
                 id = response.user.id,
                 email = response.user.email,
@@ -28,7 +38,7 @@ class AuthRepositoryImpl @Inject constructor(
             )
             Result.success(user)
         } catch (e: Exception) {
-            Log.e("rest re", "Error loginWithGoogle: ${e.message}", e)
+            Log.e("AuthRepo", "Error loginWithGoogle: ${e.message}", e)
             Result.failure(e)
         }
     }

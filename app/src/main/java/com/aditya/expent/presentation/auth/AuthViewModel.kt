@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.aditya.expent.data.sync.SyncScheduler
+
 data class AuthState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
@@ -26,7 +28,8 @@ data class AuthState(
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val loginWithGoogleUseCase: LoginWithGoogleUseCase,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val syncScheduler: SyncScheduler
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow(AuthState())
@@ -67,6 +70,8 @@ class AuthViewModel @Inject constructor(
                         sessionManager.saveUser(it)
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
+                    syncScheduler.scheduleInitialSync()
+                    syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
                 } else {
                     val errorMsg = loginResult.exceptionOrNull()?.message ?: "Backend verification failed"
@@ -77,6 +82,33 @@ class AuthViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("rest re", "GOOGLE AUTH FAILED", e)
                 _authState.value = AuthState(error = e.localizedMessage ?: "Authentication failed")
+            }
+        }
+    }
+
+    fun testLogin() {
+        viewModelScope.launch {
+            _authState.value = AuthState(isLoading = true)
+            try {
+                val loginResult = loginWithGoogleUseCase("test-id-token")
+                if (loginResult.isSuccess) {
+                    val user = loginResult.getOrNull()
+                    Log.d("AuthViewModel", "Successfully logged in via testLogin: ${user?.name}")
+                    user?.let {
+                        sessionManager.saveUser(it)
+                        sessionManager.setOnboardingStep(it.onboardingStep)
+                    }
+                    syncScheduler.scheduleInitialSync()
+                    syncScheduler.schedulePeriodicSync()
+                    _authState.value = AuthState(isSuccess = true)
+                } else {
+                    val errorMsg = loginResult.exceptionOrNull()?.message ?: "Test login failed"
+                    Log.e("AuthViewModel", "TEST LOGIN FAILED", loginResult.exceptionOrNull())
+                    _authState.value = AuthState(error = errorMsg)
+                }
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "TEST LOGIN EXCEPTION", e)
+                _authState.value = AuthState(error = e.localizedMessage ?: "Test login failed")
             }
         }
     }

@@ -66,6 +66,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.aditya.expent.BuildConfig
 import com.aditya.expent.presentation.dashboard.DashboardActivity
 import com.aditya.expent.presentation.onboard.OnboardActivity
 import com.aditya.expent.utils.AppUtils
@@ -137,10 +138,14 @@ fun AuthRoute(viewModel: AuthViewModel) {
     AuthScreen(
         state = authState,
         onSignInClick = {
-            viewModel.authenticateWithGoogle(
-                context = context,
-                isSignUp = true
-            )
+            if (BuildConfig.USE_TEST_LOGIN) {
+                viewModel.testLogin()
+            } else {
+                viewModel.authenticateWithGoogle(
+                    context = context,
+                    isSignUp = false
+                )
+            }
         },
     )
 }

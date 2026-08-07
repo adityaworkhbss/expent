@@ -55,7 +55,7 @@ data class TransactionResponseDto(
     @SerializedName("id")
     val id: String,
     @SerializedName("userId")
-    val userId: String,
+    val userId: String? = null,
     @SerializedName("accountId")
     val accountId: String,
     @SerializedName("categoryId")
@@ -65,9 +65,17 @@ data class TransactionResponseDto(
     @SerializedName("type")
     val type: String,
     @SerializedName("amount")
-    val amount: String,
+    val amountRaw: Any? = null,
+    @SerializedName("timestamp")
+    val timestamp: String? = null,
+    @SerializedName("date")
+    val date: String? = null,
     @SerializedName("transactionDate")
-    val transactionDate: String,
+    val transactionDateRaw: String? = null,
+    @SerializedName("description")
+    val description: String? = null,
+    @SerializedName("notes")
+    val notes: String? = null,
     @SerializedName("note")
     val note: String? = null,
     @SerializedName("merchant")
@@ -83,52 +91,87 @@ data class TransactionResponseDto(
     @SerializedName("isDeleted")
     val isDeleted: Boolean? = null,
     @SerializedName("createdAt")
-    val createdAt: String,
+    val createdAt: String? = null,
     @SerializedName("updatedAt")
-    val updatedAt: String,
+    val updatedAt: String? = null,
     @SerializedName("category")
     val category: TransactionCategoryDto? = null,
     @SerializedName("account")
     val account: TransactionAccountDto? = null,
     @SerializedName("transferToAccount")
     val transferToAccount: TransactionAccountDto? = null
+) {
+    val amount: String
+        get() = amountRaw?.toString() ?: "0.0"
+
+    val transactionDate: String
+        get() = transactionDateRaw ?: date ?: timestamp ?: ""
+
+    val resolvedNote: String?
+        get() = note ?: notes ?: description ?: merchant
+}
+
+data class TransactionListDataDto(
+    @SerializedName("items")
+    val items: List<TransactionResponseDto> = emptyList(),
+    @SerializedName("limit")
+    val limit: Int = 10,
+    @SerializedName("page")
+    val page: Int = 1,
+    @SerializedName("total")
+    val total: Int = 0
 )
 
 data class MetaDto(
     @SerializedName("total")
-    val total: Int,
+    val total: Int = 0,
     @SerializedName("page")
-    val page: Int,
+    val page: Int = 1,
     @SerializedName("limit")
-    val limit: Int,
+    val limit: Int = 20,
     @SerializedName("totalPages")
-    val totalPages: Int,
+    val totalPages: Int = 1,
     @SerializedName("hasNextPage")
-    val hasNextPage: Boolean,
+    val hasNextPage: Boolean = false,
     @SerializedName("hasPreviousPage")
-    val hasPreviousPage: Boolean
+    val hasPreviousPage: Boolean = false
 )
 
 data class PaginatedTransactionsResponseDto(
     @SerializedName("data")
-    val data: List<TransactionResponseDto>,
+    val dataList: List<TransactionResponseDto>? = null,
+    @SerializedName("items")
+    val itemsList: List<TransactionResponseDto>? = null,
     @SerializedName("meta")
-    val meta: MetaDto
-)
+    val meta: MetaDto? = null
+) {
+    val data: List<TransactionResponseDto>
+        get() = dataList ?: itemsList ?: emptyList()
+
+    constructor(data: List<TransactionResponseDto>, meta: MetaDto?) : this(
+        dataList = data,
+        itemsList = data,
+        meta = meta
+    )
+}
 
 data class CreateTransactionRequestDto(
     @SerializedName("type")
     val type: String,
     @SerializedName("amount")
     val amount: Double,
+    @SerializedName("date")
+    val date: String? = null,
     @SerializedName("transactionDate")
-    val transactionDate: String,
+    val transactionDate: String? = null,
     @SerializedName("accountId")
     val accountId: String,
     @SerializedName("categoryId")
     val categoryId: String? = null,
     @SerializedName("transferToAccountId")
     val transferToAccountId: String? = null,
+    @SerializedName("notes")
+    val notes: String? = null,
     @SerializedName("note")
     val note: String? = null,
     @SerializedName("merchant")

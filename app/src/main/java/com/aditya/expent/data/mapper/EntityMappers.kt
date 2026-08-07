@@ -9,12 +9,12 @@ import com.aditya.expent.data.local.entity.TransactionEntity
 import com.aditya.expent.data.local.entity.UserEntity
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
-import com.aditya.expent.data.remote.dto.AccountDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import com.aditya.expent.data.remote.dto.UserDto
+import com.aditya.expent.data.remote.dto.AccountDto
 import com.aditya.expent.data.local.entity.SyncStatus
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
@@ -97,11 +97,11 @@ fun BudgetResponseDto.toEntity(
 ): BudgetEntity =
     BudgetEntity(
         id = id,
-        userId = userId,
+        userId = userId ?: "",
         categoryId = categoryId,
         periodType = periodType,
-        limitAmount = limitAmount,
-        startDate = startDate,
+        limitAmount = limitAmount.toString(),
+        startDate = startDate ?: "",
         endDate = endDate,
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -116,21 +116,21 @@ fun ExpenseIncomeResponseDto.toEntity(
 ): ExpenseEntity =
     ExpenseEntity(
         id = id,
-        userId = userId,
+        userId = userId ?: "",
         accountId = accountId,
         transactionId = transactionId,
-        name = name,
-        principal = principal,
-        tenure = tenure,
-        monthlyEmi = monthlyEmi,
-        startDate = startDate,
+        name = resolvedName,
+        principal = principal ?: "",
+        tenure = tenure ?: 0,
+        monthlyEmi = monthlyEmi ?: "",
+        startDate = resolvedStartDate,
         endDate = endDate,
-        nextDueDate = nextDueDate,
-        remainingBalance = remainingBalance,
-        monthsPaid = monthsPaid,
-        active = active,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
+        nextDueDate = nextDueDate ?: "",
+        remainingBalance = remainingBalance ?: "",
+        monthsPaid = monthsPaid ?: 0,
+        active = active ?: true,
+        createdAt = createdAt ?: "",
+        updatedAt = updatedAt ?: "",
         accountName = account?.name,
         syncStatus = syncStatus,
         isDeleted = isDeleted
@@ -141,7 +141,7 @@ fun TransactionResponseDto.toEntity(
 ): TransactionEntity =
     TransactionEntity(
         id = id,
-        userId = userId,
+        userId = userId ?: "",
         accountId = accountId,
         categoryId = categoryId,
         transferToAccountId = transferToAccountId,
@@ -155,8 +155,8 @@ fun TransactionResponseDto.toEntity(
         status = status,
         isSalary = isSalary,
         isDeleted = isDeleted,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
+        createdAt = createdAt ?: "",
+        updatedAt = updatedAt ?: "",
         categoryName = category?.name,
         accountName = account?.name,
         transferToAccountName = transferToAccount?.name,
@@ -214,7 +214,7 @@ fun BudgetEntity.toDto(): BudgetResponseDto =
         userId = userId,
         categoryId = categoryId,
         periodType = periodType,
-        limitAmount = limitAmount,
+        limitAmount = limitAmount.toDoubleOrNull() ?: 0.0,
         startDate = startDate,
         endDate = endDate,
         createdAt = createdAt,
@@ -250,8 +250,8 @@ fun TransactionEntity.toDto(): TransactionResponseDto =
         categoryId = categoryId,
         transferToAccountId = transferToAccountId,
         type = type,
-        amount = amount,
-        transactionDate = transactionDate,
+        amountRaw = amount,
+        transactionDateRaw = transactionDate,
         note = note,
         merchant = merchant,
         paymentMethod = paymentMethod,

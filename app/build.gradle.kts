@@ -42,6 +42,20 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    flavorDimensions += "mode"
+    productFlavors {
+        create("dev") {
+            dimension = "mode"
+            applicationIdSuffix = ".dev"
+            buildConfigField("Boolean", "USE_TEST_LOGIN", "true")
+        }
+        create("prod") {
+            dimension = "mode"
+            buildConfigField("Boolean", "USE_TEST_LOGIN", "false")
+        }
     }
 
     composeOptions {

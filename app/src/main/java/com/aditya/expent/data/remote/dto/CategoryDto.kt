@@ -21,5 +21,11 @@ data class CategoryResponseDto(
     @SerializedName("name")
     val name: String,
     @SerializedName("type")
-    val type: String
+    val type: String,
+    @SerializedName("userId")
+    val userId: String? = null,
+    @SerializedName("color")
+    val color: String? = null,
+    @SerializedName("icon")
+    val icon: String? = null
 )

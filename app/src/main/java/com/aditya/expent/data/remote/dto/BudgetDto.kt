@@ -4,13 +4,13 @@ import com.google.gson.annotations.SerializedName
 
 data class BudgetRequestDto(
     @SerializedName("categoryId")
-    val categoryId: String?,
+    val categoryId: String? = null,
     @SerializedName("periodType")
     val periodType: String,
     @SerializedName("limitAmount")
     val limitAmount: Double,
     @SerializedName("startDate")
-    val startDate: String,
+    val startDate: String? = null,
     @SerializedName("endDate")
     val endDate: String? = null
 )
@@ -19,15 +19,15 @@ data class BudgetResponseDto(
     @SerializedName("id")
     val id: String,
     @SerializedName("userId")
-    val userId: String,
+    val userId: String? = null,
     @SerializedName("categoryId")
-    val categoryId: String?,
+    val categoryId: String? = null,
     @SerializedName("periodType")
     val periodType: String,
     @SerializedName("limitAmount")
-    val limitAmount: String,
+    val limitAmount: Double,
     @SerializedName("startDate")
-    val startDate: String,
+    val startDate: String? = null,
     @SerializedName("endDate")
     val endDate: String? = null,
     @SerializedName("createdAt")
@@ -35,17 +35,5 @@ data class BudgetResponseDto(
     @SerializedName("updatedAt")
     val updatedAt: String? = null,
     @SerializedName("category")
-    val category: BudgetCategoryDto? = null
+    val category: CategoryResponseDto? = null
 )
-
-data class BudgetCategoryDto(
-    @SerializedName("id")
-    val id: String,
-    @SerializedName("name")
-    val name: String,
-    @SerializedName("color")
-    val color: String? = null,
-    @SerializedName("icon")
-    val icon: String? = null
-)
-

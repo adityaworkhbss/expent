@@ -2,6 +2,7 @@ package com.aditya.expent.data.remote
 
 import com.aditya.expent.data.remote.dto.AuthRequestDto
 import com.aditya.expent.data.remote.dto.AuthResponseDto
+import com.aditya.expent.data.remote.dto.AuthTestRequestDto
 import com.aditya.expent.data.remote.dto.BudgetRequestDto
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.remote.dto.CategoryRequestDto
@@ -30,6 +31,9 @@ import retrofit2.http.Query
 interface ApiService {
     @POST("auth/google")
     suspend fun verifyGoogleToken(@Body request: AuthRequestDto): AuthResponseDto
+
+    @POST("auth/test-login")
+    suspend fun testLogin(@Body request: AuthTestRequestDto): AuthResponseDto
 
     @POST("categories")
     suspend fun createCategories( @Body request: List<CategoryRequestDto>): List<CategoryResponseDto>

@@ -17,5 +17,7 @@ data class PaymentModeResponseDto(
     @SerializedName("name")
     val name: String,
     @SerializedName("type")
-    val type: String
+    val type: String,
+    @SerializedName("userId")
+    val userId: String? = null
 )

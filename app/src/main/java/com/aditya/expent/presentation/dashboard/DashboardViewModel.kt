@@ -15,6 +15,7 @@ import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.domain.usecase.GetCustomizationUseCase
 import com.aditya.expent.domain.usecase.ParseTransactionUseCase
 import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
+import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,13 +50,15 @@ class DashboardViewModel @Inject constructor(
     private val getCustomizationUseCase: GetCustomizationUseCase,
     private val parseTransactionUseCase: ParseTransactionUseCase,
     private val updateCustomizationUseCase: UpdateCustomizationUseCase,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val syncScheduler: SyncScheduler
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     init {
+        syncScheduler.scheduleInitialSync()
         loadTransactions()
         loadCategories()
         loadAccounts()
@@ -200,8 +203,8 @@ class DashboardViewModel @Inject constructor(
                 if (response.success && !response.requiresUserInput && response.data != null) {
                     val data = response.data
                     val amount = data.amount
-                    val type = if (data.transactionType.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
-                    val categoryName = data.categoryName ?: "Others"
+                    val type = if (data.resolvedTransactionType.uppercase() == "INCOME") TransactionType.INCOME else TransactionType.EXPENSE
+                    val categoryName = data.resolvedCategoryName
                     val categoryId = data.categoryId
                         ?: _state.value.categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }?.id
                         ?: _state.value.categories.firstOrNull { it.name == "Others" }?.id
