@@ -688,49 +688,66 @@ fun ProfileScreen(
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(paymentModes) { mode ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
+                        if (paymentModes.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
-                                        text = mode.name,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        text = "No payment methods added yet.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Surface(
-                                        color = if (mode.type == "PAY_LATER") Color(0xFFE91E63).copy(alpha = 0.15f) else Color(0xFF0288D1).copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
+                                }
+                            }
+                        } else {
+                            items(paymentModes) { mode ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
                                         Text(
-                                            text = if (mode.type == "PAY_LATER") "PAY LATER" else "PAY NOW",
-                                            color = if (mode.type == "PAY_LATER") Color(0xFFE91E63) else Color(0xFF0288D1),
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Black,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            text = mode.name,
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Surface(
+                                            color = if (mode.type == "PAY_LATER") Color(0xFFE91E63).copy(alpha = 0.15f) else Color(0xFF0288D1).copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (mode.type == "PAY_LATER") "PAY LATER" else "PAY NOW",
+                                                color = if (mode.type == "PAY_LATER") Color(0xFFE91E63) else Color(0xFF0288D1),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            viewModel?.deletePaymentMode(mode.id)
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = ColorExpense,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                }
-                                IconButton(
-                                    onClick = {
-                                        viewModel?.deletePaymentMode(mode.id)
-                                    },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = ColorExpense,
-                                        modifier = Modifier.size(20.dp)
-                                    )
                                 }
                             }
                         }
@@ -881,67 +898,84 @@ fun ProfileScreen(
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(categories) { cat ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f)
-                                                else ColorExpense.copy(alpha = 0.15f)
-                                            ),
-                                        contentAlignment = Alignment.Center
+                        if (categories.isEmpty()) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No categories added yet.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            items(categories) { cat ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(40.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f)
+                                                    else ColorExpense.copy(alpha = 0.15f)
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = if (cat.type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                                contentDescription = null,
+                                                tint = if (cat.type == "INCOME") ColorIncome else ColorExpense,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(
+                                                text = cat.name,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Surface(
+                                                color = if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (cat.type == "INCOME") "INCOME" else "EXPENSE",
+                                                    color = if (cat.type == "INCOME") ColorIncome else ColorExpense,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel?.deleteCategory(cat.id) },
+                                        modifier = Modifier.size(24.dp)
                                     ) {
                                         Icon(
-                                            imageVector = if (cat.type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                                            contentDescription = null,
-                                            tint = if (cat.type == "INCOME") ColorIncome else ColorExpense,
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = ColorExpense,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(
-                                            text = cat.name,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Surface(
-                                            color = if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
-                                            shape = RoundedCornerShape(6.dp)
-                                        ) {
-                                            Text(
-                                                text = if (cat.type == "INCOME") "INCOME" else "EXPENSE",
-                                                color = if (cat.type == "INCOME") ColorIncome else ColorExpense,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Black,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                                IconButton(
-                                    onClick = { viewModel?.deleteCategory(cat.id) },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = ColorExpense,
-                                        modifier = Modifier.size(20.dp)
-                                    )
                                 }
                             }
                         }

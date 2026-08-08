@@ -1120,16 +1120,39 @@ fun EditReminderBottomSheet(
 
             if (filteredCategories.isNotEmpty()) {
                 var expandedCategoryDropdown by remember { mutableStateOf(false) }
+                val arrowRotation by animateFloatAsState(
+                    targetValue = if (expandedCategoryDropdown) 180f else 0f,
+                    label = "AiArrowRotation"
+                )
+
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryDropdown,
                     onExpandedChange = { expandedCategoryDropdown = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedCategory,
+                        value = if (selectedCategory.isBlank()) "Select Category" else selectedCategory,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryDropdown) },
+                        leadingIcon = {
+                            if (selectedCategory.isNotBlank()) {
+                                val iconAndColor = getCategoryIconAndColor(selectedCategory)
+                                Icon(
+                                    imageVector = iconAndColor.first,
+                                    contentDescription = null,
+                                    tint = iconAndColor.second,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Category",
+                                tint = activeColor,
+                                modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
+                            )
+                        },
                         modifier = Modifier
                             .menuAnchor()
                             .fillMaxWidth(),
@@ -1141,19 +1164,76 @@ fun EditReminderBottomSheet(
                     )
                     ExposedDropdownMenu(
                         expanded = expandedCategoryDropdown,
-                        onDismissRequest = { expandedCategoryDropdown = false }
+                        onDismissRequest = { expandedCategoryDropdown = false },
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                     ) {
                         filteredCategories.forEach { catName ->
+                            val isSelected = selectedCategory == catName
+                            val iconAndColor = getCategoryIconAndColor(catName)
                             DropdownMenuItem(
-                                text = { Text(catName) },
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(iconAndColor.second.copy(alpha = 0.15f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = iconAndColor.first,
+                                                    contentDescription = catName,
+                                                    modifier = Modifier.size(16.dp),
+                                                    tint = iconAndColor.second
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                text = catName,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                ),
+                                                color = if (isSelected) activeColor else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected",
+                                                tint = activeColor,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                },
                                 onClick = {
                                     selectedCategory = catName
                                     expandedCategoryDropdown = false
-                                }
+                                },
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSelected) activeColor.copy(alpha = 0.1f) else Color.Transparent
+                                    )
                             )
                         }
                     }
                 }
+            } else {
+                Text(
+                    text = "No Categories Found",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1994,65 +2074,75 @@ fun AddTransactionBottomSheet(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(horizontal = 2.dp)
-                ) {
-                    val filteredCategory = categories.filter { cat ->
-                        if (selectedType == TransactionType.INCOME) {
-                            cat.type.equals("income", ignoreCase = true)
-                        } else {
-                            cat.type.equals("expense", ignoreCase = true)
-                        }
-                    }.map { cat ->
-                        val iconAndColor = getCategoryIconAndColor(cat.name)
-                        Triple(cat.name, iconAndColor.first, iconAndColor.second)
-                    }
 
-                    items(filteredCategory) { (catName, icon, catColor) ->
-                        val isSelected = selectedCategory == catName
-                        val containerColor by animateColorAsState(
-                            targetValue = if (isSelected) catColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            label = "ChipBg"
-                        )
-                        val contentColor by animateColorAsState(
-                            targetValue = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                            label = "ChipText"
-                        )
-                        val scale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.04f else 1f,
-                            label = "ChipScale"
-                        )
-                        
-                        Surface(
-                            modifier = Modifier
-                                .scale(scale)
-                                .clickable { selectedCategory = catName },
-                            shape = RoundedCornerShape(16.dp),
-                            color = containerColor,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected) catColor.copy(alpha = 0.4f) else Color.Transparent
+                val filteredCategory = categories.filter { cat ->
+                    if (selectedType == TransactionType.INCOME) {
+                        cat.type.equals("income", ignoreCase = true)
+                    } else {
+                        cat.type.equals("expense", ignoreCase = true)
+                    }
+                }.map { cat ->
+                    val iconAndColor = getCategoryIconAndColor(cat.name)
+                    Triple(cat.name, iconAndColor.first, iconAndColor.second)
+                }
+
+                if (filteredCategory.isEmpty()) {
+                    Text(
+                        text = "No Categories Found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                } else {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(horizontal = 2.dp)
+                    ) {
+                        items(filteredCategory) { (catName, icon, catColor) ->
+                            val isSelected = selectedCategory == catName
+                            val containerColor by animateColorAsState(
+                                targetValue = if (isSelected) catColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                label = "ChipBg"
                             )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            val contentColor by animateColorAsState(
+                                targetValue = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant,
+                                label = "ChipText"
+                            )
+                            val scale by animateFloatAsState(
+                                targetValue = if (isSelected) 1.04f else 1f,
+                                label = "ChipScale"
+                            )
+                            
+                            Surface(
+                                modifier = Modifier
+                                    .scale(scale)
+                                    .clickable { selectedCategory = catName },
+                                shape = RoundedCornerShape(16.dp),
+                                color = containerColor,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isSelected) catColor.copy(alpha = 0.4f) else Color.Transparent
+                                )
                             ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = catName,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = catName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = contentColor
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = catName,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = catName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = contentColor
+                                    )
+                                }
                             }
                         }
                     }

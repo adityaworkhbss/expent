@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -46,6 +47,14 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.AppUtils
 import com.aditya.expent.presentation.component.ExpentDatePicker
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Subscriptions
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import com.aditya.expent.utils.CategoryUtils
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.OffsetDateTime
@@ -194,7 +203,7 @@ fun CashflowScreen(
             title = title,
             income = income,
             expense = expense,
-            categories = categories.filter { it.type == categoriesType },
+            categories = categories.filter { it.type.equals(categoriesType, ignoreCase = true) },
             themeColor = themeColor,
             onBack = onBack,
             onDeleteBudget = onDeleteBudget,
@@ -308,20 +317,30 @@ fun CashflowContentScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                 }
 
-                items(recurringExpenses.size) { index ->
-                    val emi = recurringExpenses[index]
-                    val paid = emi.monthsPaid.toFloatOrNull() ?: 0f
-                    val total = emi.totalMonths.toFloatOrNull() ?: 1f
-                    val progress = (paid / total).coerceIn(0f, 1f)
+                if (recurringExpenses.isEmpty()) {
+                    item {
+                        EmptyStateCard(
+                            title = "No EMIs or Loans",
+                            subtitle = "You haven't added any recurring EMIs or loans yet. Tap '+' above to add one.",
+                            icon = Icons.Default.CreditCard
+                        )
+                    }
+                } else {
+                    items(recurringExpenses.size) { index ->
+                        val emi = recurringExpenses[index]
+                        val paid = emi.monthsPaid.toFloatOrNull() ?: 0f
+                        val total = emi.totalMonths.toFloatOrNull() ?: 1f
+                        val progress = (paid / total).coerceIn(0f, 1f)
 
-                    EnhancedEmiCard(
-                        emi = emi,
-                        progress = progress,
-                        themeColor = themeColor,
-                        onEditClick = {
-                            sheetMode = CashflowBottomSheetMode.EditEmi(emi)
-                        }
-                    )
+                        EnhancedEmiCard(
+                            emi = emi,
+                            progress = progress,
+                            themeColor = themeColor,
+                            onEditClick = {
+                                sheetMode = CashflowBottomSheetMode.EditEmi(emi)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -339,19 +358,29 @@ fun CashflowContentScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            items(activeList.size) { index ->
-                val sub = activeList[index]
-                EnhancedSubscriptionCard(
-                    subscription = sub,
-                    themeColor = themeColor,
-                    onEditClick = {
-                        sheetMode = if (title == "Incoming") {
-                            CashflowBottomSheetMode.EditIncome(sub)
-                        } else {
-                            CashflowBottomSheetMode.EditSubscription(sub)
+            if (activeList.isEmpty()) {
+                item {
+                    EmptyStateCard(
+                        title = if (title.contentEquals("Incoming")) "No Active Incomes" else "No Active Subscriptions",
+                        subtitle = if (title.contentEquals("Incoming")) "You haven't added any income sources yet. Tap '+' above to add one." else "You haven't added any recurring subscriptions yet. Tap '+' above to add one.",
+                        icon = if (title.contentEquals("Incoming")) Icons.AutoMirrored.Filled.TrendingUp else Icons.Default.Subscriptions
+                    )
+                }
+            } else {
+                items(activeList.size) { index ->
+                    val sub = activeList[index]
+                    EnhancedSubscriptionCard(
+                        subscription = sub,
+                        themeColor = themeColor,
+                        onEditClick = {
+                            sheetMode = if (title == "Incoming") {
+                                CashflowBottomSheetMode.EditIncome(sub)
+                            } else {
+                                CashflowBottomSheetMode.EditSubscription(sub)
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             item {
@@ -505,41 +534,134 @@ fun CashflowBottomSheet(
 
             // 2. Category Dropdown (only for Income and Subscription)
             if (!isEmi) {
+                val arrowRotation by animateFloatAsState(
+                    targetValue = if (categoryDropdownExpanded) 180f else 0f,
+                    label = "ArrowRotation"
+                )
+
                 ExposedDropdownMenuBox(
                     expanded = categoryDropdownExpanded,
                     onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedCategoryName,
+                        value = if (categories.isEmpty()) "No Categories Found" else if (selectedCategoryName.isBlank()) "Select Category" else selectedCategoryName,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Category") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = themeColor,
+                            focusedLabelColor = themeColor
+                        ),
+                        leadingIcon = {
+                            if (selectedCategoryName.isNotBlank() && categories.isNotEmpty()) {
+                                val iconAndColor = CategoryUtils.getCategoryIconAndColor(selectedCategoryName)
+                                Icon(
+                                    imageVector = iconAndColor.first,
+                                    contentDescription = null,
+                                    tint = iconAndColor.second,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
                         trailingIcon = {
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = "Select Category",
-                                tint = themeColor
+                                tint = themeColor,
+                                modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
                             )
                         }
                     )
 
                     ExposedDropdownMenu(
                         expanded = categoryDropdownExpanded,
-                        onDismissRequest = { categoryDropdownExpanded = false }
+                        onDismissRequest = { categoryDropdownExpanded = false },
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                     ) {
-                        categories.forEach { category ->
+                        if (categories.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text(category.name) },
-                                onClick = {
-                                    selectedCategoryId = category.id
-                                    selectedCategoryName = category.name
-                                    categoryDropdownExpanded = false
-                                }
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Inbox,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "No Categories Found",
+                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                onClick = { categoryDropdownExpanded = false }
                             )
+                        } else {
+                            categories.forEach { category ->
+                                val isSelected = selectedCategoryName == category.name
+                                val iconAndColor = CategoryUtils.getCategoryIconAndColor(category.name)
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(32.dp)
+                                                        .clip(CircleShape)
+                                                        .background(iconAndColor.second.copy(alpha = 0.15f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = iconAndColor.first,
+                                                        contentDescription = category.name,
+                                                        modifier = Modifier.size(16.dp),
+                                                        tint = iconAndColor.second
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = category.name,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    ),
+                                                    color = if (isSelected) themeColor else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = "Selected",
+                                                    tint = themeColor,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedCategoryId = category.id
+                                        selectedCategoryName = category.name
+                                        categoryDropdownExpanded = false
+                                    },
+                                    modifier = Modifier
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (isSelected) themeColor.copy(alpha = 0.1f) else Color.Transparent
+                                        )
+                                )
+                            }
                         }
                     }
                 }
@@ -1091,6 +1213,60 @@ fun EnhancedSubscriptionCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun EmptyStateCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector = Icons.Default.Inbox
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
