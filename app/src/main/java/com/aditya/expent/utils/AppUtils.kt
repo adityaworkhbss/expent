@@ -170,4 +170,36 @@ class AppUtils {
             "0"
         }
     }
+
+    companion object {
+        fun convertDateToIso(dateStr: String?): String {
+            if (dateStr.isNullOrBlank()) {
+                val formatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                formatter.timeZone = TimeZone.getTimeZone("UTC")
+                return formatter.format(java.util.Date())
+            }
+            val trimmed = dateStr.trim()
+            if (trimmed.contains("-") && trimmed.contains("T")) {
+                return trimmed
+            }
+            val patterns = listOf(
+                "dd/MM/yyyy",
+                "d/M/yyyy",
+                "yyyy-MM-dd",
+                "yyyy-MM-dd'T'HH:mm:ss"
+            )
+            for (pattern in patterns) {
+                try {
+                    val parser = SimpleDateFormat(pattern, Locale.US)
+                    val parsed = parser.parse(trimmed)
+                    if (parsed != null) {
+                        val output = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+                        output.timeZone = TimeZone.getTimeZone("UTC")
+                        return output.format(parsed)
+                    }
+                } catch (_: Exception) { }
+            }
+            return trimmed
+        }
+    }
 }

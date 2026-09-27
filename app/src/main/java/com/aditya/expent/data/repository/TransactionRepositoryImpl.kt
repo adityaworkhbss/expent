@@ -104,8 +104,8 @@ class TransactionRepositoryImpl @Inject constructor(
         try {
             val response = apiService.getTransactions(from, to)
             val entities = response.data.map { it.toEntity() }
-            transactionDao.insert(entities)
-            AppLogger.room("CREATE", "transactions", payload = "Refreshed ${entities.size} items from API (from=$from, to=$to)", result = "Inserted")
+            transactionDao.replaceAll(entities)
+            AppLogger.room("REPLACE", "transactions", payload = "Refreshed ${entities.size} items from API (from=$from, to=$to)", result = "ReplaceAll")
         } catch (e: Exception) {
             AppLogger.apiError("GET", "transactions?from=$from&to=$to", e.message, throwable = e)
         }
@@ -115,8 +115,8 @@ class TransactionRepositoryImpl @Inject constructor(
         try {
             val response = apiService.getTransactions(page, limit)
             val entities = response.data.map { it.toEntity() }
-            transactionDao.insert(entities)
-            AppLogger.room("CREATE", "transactions", payload = "Refreshed ${entities.size} items from API (page=$page, limit=$limit)", result = "Inserted")
+            transactionDao.replaceAll(entities)
+            AppLogger.room("REPLACE", "transactions", payload = "Refreshed ${entities.size} items from API (page=$page, limit=$limit)", result = "ReplaceAll")
         } catch (e: Exception) {
             AppLogger.apiError("GET", "transactions?page=$page&limit=$limit", e.message, throwable = e)
         }

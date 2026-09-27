@@ -49,4 +49,10 @@ interface TransactionDao {
 
     @Query("DELETE FROM transactions WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
     suspend fun clearSynced()
+
+    @Transaction
+    suspend fun replaceAll(transactions: List<TransactionEntity>) {
+        clearSynced()
+        insert(transactions)
+    }
 }

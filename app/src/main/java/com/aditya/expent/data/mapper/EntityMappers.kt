@@ -11,6 +11,8 @@ import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
+import com.aditya.expent.data.remote.dto.TransactionCategoryDto
+import com.aditya.expent.data.remote.dto.TransactionAccountDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import com.aditya.expent.data.remote.dto.UserDto
@@ -20,6 +22,7 @@ import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
+import com.aditya.expent.utils.AppUtils
 
 fun CategoryResponseDto.toEntity(
     userId: String? = null,
@@ -147,7 +150,7 @@ fun TransactionResponseDto.toEntity(
         transferToAccountId = transferToAccountId,
         type = type,
         amount = amount,
-        transactionDate = transactionDate,
+        transactionDate = AppUtils.convertDateToIso(transactionDate),
         note = note,
         merchant = merchant,
         paymentMethod = paymentMethod,
@@ -260,5 +263,7 @@ fun TransactionEntity.toDto(): TransactionResponseDto =
         isSalary = isSalary,
         isDeleted = isDeleted,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        category = categoryName?.let { TransactionCategoryDto(id = categoryId.orEmpty(), name = it) },
+        account = accountName?.let { TransactionAccountDto(id = accountId, name = it, type = "") }
     )
