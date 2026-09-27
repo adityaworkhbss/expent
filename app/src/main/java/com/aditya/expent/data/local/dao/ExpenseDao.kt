@@ -28,12 +28,18 @@ interface ExpenseDao {
     @Delete
     suspend fun delete(expense: ExpenseEntity)
 
+    @Query("DELETE FROM expenses WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM expenses")
     suspend fun clear()
 
+    @Query("DELETE FROM expenses WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
+    suspend fun clearSynced()
+
     @Transaction
     suspend fun replaceAll(expenses: List<ExpenseEntity>) {
-        clear()
+        clearSynced()
         insert(expenses)
     }
 }

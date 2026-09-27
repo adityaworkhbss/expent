@@ -126,7 +126,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             )
         )
         
-        enqueueSync("emi", "DELETE", id)
+        enqueueSync("emi", "DELETE", id, id)
         syncScheduler.enqueueExpenseSync()
     }
 
@@ -161,7 +161,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             tenure = tenure,
             monthsPaid = monthsPaid
         )
-        enqueueSync("emi", "UPDATE", gson.toJson(mapOf("id" to id, "request" to request)))
+        enqueueSync("emi", "UPDATE", gson.toJson(mapOf("id" to id, "request" to request)), id)
         syncScheduler.enqueueExpenseSync()
     }
 
@@ -207,7 +207,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             tenure = tenure,
             monthsPaid = monthsPaid
         )
-        enqueueSync("emi", "CREATE", gson.toJson(listOf(request)))
+        enqueueSync("emi", "CREATE", gson.toJson(listOf(request)), entity.id)
         syncScheduler.enqueueExpenseSync()
     }
 
@@ -222,11 +222,11 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun enqueueSync(entityType: String, operation: String, payload: String) {
+    private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
         pendingSyncDao.insert(
             PendingSyncEntity(
                 entityType = entityType,
-                entityId = "",
+                entityId = entityId,
                 operation = operation,
                 payload = payload,
                 createdAt = System.currentTimeMillis()

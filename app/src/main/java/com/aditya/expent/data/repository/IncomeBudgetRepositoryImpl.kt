@@ -65,7 +65,16 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         }
         budgetDao.insert(entities)
 
-        enqueueSync("budget", "CREATE", gson.toJson(mapOf("salary" to salary, "additional" to additionalIncome)))
+        val requests = allIncomes.map { income ->
+            BudgetRequestDto(
+                categoryId = income.categoryId,
+                periodType = income.periodType,
+                limitAmount = income.amount.toDoubleOrNull() ?: 0.0,
+                startDate = income.startDate.ifBlank { null },
+                endDate = if (income.endDate.isBlank()) null else income.endDate
+            )
+        }
+        enqueueSync("budget", "CREATE", gson.toJson(requests))
         syncScheduler.enqueueBudgetSync()
     }
 
@@ -92,19 +101,15 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         )
         budgetDao.insert(entity)
 
-        enqueueSync(
-            "budget",
-            "CREATE",
-            gson.toJson(
-                mapOf(
-                    "categoryId" to categoryId,
-                    "periodType" to periodType,
-                    "amount" to amount,
-                    "startDate" to startDate,
-                    "endDate" to endDate
-                )
-            )
+        val request = BudgetRequestDto(
+            categoryId = categoryId,
+            periodType = periodType,
+            limitAmount = amount,
+            startDate = startDate.ifBlank { null },
+            endDate = if (endDate.isNullOrBlank()) null else endDate
         )
+
+        enqueueSync("budget", "CREATE", gson.toJson(listOf(request)), entity.id)
         syncScheduler.enqueueBudgetSync()
     }
 
@@ -117,7 +122,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             )
         )
         
-        enqueueSync("budget", "DELETE", id)
+        enqueueSync("budget", "DELETE", id, id)
         syncScheduler.enqueueBudgetSync()
     }
 
@@ -141,7 +146,21 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             )
         )
 
-        enqueueSync("budget", "UPDATE", gson.toJson(mapOf("id" to id, "categoryId" to categoryId, "periodType" to periodType, "amount" to amount, "startDate" to startDate, "endDate" to endDate)))
+        enqueueSync(
+            "budget",
+            "UPDATE",
+            gson.toJson(
+                mapOf(
+                    "id" to id,
+                    "categoryId" to categoryId,
+                    "periodType" to periodType,
+                    "amount" to amount,
+                    "startDate" to startDate,
+                    "endDate" to endDate
+                )
+            ),
+            id
+        )
         syncScheduler.enqueueBudgetSync()
     }
 
@@ -156,11 +175,11 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun enqueueSync(entityType: String, operation: String, payload: String) {
+    private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
         pendingSyncDao.insert(
             PendingSyncEntity(
                 entityType = entityType,
-                entityId = "",
+                entityId = entityId,
                 operation = operation,
                 payload = payload,
                 createdAt = System.currentTimeMillis()

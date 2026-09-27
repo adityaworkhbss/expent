@@ -54,21 +54,54 @@ class AppUtils {
         }
     }
 
-    fun getDayWithSuffix(dateString: String): String {
+    fun getDayWithSuffix(dateString: String?): String {
+        if (dateString.isNullOrBlank()) return ""
 
-        val parser = SimpleDateFormat(
+        val trimmed = dateString.trim()
+
+        trimmed.toIntOrNull()?.let { day ->
+            if (day in 1..31) {
+                return formatDayWithSuffix(day)
+            }
+        }
+
+        val patterns = listOf(
+            "dd/MM/yyyy",
+            "d/M/yyyy",
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            Locale.ENGLISH
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd"
         )
 
-        parser.timeZone = TimeZone.getTimeZone("UTC")
+        for (pattern in patterns) {
+            try {
+                val parser = SimpleDateFormat(pattern, Locale.ENGLISH)
+                if (pattern.contains("'Z'")) {
+                    parser.timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val date = parser.parse(trimmed)
+                if (date != null) {
+                    val formatter = SimpleDateFormat("d", Locale.ENGLISH)
+                    val day = formatter.format(date).toInt()
+                    return formatDayWithSuffix(day)
+                }
+            } catch (ignored: Exception) {
+                // Try next pattern
+            }
+        }
 
-        val date = parser.parse(dateString)
+        val firstToken = trimmed.split("/", "-", " ", "T").firstOrNull()
+        firstToken?.toIntOrNull()?.let { day ->
+            if (day in 1..31) {
+                return formatDayWithSuffix(day)
+            }
+        }
 
-        val formatter = SimpleDateFormat("d", Locale.ENGLISH)
+        return trimmed
+    }
 
-        val day = formatter.format(date!!).toInt()
-
+    private fun formatDayWithSuffix(day: Int): String {
         val suffix = when {
             day in 11..13 -> "th"
             day % 10 == 1 -> "st"
@@ -76,7 +109,6 @@ class AppUtils {
             day % 10 == 3 -> "rd"
             else -> "th"
         }
-
         return "$day$suffix"
     }
 

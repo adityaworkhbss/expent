@@ -13,7 +13,10 @@ interface TransactionDao {
     @Query("""
         SELECT * FROM transactions
         WHERE (isDeleted = 0 OR isDeleted IS NULL)
-        AND transactionDate >= :from AND transactionDate <= :to
+        AND (
+            substr(transactionDate, 1, 10) >= substr(:from, 1, 10)
+            AND substr(transactionDate, 1, 10) <= substr(:to, 1, 10)
+        )
         ORDER BY transactionDate DESC
     """)
     fun getTransactions(from: String, to: String): Flow<List<TransactionEntity>>
@@ -38,6 +41,12 @@ interface TransactionDao {
     @Delete
     suspend fun delete(transaction: TransactionEntity)
 
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM transactions")
     suspend fun clear()
+
+    @Query("DELETE FROM transactions WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
+    suspend fun clearSynced()
 }

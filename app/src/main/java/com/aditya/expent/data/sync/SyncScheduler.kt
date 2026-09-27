@@ -53,6 +53,8 @@ class SyncScheduler @Inject constructor(
     fun enqueueAccountSync() = triggerOneTimeSync("account_sync")
     fun enqueueBudgetSync() = triggerOneTimeSync("budget_sync")
     fun enqueueExpenseSync() = triggerOneTimeSync("expense_sync")
+    fun enqueueCustomizationSync() = triggerOneTimeSync("customization_sync")
+    fun enqueueOnboardingSync() = triggerOneTimeSync("onboarding_sync")
 
     private fun triggerOneTimeSync(name: String) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()

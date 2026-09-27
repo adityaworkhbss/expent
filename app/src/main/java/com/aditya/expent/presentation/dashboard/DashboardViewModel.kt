@@ -165,7 +165,7 @@ class DashboardViewModel @Inject constructor(
             val categoryId = _state.value.categories.firstOrNull { it.name.equals(category, ignoreCase = true) }?.id
 
             val newTransaction = Transaction(
-                id = java.util.UUID.randomUUID().toString(),
+                id = "local-${java.util.UUID.randomUUID()}",
                 title = title,
                 amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
                 date = date,
@@ -214,7 +214,7 @@ class DashboardViewModel @Inject constructor(
                         ?: _state.value.accounts.firstOrNull { it.id == accountId }?.name ?: "Cash"
 
                     val newTransaction = Transaction(
-                        id = java.util.UUID.randomUUID().toString(),
+                        id = "local-${java.util.UUID.randomUUID()}",
                         title = data.note ?: data.merchant ?: rawText,
                         amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
                         date = data.date,

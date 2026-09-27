@@ -17,6 +17,7 @@ import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.repository.TransactionRepository
+import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,6 +33,7 @@ class TransactionRepositoryImpl @Inject constructor(
     private val transactionDao: TransactionDao,
     private val pendingSyncDao: PendingSyncDao,
     private val syncScheduler: SyncScheduler,
+    private val sessionManager: SessionManager,
     private val gson: Gson
 ) : TransactionRepository {
 
@@ -57,6 +59,13 @@ class TransactionRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addTransaction(transaction: Transaction) {
+        val userId = sessionManager.getUser()?.id.orEmpty()
+        val localId = if (transaction.id.isBlank() || transaction.id.startsWith("local-")) {
+            "local-${UUID.randomUUID()}"
+        } else {
+            transaction.id
+        }
+
         val request = CreateTransactionRequestDto(
             type = transaction.type.name,
             amount = abs(transaction.amount),
@@ -72,10 +81,14 @@ class TransactionRepositoryImpl @Inject constructor(
             isSalary = transaction.title.lowercase().contains("salary")
         )
 
-        val entity = transaction.toPendingEntity(request).copy(syncStatus = SyncStatus.PENDING_CREATE)
+        val entity = transaction.toPendingEntity(request).copy(
+            id = localId,
+            userId = userId,
+            syncStatus = SyncStatus.PENDING_CREATE
+        )
         transactionDao.insert(entity)
         
-        enqueueSync("transaction", "CREATE", gson.toJson(request))
+        enqueueSync("transaction", "CREATE", gson.toJson(request), localId)
         syncScheduler.enqueueTransactionSync()
     }
 
@@ -194,11 +207,11 @@ class TransactionRepositoryImpl @Inject constructor(
         )
     }
 
-    private suspend fun enqueueSync(entityType: String, operation: String, payload: String) {
+    private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
         pendingSyncDao.insert(
             PendingSyncEntity(
                 entityType = entityType,
-                entityId = "",
+                entityId = entityId,
                 operation = operation,
                 payload = payload,
                 createdAt = System.currentTimeMillis()

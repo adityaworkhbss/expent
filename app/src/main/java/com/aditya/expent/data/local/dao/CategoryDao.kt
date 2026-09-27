@@ -25,12 +25,18 @@ interface CategoryDao {
     @Delete
     suspend fun delete(category: CategoryEntity)
 
+    @Query("DELETE FROM categories WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM categories")
     suspend fun clear()
 
+    @Query("DELETE FROM categories WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
+    suspend fun clearSynced()
+
     @Transaction
     suspend fun replaceAll(categories: List<CategoryEntity>) {
-        clear()
+        clearSynced()
         insert(categories)
     }
 

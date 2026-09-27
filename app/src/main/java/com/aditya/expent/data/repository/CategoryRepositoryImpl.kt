@@ -1,5 +1,6 @@
 package com.aditya.expent.data.repository
 
+import android.util.Log
 import com.aditya.expent.data.local.dao.CategoryDao
 import com.aditya.expent.data.local.dao.PendingSyncDao
 import com.aditya.expent.data.local.entity.PendingSyncEntity
@@ -89,14 +90,18 @@ class CategoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun refreshCategories() {
-        val userId = sessionManager.getUser()?.id ?: return
-
-        val response = apiService.getCategories()
-
-        categoryDao.replaceAll(
-            response.map {
-                it.toEntity(userId)
-            }
-        )
+        try {
+            Log.d("CategoryRepo", "Request refreshCategories")
+            val userId = sessionManager.getUser()?.id ?: return
+            val response = apiService.getCategories()
+            Log.d("CategoryRepo", "Response refreshCategories count=${response.size}")
+            categoryDao.replaceAll(
+                response.map {
+                    it.toEntity(userId)
+                }
+            )
+        } catch (e: Exception) {
+            Log.e("CategoryRepo", "Error refreshCategories: ${e.message}", e)
+        }
     }
 }

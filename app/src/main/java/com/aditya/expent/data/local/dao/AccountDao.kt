@@ -25,12 +25,18 @@ interface AccountDao {
     @Delete
     suspend fun delete(account: AccountEntity)
 
+    @Query("DELETE FROM accounts WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM accounts")
     suspend fun clear()
 
+    @Query("DELETE FROM accounts WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
+    suspend fun clearSynced()
+
     @Transaction
     suspend fun replaceAll(accounts: List<AccountEntity>) {
-        clear()
+        clearSynced()
         insert(accounts)
     }
 }

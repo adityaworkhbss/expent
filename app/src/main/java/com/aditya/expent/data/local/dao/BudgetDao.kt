@@ -25,12 +25,18 @@ interface BudgetDao {
     @Delete
     suspend fun delete(budget: BudgetEntity)
 
+    @Query("DELETE FROM budgets WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("DELETE FROM budgets")
     suspend fun clear()
 
+    @Query("DELETE FROM budgets WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
+    suspend fun clearSynced()
+
     @Transaction
     suspend fun replaceAll(budgets: List<BudgetEntity>) {
-        clear()
+        clearSynced()
         insert(budgets)
     }
 }

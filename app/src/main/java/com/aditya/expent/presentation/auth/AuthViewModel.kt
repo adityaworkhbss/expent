@@ -6,6 +6,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aditya.expent.domain.usecase.FetchUserDataUseCase
 import com.aditya.expent.domain.usecase.LoginWithGoogleUseCase
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -28,6 +29,7 @@ data class AuthState(
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val loginWithGoogleUseCase: LoginWithGoogleUseCase,
+    private val fetchUserDataUseCase: FetchUserDataUseCase,
     private val sessionManager: SessionManager,
     private val syncScheduler: SyncScheduler
 ) : ViewModel() {
@@ -70,6 +72,10 @@ class AuthViewModel @Inject constructor(
                         sessionManager.saveUser(it)
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
+
+                    // Immediately fetch user data (categories, accounts, budgets, expenses, transactions, customization) from remote API and insert into Room DB
+                    fetchUserDataUseCase()
+
                     syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
@@ -98,6 +104,10 @@ class AuthViewModel @Inject constructor(
                         sessionManager.saveUser(it)
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
+
+                    // Immediately fetch user data (categories, accounts, budgets, expenses, transactions, customization) from remote API and insert into Room DB
+                    fetchUserDataUseCase()
+
                     syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
