@@ -7,6 +7,7 @@ import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.domain.repository.PaymentModeRepository
 import com.aditya.expent.domain.repository.TransactionRepository
+import com.aditya.expent.utils.SessionManager
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
@@ -17,7 +18,8 @@ class FetchUserDataUseCase @Inject constructor(
     private val incomeBudgetRepository: IncomeBudgetRepository,
     private val expenseAndSubscriptionRepository: ExpenseAndSubscriptionRepository,
     private val transactionRepository: TransactionRepository,
-    private val customizationRepository: CustomizationRepository
+    private val customizationRepository: CustomizationRepository,
+    private val sessionManager: SessionManager
 ) {
     suspend operator fun invoke() = coroutineScope {
         Log.d("FetchUserDataUseCase", "Starting post-login data fetch from remote API into Room DB...")
@@ -54,6 +56,7 @@ class FetchUserDataUseCase @Inject constructor(
         transactionsJob.await()
         customizationJob.await()
 
+        sessionManager.setLastSyncTime(System.currentTimeMillis())
         Log.d("FetchUserDataUseCase", "Completed post-login data fetch successfully!")
     }
 }

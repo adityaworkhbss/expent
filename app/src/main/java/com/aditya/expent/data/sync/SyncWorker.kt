@@ -119,14 +119,27 @@ class SyncWorker(
                 }
             }
 
-            // 2. Fetch fresh data from remote API & persist into Room DB
-            AppLogger.sync("REFRESH_START", "Fetching remote data to refresh local Room database...")
-            runCatching { categoryRepo.refreshCategories() }
-            runCatching { paymentRepo.refreshAccounts() }
-            runCatching { budgetRepo.refreshBudgets() }
-            runCatching { expenseRepo.refreshExpensesAndSubscriptions() }
-            runCatching { transactionRepo.refreshTransactions(1, 100) }
-            runCatching { customizationRepo.refreshCustomization() }
+            // 2. Fetch fresh data from remote API & persist into Room DB if requested and not throttled
+            val isFullRefreshRequested = inputData.getBoolean(SyncScheduler.KEY_FULL_REFRESH, false)
+            val lastSyncTime = sessionManager.getLastSyncTime()
+            val timeSinceLastSync = System.currentTimeMillis() - lastSyncTime
+            val throttleWindowMs = 5 * 60 * 1000L // 5 minutes
+
+            if (isFullRefreshRequested && (lastSyncTime == 0L || timeSinceLastSync > throttleWindowMs)) {
+                AppLogger.sync("REFRESH_START", "Fetching remote data to refresh local Room database...")
+                runCatching { categoryRepo.refreshCategories() }
+                runCatching { paymentRepo.refreshAccounts() }
+                runCatching { budgetRepo.refreshBudgets() }
+                runCatching { expenseRepo.refreshExpensesAndSubscriptions() }
+                runCatching { transactionRepo.refreshTransactions(1, 100) }
+                runCatching { customizationRepo.refreshCustomization() }
+                sessionManager.setLastSyncTime(System.currentTimeMillis())
+            } else {
+                AppLogger.sync(
+                    "REFRESH_SKIPPED",
+                    "Skipping full remote refresh (requested=$isFullRefreshRequested, lastSync=${timeSinceLastSync / 1000}s ago, throttle=${throttleWindowMs / 1000}s)"
+                )
+            }
 
             AppLogger.sync("COMPLETE", "Background data sync completed! HasFailures=$hasPendingFailures")
             if (hasPendingFailures && runAttemptCount < 3) {

@@ -21,6 +21,7 @@ class SessionManager @Inject constructor(
     companion object {
         private const val TAG = "SessionManager"
         private const val PREFS_FILE_NAME = "expent_prefs"
+        private const val KEY_LAST_SYNC_TIME = "key_last_sync_time"
     }
 
     private val prefs: SharedPreferences = createEncryptedPrefs()
@@ -203,6 +204,12 @@ class SessionManager @Inject constructor(
     fun printAllPrefs() {
 
         Log.d(TAG, "ALL PREFS = ${prefs.all}")
+    }
+
+    fun getLastSyncTime(): Long = prefs.getLong(KEY_LAST_SYNC_TIME, 0L)
+
+    fun setLastSyncTime(time: Long) {
+        prefs.edit { putLong(KEY_LAST_SYNC_TIME, time) }
     }
 
     private fun createEncryptedPrefs(): SharedPreferences {

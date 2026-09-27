@@ -8,6 +8,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -27,6 +28,7 @@ class SyncScheduler @Inject constructor(
     fun scheduleInitialSync() {
         val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(networkConstraints)
+            .setInputData(workDataOf(KEY_FULL_REFRESH to true))
             .build()
 
         workManager.enqueueUniqueWork(
@@ -39,6 +41,8 @@ class SyncScheduler @Inject constructor(
     fun schedulePeriodicSync() {
         val periodicRequest = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
             .setConstraints(networkConstraints)
+            .setInitialDelay(15, TimeUnit.MINUTES)
+            .setInputData(workDataOf(KEY_FULL_REFRESH to true))
             .build()
 
         workManager.enqueueUniquePeriodicWork(
@@ -56,9 +60,10 @@ class SyncScheduler @Inject constructor(
     fun enqueueCustomizationSync() = triggerOneTimeSync("customization_sync")
     fun enqueueOnboardingSync() = triggerOneTimeSync("onboarding_sync")
 
-    private fun triggerOneTimeSync(name: String) {
+    private fun triggerOneTimeSync(name: String, fullRefresh: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(networkConstraints)
+            .setInputData(workDataOf(KEY_FULL_REFRESH to fullRefresh))
             .build()
 
         workManager.enqueueUniqueWork(
@@ -69,6 +74,7 @@ class SyncScheduler @Inject constructor(
     }
 
     companion object {
+        const val KEY_FULL_REFRESH = "key_full_refresh"
         const val INITIAL_SYNC_WORK_NAME = "expent_initial_sync"
         const val PERIODIC_SYNC_WORK_NAME = "expent_periodic_sync"
     }

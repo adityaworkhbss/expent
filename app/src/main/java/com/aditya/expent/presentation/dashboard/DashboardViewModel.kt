@@ -58,7 +58,6 @@ class DashboardViewModel @Inject constructor(
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
     init {
-        syncScheduler.scheduleInitialSync()
         loadTransactions()
         loadCategories()
         loadAccounts()

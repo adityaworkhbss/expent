@@ -76,7 +76,6 @@ class AuthViewModel @Inject constructor(
                     // Immediately fetch user data (categories, accounts, budgets, expenses, transactions, customization) from remote API and insert into Room DB
                     fetchUserDataUseCase()
 
-                    syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
                 } else {
@@ -108,7 +107,6 @@ class AuthViewModel @Inject constructor(
                     // Immediately fetch user data (categories, accounts, budgets, expenses, transactions, customization) from remote API and insert into Room DB
                     fetchUserDataUseCase()
 
-                    syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
                 } else {
