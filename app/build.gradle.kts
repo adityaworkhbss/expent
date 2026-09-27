@@ -122,4 +122,7 @@ dependencies {
 
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
+
+    // EncryptedSharedPreferences
+    implementation(libs.androidx.security.crypto)
 }

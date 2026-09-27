@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import com.aditya.expent.domain.model.User
 import com.google.gson.Gson
@@ -18,10 +20,10 @@ class SessionManager @Inject constructor(
 
     companion object {
         private const val TAG = "SessionManager"
+        private const val PREFS_FILE_NAME = "expent_prefs"
     }
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("expent_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = createEncryptedPrefs()
 
     private val gson = Gson()
 
@@ -201,5 +203,34 @@ class SessionManager @Inject constructor(
     fun printAllPrefs() {
 
         Log.d(TAG, "ALL PREFS = ${prefs.all}")
+    }
+
+    private fun createEncryptedPrefs(): SharedPreferences {
+        return try {
+            val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            EncryptedSharedPreferences.create(
+                PREFS_FILE_NAME,
+                masterKeyAlias,
+                context,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create EncryptedSharedPreferences, clearing and retrying", e)
+            // If the encrypted prefs are corrupted (e.g. after backup restore),
+            // delete the file and create a fresh one.
+            context.getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE).edit(commit = true) { clear() }
+            try {
+                context.deleteSharedPreferences(PREFS_FILE_NAME)
+            } catch (_: Exception) { }
+            val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+            EncryptedSharedPreferences.create(
+                PREFS_FILE_NAME,
+                masterKeyAlias,
+                context,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
     }
 }
