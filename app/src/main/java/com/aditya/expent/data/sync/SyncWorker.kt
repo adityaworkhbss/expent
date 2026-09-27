@@ -28,6 +28,7 @@ import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.domain.repository.PaymentModeRepository
 import com.aditya.expent.domain.repository.TransactionRepository
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -63,7 +64,7 @@ class SyncWorker(
     }
 
     override suspend fun doWork(): Result {
-        Log.d("SyncWorker", "Starting background data sync...")
+        AppLogger.sync("START", "Starting background data sync...")
         return try {
             val entryPoint = EntryPointAccessors.fromApplication(
                 applicationContext,
@@ -72,7 +73,7 @@ class SyncWorker(
 
             val sessionManager = entryPoint.sessionManager()
             if (sessionManager.getUser() == null) {
-                Log.d("SyncWorker", "User not logged in, skipping background sync.")
+                AppLogger.sync("SKIP", "User not logged in, skipping background sync.")
                 return Result.success()
             }
 
@@ -88,34 +89,38 @@ class SyncWorker(
 
             // 1. Process pending offline sync tasks
             val pendingItems = pendingSyncDao.getAllPendingSyncs()
-            Log.d("SyncWorker", "Found ${pendingItems.size} pending offline sync items")
+            AppLogger.sync("QUEUE", "Found ${pendingItems.size} pending offline sync items in queue")
 
             var hasPendingFailures = false
 
             for (item in pendingItems) {
                 try {
+                    AppLogger.sync("PROCESS_ITEM", "Attempting sync: ID=${item.id}, Type=${item.entityType}, Op=${item.operation}, EntityId=${item.entityId}")
                     val success = processPendingItem(item, apiService, entryPoint, gson)
                     if (success) {
                         pendingSyncDao.delete(item)
-                        Log.d("SyncWorker", "Successfully synced pending item ID: ${item.id}")
+                        AppLogger.room("DELETE", "pending_sync", payload = "ID: ${item.id}", result = "Task deleted after successful sync")
+                        AppLogger.sync("ITEM_SUCCESS", "Successfully synced item ID=${item.id} (${item.entityType}:${item.operation})")
                     } else {
                         hasPendingFailures = true
                     }
                 } catch (e: Exception) {
-                    Log.e("SyncWorker", "Error processing pending sync item ${item.id}: ${e.message}", e)
+                    AppLogger.syncError("ITEM_FAILED", "Error processing pending sync item ${item.id} (${item.entityType}): ${e.message}", e)
                     val nextRetry = item.retryCount + 1
                     if (nextRetry >= 5) {
-                        Log.w("SyncWorker", "Discarding pending sync item ${item.id} after 5 failed attempts")
+                        AppLogger.sync("ITEM_DISCARD", "Discarding pending sync item ${item.id} after 5 failed attempts")
                         pendingSyncDao.delete(item)
+                        AppLogger.room("DELETE", "pending_sync", payload = "ID: ${item.id}", result = "Task discarded (max retries)")
                     } else {
                         pendingSyncDao.update(item.copy(retryCount = nextRetry))
+                        AppLogger.room("UPDATE", "pending_sync", payload = "ID: ${item.id}, retryCount=$nextRetry", result = "Updated retry count")
                         hasPendingFailures = true
                     }
                 }
             }
 
             // 2. Fetch fresh data from remote API & persist into Room DB
-            Log.d("SyncWorker", "Fetching remote data to update local Room database...")
+            AppLogger.sync("REFRESH_START", "Fetching remote data to refresh local Room database...")
             runCatching { categoryRepo.refreshCategories() }
             runCatching { paymentRepo.refreshAccounts() }
             runCatching { budgetRepo.refreshBudgets() }
@@ -123,14 +128,14 @@ class SyncWorker(
             runCatching { transactionRepo.refreshTransactions(1, 100) }
             runCatching { customizationRepo.refreshCustomization() }
 
-            Log.d("SyncWorker", "Background data sync completed!")
+            AppLogger.sync("COMPLETE", "Background data sync completed! HasFailures=$hasPendingFailures")
             if (hasPendingFailures && runAttemptCount < 3) {
                 Result.retry()
             } else {
                 Result.success()
             }
         } catch (e: Exception) {
-            Log.e("SyncWorker", "SyncWorker failed: ${e.message}", e)
+            AppLogger.syncError("FATAL", "SyncWorker failed: ${e.message}", e)
             if (runAttemptCount < 3) {
                 Result.retry()
             } else {
@@ -152,6 +157,7 @@ class SyncWorker(
                 if (item.operation == "DELETE") {
                     apiService.deleteCategory(item.payload)
                     entryPoint.categoryDao().deleteById(item.payload)
+                    AppLogger.room("DELETE", "categories", payload = "ID: ${item.payload}", result = "Success")
                 } else {
                     val type = object : TypeToken<List<CategoryRequestDto>>() {}.type
                     val list: List<CategoryRequestDto> = runCatching {
@@ -160,7 +166,9 @@ class SyncWorker(
                         listOf(gson.fromJson(item.payload, CategoryRequestDto::class.java))
                     }
                     val created = apiService.createCategories(list)
-                    entryPoint.categoryDao().insert(created.map { it.toEntity(userId, SyncStatus.SYNCED) })
+                    val entities = created.map { it.toEntity(userId, SyncStatus.SYNCED) }
+                    entryPoint.categoryDao().insert(entities)
+                    AppLogger.room("CREATE", "categories", payload = entities, result = "Inserted ${entities.size} categories")
                 }
                 true
             }
@@ -169,6 +177,7 @@ class SyncWorker(
                 if (item.operation == "DELETE") {
                     apiService.deleteAccount(item.payload)
                     entryPoint.accountDao().deleteById(item.payload)
+                    AppLogger.room("DELETE", "accounts", payload = "ID: ${item.payload}", result = "Success")
                 } else {
                     val type = object : TypeToken<List<PaymentModeRequestDto>>() {}.type
                     val list: List<PaymentModeRequestDto> = runCatching {
@@ -177,7 +186,9 @@ class SyncWorker(
                         listOf(gson.fromJson(item.payload, PaymentModeRequestDto::class.java))
                     }
                     val created = apiService.savePaymentModes(list)
-                    entryPoint.accountDao().insert(created.map { it.toEntity(userId, SyncStatus.SYNCED) })
+                    val entities = created.map { it.toEntity(userId, SyncStatus.SYNCED) }
+                    entryPoint.accountDao().insert(entities)
+                    AppLogger.room("CREATE", "accounts", payload = entities, result = "Inserted ${entities.size} accounts")
                 }
                 true
             }
@@ -189,6 +200,7 @@ class SyncWorker(
                             apiService.deleteBudget(item.payload)
                         }
                         entryPoint.budgetDao().deleteById(item.payload)
+                        AppLogger.room("DELETE", "budgets", payload = "ID: ${item.payload}", result = "Success")
                     }
                     "UPDATE" -> {
                         val updateMap = gson.fromJson(item.payload, Map::class.java)
@@ -212,10 +224,14 @@ class SyncWorker(
                         if (id.startsWith("local-")) {
                             val created = apiService.saveBudgets(listOf(request))
                             entryPoint.budgetDao().deleteById(id)
-                            entryPoint.budgetDao().insert(created.map { it.toEntity(SyncStatus.SYNCED) })
+                            val entities = created.map { it.toEntity(SyncStatus.SYNCED) }
+                            entryPoint.budgetDao().insert(entities)
+                            AppLogger.room("CREATE", "budgets", payload = entities, result = "Swapped local $id with server budget")
                         } else {
                             val updated = apiService.updateBudget(id, request)
-                            entryPoint.budgetDao().insert(updated.toEntity(SyncStatus.SYNCED))
+                            val entity = updated.toEntity(SyncStatus.SYNCED)
+                            entryPoint.budgetDao().insert(entity)
+                            AppLogger.room("UPDATE", "budgets", payload = entity, result = "Updated budget $id")
                         }
                     }
                     else -> {
@@ -229,7 +245,9 @@ class SyncWorker(
                         if (item.entityId.isNotBlank()) {
                             entryPoint.budgetDao().deleteById(item.entityId)
                         }
-                        entryPoint.budgetDao().insert(created.map { it.toEntity(SyncStatus.SYNCED) })
+                        val entities = created.map { it.toEntity(SyncStatus.SYNCED) }
+                        entryPoint.budgetDao().insert(entities)
+                        AppLogger.room("CREATE", "budgets", payload = entities, result = "Inserted ${entities.size} budgets")
                     }
                 }
                 true
@@ -242,6 +260,7 @@ class SyncWorker(
                             apiService.deleteEmi(item.payload)
                         }
                         entryPoint.expenseDao().deleteById(item.payload)
+                        AppLogger.room("DELETE", "expenses", payload = "ID: ${item.payload}", result = "Success")
                     }
                     "UPDATE" -> {
                         val updateMap = gson.fromJson(item.payload, Map::class.java)
@@ -252,10 +271,14 @@ class SyncWorker(
                         if (id.startsWith("local-")) {
                             val created = apiService.saveExpensesAndSubscriptions(listOf(request))
                             entryPoint.expenseDao().deleteById(id)
-                            entryPoint.expenseDao().insert(created.map { it.toEntity(SyncStatus.SYNCED) })
+                            val entities = created.map { it.toEntity(SyncStatus.SYNCED) }
+                            entryPoint.expenseDao().insert(entities)
+                            AppLogger.room("CREATE", "expenses", payload = entities, result = "Swapped local $id with server EMI")
                         } else {
                             val updated = apiService.updateEmi(id, request)
-                            entryPoint.expenseDao().insert(updated.toEntity(SyncStatus.SYNCED))
+                            val entity = updated.toEntity(SyncStatus.SYNCED)
+                            entryPoint.expenseDao().insert(entity)
+                            AppLogger.room("UPDATE", "expenses", payload = entity, result = "Updated EMI $id")
                         }
                     }
                     else -> {
@@ -269,7 +292,9 @@ class SyncWorker(
                         if (item.entityId.isNotBlank()) {
                             entryPoint.expenseDao().deleteById(item.entityId)
                         }
-                        entryPoint.expenseDao().insert(created.map { it.toEntity(SyncStatus.SYNCED) })
+                        val entities = created.map { it.toEntity(SyncStatus.SYNCED) }
+                        entryPoint.expenseDao().insert(entities)
+                        AppLogger.room("CREATE", "expenses", payload = entities, result = "Inserted ${entities.size} expenses")
                     }
                 }
                 true
@@ -281,8 +306,11 @@ class SyncWorker(
                     val created = apiService.addTransaction(dto)
                     if (item.entityId.isNotBlank()) {
                         entryPoint.transactionDao().deleteById(item.entityId)
+                        AppLogger.room("DELETE", "transactions", payload = "ID: ${item.entityId}", result = "Removed local temp transaction")
                     }
-                    entryPoint.transactionDao().insert(created.toEntity(SyncStatus.SYNCED))
+                    val entity = created.toEntity(SyncStatus.SYNCED)
+                    entryPoint.transactionDao().insert(entity)
+                    AppLogger.room("CREATE", "transactions", payload = entity, result = "Inserted server transaction ${entity.id}")
                 }
                 true
             }
@@ -291,8 +319,10 @@ class SyncWorker(
                 if (item.operation == "UPDATE") {
                     val dto = gson.fromJson(item.payload, UserCustomizationResponseDto::class.java)
                     val updated = apiService.updateUserCustomization(dto)
-                    entryPoint.customizationDao().insert(updated.toEntity())
+                    val entity = updated.toEntity()
+                    entryPoint.customizationDao().insert(entity)
                     entryPoint.sessionManager().saveCustomization(updated)
+                    AppLogger.room("UPDATE", "customizations", payload = entity, result = "Success")
                 }
                 true
             }
@@ -301,6 +331,7 @@ class SyncWorker(
                 if (item.operation == "INCREMENT") {
                     val step = item.payload.toIntOrNull() ?: 1
                     apiService.updateOnboardingCount(OnboardingStepRequestDto(step))
+                    AppLogger.sync("ONBOARDING_INCREMENT", "Synced onboarding step increment to $step")
                 }
                 true
             }

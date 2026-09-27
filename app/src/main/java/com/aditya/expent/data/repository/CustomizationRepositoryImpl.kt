@@ -9,6 +9,7 @@ import com.aditya.expent.data.mapper.toEntity
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import com.aditya.expent.domain.repository.CustomizationRepository
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -48,34 +49,35 @@ class CustomizationRepositoryImpl @Inject constructor(
 
         // Save locally first
         sessionManager.saveCustomization(updated)
-        customizationDao.insert(updated.toEntity())
+        val entity = updated.toEntity()
+        customizationDao.insert(entity)
+        AppLogger.room("CREATE", "customization", entity, "Saved customization locally")
 
         // Enqueue sync queue
         enqueueSync("customization", "UPDATE", gson.toJson(updated))
-        // Trigger sync scheduler (we can create a stub/trigger for scheduler if we want)
     }
 
     override suspend fun refreshCustomization() {
         try {
-            Log.d("rest re", "refreshCustomization: Requesting from API")
             val response = api.getUserCustomization()
             sessionManager.saveCustomization(response)
-            customizationDao.insert(response.toEntity())
-            Log.d("rest re", "refreshCustomization: API Response: $response")
+            val entity = response.toEntity()
+            customizationDao.insert(entity)
+            AppLogger.room("REPLACE", "customization", entity, "Refreshed customization from API")
         } catch (e: Exception) {
-            Log.e("rest re", "refreshCustomization: Error", e)
+            AppLogger.apiError("GET", "customization", e.message, throwable = e)
         }
     }
 
     private suspend fun enqueueSync(entityType: String, operation: String, payload: String) {
-        pendingSyncDao.insert(
-            PendingSyncEntity(
-                entityType = entityType,
-                entityId = "",
-                operation = operation,
-                payload = payload,
-                createdAt = System.currentTimeMillis()
-            )
+        val pendingEntity = PendingSyncEntity(
+            entityType = entityType,
+            entityId = "",
+            operation = operation,
+            payload = payload,
+            createdAt = System.currentTimeMillis()
         )
+        pendingSyncDao.insert(pendingEntity)
+        AppLogger.room("CREATE", "pending_sync", "Type=$entityType, Op=$operation", "Enqueued")
     }
 }

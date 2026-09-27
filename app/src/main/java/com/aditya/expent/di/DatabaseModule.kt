@@ -18,6 +18,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import jakarta.inject.Singleton
 
+import com.aditya.expent.utils.AppLogger
+import java.util.concurrent.Executors
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -32,6 +35,9 @@ object DatabaseModule {
             ExpentDatabase::class.java,
             "expent_database"
         )
+            .setQueryCallback({ sqlQuery, bindArgs ->
+                AppLogger.roomQuery(sqlQuery, bindArgs)
+            }, Executors.newSingleThreadExecutor())
             .fallbackToDestructiveMigration()
             .build()
     }

@@ -17,6 +17,7 @@ import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.repository.TransactionRepository
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -87,35 +88,37 @@ class TransactionRepositoryImpl @Inject constructor(
             syncStatus = SyncStatus.PENDING_CREATE
         )
         transactionDao.insert(entity)
+        AppLogger.room("CREATE", "transactions", payload = entity, result = "Success (LocalID: $localId, Status: PENDING_CREATE)")
         
         enqueueSync("transaction", "CREATE", gson.toJson(request), localId)
+        AppLogger.room("CREATE", "pending_sync", payload = "Type=transaction, ID=$localId", result = "Enqueued")
         syncScheduler.enqueueTransactionSync()
     }
 
     override suspend fun parseTransaction(text: String): ParseTransactionResponseDto {
-        Log.d("rest re", "Request parseTransaction: text=$text")
         val response = apiService.parseTransaction(ParseTransactionRequestDto(text))
-        Log.d("rest re", "Response parseTransaction: $response")
         return response
     }
 
     override suspend fun refreshTransactions(from: String, to: String) {
         try {
-            Log.d("rest re", "Request refreshTransactions: from=$from, to=$to")
             val response = apiService.getTransactions(from, to)
-            transactionDao.insert(response.data.map { it.toEntity() })
+            val entities = response.data.map { it.toEntity() }
+            transactionDao.insert(entities)
+            AppLogger.room("CREATE", "transactions", payload = "Refreshed ${entities.size} items from API (from=$from, to=$to)", result = "Inserted")
         } catch (e: Exception) {
-            Log.e("rest re", "Error refreshTransactions: ${e.message}", e)
+            AppLogger.apiError("GET", "transactions?from=$from&to=$to", e.message, throwable = e)
         }
     }
 
     override suspend fun refreshTransactions(page: Int, limit: Int) {
         try {
-            Log.d("rest re", "Request refreshTransactions: page=$page, limit=$limit")
             val response = apiService.getTransactions(page, limit)
-            transactionDao.insert(response.data.map { it.toEntity() })
+            val entities = response.data.map { it.toEntity() }
+            transactionDao.insert(entities)
+            AppLogger.room("CREATE", "transactions", payload = "Refreshed ${entities.size} items from API (page=$page, limit=$limit)", result = "Inserted")
         } catch (e: Exception) {
-            Log.e("rest re", "Error refreshTransactions: ${e.message}", e)
+            AppLogger.apiError("GET", "transactions?page=$page&limit=$limit", e.message, throwable = e)
         }
     }
 

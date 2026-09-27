@@ -12,6 +12,7 @@ import com.aditya.expent.data.remote.dto.CategoryRequestDto
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.repository.CategoryRepository
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -44,6 +45,7 @@ class CategoryRepositoryImpl @Inject constructor(
             )
         }
         categoryDao.insert(entities)
+        AppLogger.room("CREATE", "categories", entities, "Inserted ${entities.size} items")
 
         // Enqueue to PendingSyncDao so SyncWorker can push to API
         val requests = categories.map { cat ->
@@ -53,15 +55,15 @@ class CategoryRepositoryImpl @Inject constructor(
                 user_id = userId
             )
         }
-        pendingSyncDao.insert(
-            PendingSyncEntity(
-                entityType = "category",
-                entityId = "",
-                operation = "CREATE",
-                payload = gson.toJson(requests),
-                createdAt = System.currentTimeMillis()
-            )
+        val pendingEntity = PendingSyncEntity(
+            entityType = "category",
+            entityId = "",
+            operation = "CREATE",
+            payload = gson.toJson(requests),
+            createdAt = System.currentTimeMillis()
         )
+        pendingSyncDao.insert(pendingEntity)
+        AppLogger.room("CREATE", "pending_sync", "Type=category, count=${requests.size}", "Enqueued")
 
         syncScheduler.enqueueCategorySync()
     }
@@ -75,33 +77,30 @@ class CategoryRepositoryImpl @Inject constructor(
                 syncStatus = SyncStatus.PENDING_DELETE
             )
         )
+        AppLogger.room("UPDATE", "categories", "ID=$categoryId, isDeleted=true", "Marked deleted")
 
-        pendingSyncDao.insert(
-            PendingSyncEntity(
-                entityType = "category",
-                entityId = categoryId,
-                operation = "DELETE",
-                payload = categoryId,
-                createdAt = System.currentTimeMillis()
-            )
+        val pendingEntity = PendingSyncEntity(
+            entityType = "category",
+            entityId = categoryId,
+            operation = "DELETE",
+            payload = categoryId,
+            createdAt = System.currentTimeMillis()
         )
+        pendingSyncDao.insert(pendingEntity)
+        AppLogger.room("CREATE", "pending_sync", "Type=category, ID=$categoryId, Op=DELETE", "Enqueued")
 
         syncScheduler.enqueueCategorySync()
     }
 
     override suspend fun refreshCategories() {
         try {
-            Log.d("CategoryRepo", "Request refreshCategories")
             val userId = sessionManager.getUser()?.id ?: return
             val response = apiService.getCategories()
-            Log.d("CategoryRepo", "Response refreshCategories count=${response.size}")
-            categoryDao.replaceAll(
-                response.map {
-                    it.toEntity(userId)
-                }
-            )
+            val entities = response.map { it.toEntity(userId) }
+            categoryDao.replaceAll(entities)
+            AppLogger.room("REPLACE", "categories", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {
-            Log.e("CategoryRepo", "Error refreshCategories: ${e.message}", e)
+            AppLogger.apiError("GET", "categories", e.message, throwable = e)
         }
     }
 }

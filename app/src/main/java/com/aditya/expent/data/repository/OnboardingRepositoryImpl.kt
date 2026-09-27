@@ -6,6 +6,7 @@ import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.OnboardingStepRequestDto
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.repository.OnboardingRepository
+import com.aditya.expent.utils.AppLogger
 import javax.inject.Inject
 
 class OnboardingRepositoryImpl @Inject constructor(
@@ -17,15 +18,15 @@ class OnboardingRepositoryImpl @Inject constructor(
         try {
             apiService.updateOnboardingCount(OnboardingStepRequestDto(count))
         } catch (e: Exception) {
-            pendingSyncDao.insert(
-                PendingSyncEntity(
-                    entityType = "onboarding",
-                    entityId = "",
-                    operation = "INCREMENT",
-                    payload = count.toString(),
-                    createdAt = System.currentTimeMillis()
-                )
+            val pendingEntity = PendingSyncEntity(
+                entityType = "onboarding",
+                entityId = "",
+                operation = "INCREMENT",
+                payload = count.toString(),
+                createdAt = System.currentTimeMillis()
             )
+            pendingSyncDao.insert(pendingEntity)
+            AppLogger.room("CREATE", "pending_sync", "Type=onboarding, Count=$count", "Enqueued")
             syncScheduler.enqueueOnboardingSync()
         }
     }

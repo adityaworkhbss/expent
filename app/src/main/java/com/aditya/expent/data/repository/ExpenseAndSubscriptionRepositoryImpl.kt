@@ -15,6 +15,7 @@ import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -94,6 +95,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         }
 
         expenseDao.insert(entities)
+        AppLogger.room("CREATE", "expenses", entities, "Inserted ${entities.size} expenses & subscriptions")
 
         val requests = expenses.map { expense ->
             ExpenseIncomeRequestDto(
@@ -125,6 +127,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
                 syncStatus = SyncStatus.PENDING_DELETE
             )
         )
+        AppLogger.room("UPDATE", "expenses", "ID=$id, isDeleted=true", "Marked deleted")
         
         enqueueSync("emi", "DELETE", id, id)
         syncScheduler.enqueueExpenseSync()
@@ -140,18 +143,18 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         monthsPaid: String?
     ) {
         val expense = expenseDao.getExpense(id) ?: return
-        expenseDao.update(
-            expense.copy(
-                name = name,
-                principal = amount,
-                monthlyEmi = amount,
-                startDate = startDate,
-                tenure = tenure?.toIntOrNull() ?: expense.tenure,
-                monthsPaid = monthsPaid?.toIntOrNull() ?: expense.monthsPaid,
-                updatedAt = nowIso(),
-                syncStatus = SyncStatus.PENDING_UPDATE
-            )
+        val updated = expense.copy(
+            name = name,
+            principal = amount,
+            monthlyEmi = amount,
+            startDate = startDate,
+            tenure = tenure?.toIntOrNull() ?: expense.tenure,
+            monthsPaid = monthsPaid?.toIntOrNull() ?: expense.monthsPaid,
+            updatedAt = nowIso(),
+            syncStatus = SyncStatus.PENDING_UPDATE
         )
+        expenseDao.update(updated)
+        AppLogger.room("UPDATE", "expenses", updated, "Updated EMI/expense $id")
 
         val request = ExpenseIncomeRequestDto(
             type = type,
@@ -198,6 +201,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             isDeleted = false
         )
         expenseDao.insert(entity)
+        AppLogger.room("CREATE", "expenses", entity, "Inserted EMI/expense ${entity.id}")
 
         val request = ExpenseIncomeRequestDto(
             type = type,
@@ -213,25 +217,25 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
 
     override suspend fun refreshExpensesAndSubscriptions() {
         try {
-            Log.d("rest re", "refreshExpensesAndSubscriptions Req ")
             val result = apiService.getExpensesAndSubscriptions()
-            Log.d("rest re", "refreshExpensesAndSubscriptions Res :: $result")
-            expenseDao.replaceAll(result.map { it.toEntity() })
+            val entities = result.map { it.toEntity() }
+            expenseDao.replaceAll(entities)
+            AppLogger.room("REPLACE", "expenses", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {
-            Log.e("rest re", "Error refreshExpensesAndSubscriptions: ${e.message}", e)
+            AppLogger.apiError("GET", "expenses", e.message, throwable = e)
         }
     }
 
     private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
-        pendingSyncDao.insert(
-            PendingSyncEntity(
-                entityType = entityType,
-                entityId = entityId,
-                operation = operation,
-                payload = payload,
-                createdAt = System.currentTimeMillis()
-            )
+        val pendingEntity = PendingSyncEntity(
+            entityType = entityType,
+            entityId = entityId,
+            operation = operation,
+            payload = payload,
+            createdAt = System.currentTimeMillis()
         )
+        pendingSyncDao.insert(pendingEntity)
+        AppLogger.room("CREATE", "pending_sync", "Type=$entityType, ID=$entityId, Op=$operation", "Enqueued")
     }
 
     private fun nowIso(): String =

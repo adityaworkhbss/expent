@@ -16,6 +16,7 @@ import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.presentation.onboard.RecurringIncome
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -64,6 +65,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             )
         }
         budgetDao.insert(entities)
+        AppLogger.room("CREATE", "budgets", entities, "Inserted ${entities.size} income budgets")
 
         val requests = allIncomes.map { income ->
             BudgetRequestDto(
@@ -100,6 +102,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             isDeleted = false
         )
         budgetDao.insert(entity)
+        AppLogger.room("CREATE", "budgets", entity, "Inserted budget ${entity.id}")
 
         val request = BudgetRequestDto(
             categoryId = categoryId,
@@ -121,6 +124,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
                 syncStatus = SyncStatus.PENDING_DELETE
             )
         )
+        AppLogger.room("UPDATE", "budgets", "ID=$id, isDeleted=true", "Marked deleted")
         
         enqueueSync("budget", "DELETE", id, id)
         syncScheduler.enqueueBudgetSync()
@@ -135,16 +139,16 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         endDate: String?
     ) {
         val budget = budgetDao.getBudget(id) ?: return
-        budgetDao.update(
-            budget.copy(
-                categoryId = categoryId,
-                periodType = periodType,
-                limitAmount = amount.toString(),
-                startDate = startDate,
-                endDate = endDate,
-                syncStatus = SyncStatus.PENDING_UPDATE
-            )
+        val updated = budget.copy(
+            categoryId = categoryId,
+            periodType = periodType,
+            limitAmount = amount.toString(),
+            startDate = startDate,
+            endDate = endDate,
+            syncStatus = SyncStatus.PENDING_UPDATE
         )
+        budgetDao.update(updated)
+        AppLogger.room("UPDATE", "budgets", updated, "Updated budget $id")
 
         enqueueSync(
             "budget",
@@ -166,25 +170,25 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
 
     override suspend fun refreshBudgets() {
         try {
-            Log.d("rest re", "refreshBudgets Called")
             val response = apiService.getBudgets()
-            Log.d("rest re", "refreshBudgets response : $response")
-            budgetDao.replaceAll(response.map { it.toEntity() })
+            val entities = response.map { it.toEntity() }
+            budgetDao.replaceAll(entities)
+            AppLogger.room("REPLACE", "budgets", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {
-            Log.e("rest re", "Error refreshBudgets: ${e.message}", e)
+            AppLogger.apiError("GET", "budgets", e.message, throwable = e)
         }
     }
 
     private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
-        pendingSyncDao.insert(
-            PendingSyncEntity(
-                entityType = entityType,
-                entityId = entityId,
-                operation = operation,
-                payload = payload,
-                createdAt = System.currentTimeMillis()
-            )
+        val pendingEntity = PendingSyncEntity(
+            entityType = entityType,
+            entityId = entityId,
+            operation = operation,
+            payload = payload,
+            createdAt = System.currentTimeMillis()
         )
+        pendingSyncDao.insert(pendingEntity)
+        AppLogger.room("CREATE", "pending_sync", "Type=$entityType, ID=$entityId, Op=$operation", "Enqueued")
     }
 
     private fun nowIso(): String =

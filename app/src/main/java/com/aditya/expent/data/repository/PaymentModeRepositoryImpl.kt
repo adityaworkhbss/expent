@@ -13,6 +13,7 @@ import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.domain.repository.PaymentModeRepository
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -43,6 +44,7 @@ class PaymentModeRepositoryImpl @Inject constructor(
             )
         }
         accountDao.insert(entities)
+        AppLogger.room("CREATE", "accounts", entities, "Inserted ${entities.size} items")
 
         val requests = paymentModes.map { mode ->
             PaymentModeRequestDto(
@@ -63,6 +65,7 @@ class PaymentModeRepositoryImpl @Inject constructor(
                 syncStatus = SyncStatus.PENDING_DELETE
             )
         )
+        AppLogger.room("UPDATE", "accounts", "ID=$id, isDeleted=true", "Marked deleted")
         
         enqueueSync("account", "DELETE", id)
         syncScheduler.enqueueAccountSync()
@@ -70,25 +73,25 @@ class PaymentModeRepositoryImpl @Inject constructor(
 
     override suspend fun refreshAccounts() {
         try {
-            Log.d("rest re", "Request refreshAccounts")
             val response = apiService.getAccounts()
-            Log.d("rest re", "Response refreshAccounts: $response")
             val userId = sessionManager.getUser()?.id
-            accountDao.replaceAll(response.map { it.toEntity(userId) })
+            val entities = response.map { it.toEntity(userId) }
+            accountDao.replaceAll(entities)
+            AppLogger.room("REPLACE", "accounts", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {
-            Log.e("rest re", "Error refreshAccounts: ${e.message}", e)
+            AppLogger.apiError("GET", "accounts", e.message, throwable = e)
         }
     }
 
     private suspend fun enqueueSync(entityType: String, operation: String, payload: String) {
-        pendingSyncDao.insert(
-            PendingSyncEntity(
-                entityType = entityType,
-                entityId = "",
-                operation = operation,
-                payload = payload,
-                createdAt = System.currentTimeMillis()
-            )
+        val pendingEntity = PendingSyncEntity(
+            entityType = entityType,
+            entityId = "",
+            operation = operation,
+            payload = payload,
+            createdAt = System.currentTimeMillis()
         )
+        pendingSyncDao.insert(pendingEntity)
+        AppLogger.room("CREATE", "pending_sync", "Type=$entityType, Op=$operation", "Enqueued")
     }
 }
