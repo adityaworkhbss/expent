@@ -171,7 +171,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
     override suspend fun refreshBudgets() {
         try {
             val response = apiService.getBudgets()
-            val entities = response.map { it.toEntity() }
+            val entities = response.data.orEmpty().map { it.toEntity() }
             budgetDao.replaceAll(entities)
             AppLogger.room("REPLACE", "budgets", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {

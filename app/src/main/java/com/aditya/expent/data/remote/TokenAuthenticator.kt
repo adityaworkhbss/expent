@@ -73,7 +73,7 @@ class TokenAuthenticator @Inject constructor(
                 Log.d(TAG, "Token refreshed successfully")
                 val updatedUser = user.copy(
                     accessToken = refreshResponse.accessToken,
-                    refreshToken = refreshResponse.refreshToken
+                    refreshToken = refreshResponse.refreshToken.takeIf { it.isNotBlank() } ?: user.refreshToken
                 )
 
                 Log.d("SAVEUSER", "Saving updated user with new tokens: accessToken=${updatedUser.accessToken.take(10)}...${updatedUser.accessToken.takeLast(10)}, refreshToken=${updatedUser.refreshToken.take(10)}...${updatedUser.refreshToken.takeLast(10)}")

@@ -60,8 +60,9 @@ class CustomizationRepositoryImpl @Inject constructor(
     override suspend fun refreshCustomization() {
         try {
             val response = api.getUserCustomization()
-            sessionManager.saveCustomization(response)
-            val entity = response.toEntity()
+            val data = response.data ?: return
+            sessionManager.saveCustomization(data)
+            val entity = data.toEntity()
             customizationDao.insert(entity)
             AppLogger.room("REPLACE", "customization", entity, "Refreshed customization from API")
         } catch (e: Exception) {

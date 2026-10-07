@@ -103,7 +103,7 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun refreshTransactions(from: String, to: String) {
         try {
             val response = apiService.getTransactions(from, to)
-            val entities = response.data.map { it.toEntity() }
+            val entities = response.data?.data.orEmpty().map { it.toEntity() }
             transactionDao.replaceAll(entities)
             AppLogger.room("REPLACE", "transactions", payload = "Refreshed ${entities.size} items from API (from=$from, to=$to)", result = "ReplaceAll")
         } catch (e: Exception) {
@@ -114,7 +114,7 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun refreshTransactions(page: Int, limit: Int) {
         try {
             val response = apiService.getTransactions(page, limit)
-            val entities = response.data.map { it.toEntity() }
+            val entities = response.data?.data.orEmpty().map { it.toEntity() }
             transactionDao.replaceAll(entities)
             AppLogger.room("REPLACE", "transactions", payload = "Refreshed ${entities.size} items from API (page=$page, limit=$limit)", result = "ReplaceAll")
         } catch (e: Exception) {

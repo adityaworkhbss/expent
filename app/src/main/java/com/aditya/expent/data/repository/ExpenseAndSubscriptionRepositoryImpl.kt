@@ -218,7 +218,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
     override suspend fun refreshExpensesAndSubscriptions() {
         try {
             val result = apiService.getExpensesAndSubscriptions()
-            val entities = result.map { it.toEntity() }
+            val entities = result.data.orEmpty().map { it.toEntity() }
             expenseDao.replaceAll(entities)
             AppLogger.room("REPLACE", "expenses", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {

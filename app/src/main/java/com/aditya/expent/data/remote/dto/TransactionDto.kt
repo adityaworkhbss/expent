@@ -146,7 +146,7 @@ data class PaginatedTransactionsResponseDto(
     val meta: MetaDto? = null
 ) {
     val data: List<TransactionResponseDto>
-        get() = dataList ?: itemsList ?: emptyList()
+        get() = itemsList?.takeIf { it.isNotEmpty() } ?: dataList?.takeIf { it.isNotEmpty() } ?: itemsList ?: dataList ?: emptyList()
 
     constructor(data: List<TransactionResponseDto>, meta: MetaDto?) : this(
         dataList = data,

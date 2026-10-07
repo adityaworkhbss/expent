@@ -1,5 +1,6 @@
 package com.aditya.expent.data.remote
 
+import com.aditya.expent.data.remote.dto.ApiResponse
 import com.aditya.expent.data.remote.dto.AuthRequestDto
 import com.aditya.expent.data.remote.dto.AuthResponseDto
 import com.aditya.expent.data.remote.dto.AuthTestRequestDto
@@ -36,34 +37,34 @@ interface ApiService {
     suspend fun testLogin(@Body request: AuthTestRequestDto): AuthResponseDto
 
     @POST("categories")
-    suspend fun createCategories( @Body request: List<CategoryRequestDto>): List<CategoryResponseDto>
+    suspend fun createCategories(@Body request: List<CategoryRequestDto>): ApiResponse<List<CategoryResponseDto>>
 
     @POST("accounts")
-    suspend fun savePaymentModes(@Body request: List<PaymentModeRequestDto>) : List<PaymentModeResponseDto>
+    suspend fun savePaymentModes(@Body request: List<PaymentModeRequestDto>): ApiResponse<List<PaymentModeResponseDto>>
 
     @POST("auth/refresh")
     suspend fun refreshToken(@Body request: TokenRefreshRequestDto): TokenRefreshResponseDto
 
     @GET("categories")
-    suspend fun getCategories(): List<CategoryResponseDto>
+    suspend fun getCategories(): ApiResponse<List<CategoryResponseDto>>
 
     @GET("budgets")
-    suspend fun getBudgets(): List<BudgetResponseDto>
+    suspend fun getBudgets(): ApiResponse<List<BudgetResponseDto>?>
 
     @POST("budgets")
-    suspend fun saveBudgets(@Body request: List<BudgetRequestDto>): List<BudgetResponseDto>
+    suspend fun saveBudgets(@Body request: List<BudgetRequestDto>): ApiResponse<List<BudgetResponseDto>>
 
     @GET("emis")
-    suspend fun getExpensesAndSubscriptions(): List<ExpenseIncomeResponseDto>
+    suspend fun getExpensesAndSubscriptions(): ApiResponse<List<ExpenseIncomeResponseDto>?>
 
     @POST("emis")
-    suspend fun saveExpensesAndSubscriptions(@Body request: List<ExpenseIncomeRequestDto>): List<ExpenseIncomeResponseDto>
+    suspend fun saveExpensesAndSubscriptions(@Body request: List<ExpenseIncomeRequestDto>): ApiResponse<List<ExpenseIncomeResponseDto>>
 
     @DELETE("emis/{id}")
-    suspend fun deleteEmi(@Path("id") emiId: String)
+    suspend fun deleteEmi(@Path("id") emiId: String): ApiResponse<Any?>
 
     @PUT("emis/{id}")
-    suspend fun updateEmi(@Path("id") emiId: String, @Body request: ExpenseIncomeRequestDto): ExpenseIncomeResponseDto
+    suspend fun updateEmi(@Path("id") emiId: String, @Body request: ExpenseIncomeRequestDto): ApiResponse<ExpenseIncomeResponseDto>
 
     @POST("auth/onboarding/increment")
     suspend fun updateOnboardingCount(@Body request: OnboardingStepRequestDto)
@@ -72,37 +73,37 @@ interface ApiService {
     suspend fun getTransactions(
         @Query("from") from: String? = null,
         @Query("to") to: String? = null
-    ): PaginatedTransactionsResponseDto
+    ): ApiResponse<PaginatedTransactionsResponseDto>
 
     @GET("transactions")
     suspend fun getTransactions(
         @Query("page") page: Int,
         @Query("limit") limit: Int
-    ): PaginatedTransactionsResponseDto
+    ): ApiResponse<PaginatedTransactionsResponseDto>
 
     @POST("transactions")
-    suspend fun addTransaction(@Body request: CreateTransactionRequestDto): TransactionResponseDto
+    suspend fun addTransaction(@Body request: CreateTransactionRequestDto): ApiResponse<TransactionResponseDto>
 
     @GET("accounts")
-    suspend fun getAccounts(): List<PaymentModeResponseDto>
+    suspend fun getAccounts(): ApiResponse<List<PaymentModeResponseDto>>
 
     @DELETE("categories/{id}")
-    suspend fun deleteCategory( @Path("id") categoryId: String)
+    suspend fun deleteCategory(@Path("id") categoryId: String): ApiResponse<Any?>
 
     @DELETE("accounts/{id}")
-    suspend fun deleteAccount( @Path("id") accountId: String)
+    suspend fun deleteAccount(@Path("id") accountId: String): ApiResponse<Any?>
 
     @DELETE("budgets/{id}")
-    suspend fun deleteBudget(@Path("id") budgetId: String)
+    suspend fun deleteBudget(@Path("id") budgetId: String): ApiResponse<Any?>
 
     @PUT("budgets/{id}")
-    suspend fun updateBudget(@Path("id") budgetId: String, @Body request: BudgetRequestDto): BudgetResponseDto
+    suspend fun updateBudget(@Path("id") budgetId: String, @Body request: BudgetRequestDto): ApiResponse<BudgetResponseDto>
 
     @GET("user-customization")
-    suspend fun getUserCustomization(): UserCustomizationResponseDto
+    suspend fun getUserCustomization(): ApiResponse<UserCustomizationResponseDto>
 
     @PUT("user-customization")
-    suspend fun updateUserCustomization(@Body request: UserCustomizationResponseDto): UserCustomizationResponseDto
+    suspend fun updateUserCustomization(@Body request: UserCustomizationResponseDto): ApiResponse<UserCustomizationResponseDto>
 
     @POST("parse-transaction")
     suspend fun parseTransaction(@Body request: ParseTransactionRequestDto): ParseTransactionResponseDto

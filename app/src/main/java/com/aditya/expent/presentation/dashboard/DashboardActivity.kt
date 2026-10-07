@@ -122,7 +122,7 @@ class DashboardActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         Log.d("DashboardActivity", "onResume: Reloading customizations via viewModel.loadCustomization()")
-        // Reload customizations in case they were updated in ProfileActivity
+
         viewModel.loadCustomization()
         viewModel.loadAccounts()
 

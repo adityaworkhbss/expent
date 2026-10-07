@@ -74,8 +74,9 @@ class PaymentModeRepositoryImpl @Inject constructor(
     override suspend fun refreshAccounts() {
         try {
             val response = apiService.getAccounts()
-            val userId = sessionManager.getUser()?.id
-            val entities = response.map { it.toEntity(userId) }
+            val sessionUser = sessionManager.getUser()
+            val accountsList = response.data.orEmpty()
+            val entities = accountsList.map { it.toEntity(sessionUser?.id ?: it.userId) }
             accountDao.replaceAll(entities)
             AppLogger.room("REPLACE", "accounts", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {

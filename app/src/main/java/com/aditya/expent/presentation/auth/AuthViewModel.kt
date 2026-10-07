@@ -73,7 +73,6 @@ class AuthViewModel @Inject constructor(
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
 
-                    // Immediately fetch user data (categories, accounts, budgets, expenses, transactions, customization) from remote API and insert into Room DB
                     fetchUserDataUseCase()
 
                     syncScheduler.schedulePeriodicSync()
@@ -104,7 +103,6 @@ class AuthViewModel @Inject constructor(
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
 
-                    // Immediately fetch user data (categories, accounts, budgets, expenses, transactions, customization) from remote API and insert into Room DB
                     fetchUserDataUseCase()
 
                     syncScheduler.schedulePeriodicSync()

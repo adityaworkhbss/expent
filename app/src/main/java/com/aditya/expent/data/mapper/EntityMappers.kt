@@ -33,7 +33,7 @@ fun CategoryResponseDto.toEntity(
         id = id,
         name = name,
         type = type,
-        userId = userId,
+        userId = userId ?: this.userId,
         syncStatus = syncStatus,
         isDeleted = isDeleted
     )
@@ -75,7 +75,7 @@ fun PaymentModeResponseDto.toEntity(
         id = id,
         name = name,
         type = type,
-        userId = userId,
+        userId = userId ?: this.userId,
         syncStatus = syncStatus,
         isDeleted = isDeleted
     )

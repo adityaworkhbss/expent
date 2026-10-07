@@ -94,9 +94,10 @@ class CategoryRepositoryImpl @Inject constructor(
 
     override suspend fun refreshCategories() {
         try {
-            val userId = sessionManager.getUser()?.id ?: return
+            val sessionUser = sessionManager.getUser()
             val response = apiService.getCategories()
-            val entities = response.map { it.toEntity(userId) }
+            val categoriesList = response.data.orEmpty()
+            val entities = categoriesList.map { it.toEntity(sessionUser?.id ?: it.userId) }
             categoryDao.replaceAll(entities)
             AppLogger.room("REPLACE", "categories", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {

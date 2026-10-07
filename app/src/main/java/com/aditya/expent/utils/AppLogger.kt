@@ -9,10 +9,6 @@ object AppLogger {
     private const val TAG_SYNC = "EXPENT_SYNC"
     private const val MAX_LOG_LENGTH = 3500
 
-    // =========================================================================
-    // API LOGGING
-    // =========================================================================
-
     fun apiRequest(method: String, url: String, headers: Map<String, String>? = null, payload: String? = null) {
         val builder = StringBuilder()
         builder.append("[API] [REQUEST] --> $method $url\n")
@@ -54,10 +50,6 @@ object AppLogger {
         logChunked(TAG_API, Log.ERROR, message, throwable)
     }
 
-    // =========================================================================
-    // ROOM LOGGING
-    // =========================================================================
-
     fun room(
         operation: String,
         table: String,
@@ -77,10 +69,6 @@ object AppLogger {
         logChunked(TAG_ROOM, Log.DEBUG, message)
     }
 
-    // =========================================================================
-    // SYNC LOGGING
-    // =========================================================================
-
     fun sync(action: String, details: String) {
         val message = "[SYNC] [$action] $details"
         logChunked(TAG_SYNC, Log.INFO, message)
@@ -90,10 +78,6 @@ object AppLogger {
         val message = "[SYNC] [ERROR] [$action] $details"
         logChunked(TAG_SYNC, Log.ERROR, message, throwable)
     }
-
-    // =========================================================================
-    // HELPER METHODS
-    // =========================================================================
 
     private fun formatData(data: Any?): String {
         return when (data) {
