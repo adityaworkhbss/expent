@@ -1,6 +1,8 @@
 package com.aditya.expent.data.repository
 
 import android.util.Log
+import com.aditya.expent.data.local.dao.AccountDao
+import com.aditya.expent.data.local.dao.CategoryDao
 import com.aditya.expent.data.local.dao.PendingSyncDao
 import com.aditya.expent.data.local.dao.TransactionDao
 import com.aditya.expent.data.local.entity.PendingSyncEntity
@@ -32,6 +34,8 @@ import kotlin.math.abs
 class TransactionRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     private val transactionDao: TransactionDao,
+    private val categoryDao: CategoryDao,
+    private val accountDao: AccountDao,
     private val pendingSyncDao: PendingSyncDao,
     private val syncScheduler: SyncScheduler,
     private val sessionManager: SessionManager,
@@ -103,7 +107,15 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun refreshTransactions(from: String, to: String) {
         try {
             val response = apiService.getTransactions(from, to)
-            val entities = response.data?.data.orEmpty().map { it.toEntity() }
+            val dtos = response.data?.data.orEmpty()
+            val entities = dtos.map { dto ->
+                val categoryName = dto.category?.name ?: dto.categoryId?.let { categoryDao.getCategory(it)?.name }
+                val accountName = dto.account?.name ?: accountDao.getAccount(dto.accountId)?.name
+                dto.toEntity().copy(
+                    categoryName = categoryName,
+                    accountName = accountName
+                )
+            }
             transactionDao.replaceAll(entities)
             AppLogger.room("REPLACE", "transactions", payload = "Refreshed ${entities.size} items from API (from=$from, to=$to)", result = "ReplaceAll")
         } catch (e: Exception) {
@@ -114,7 +126,15 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun refreshTransactions(page: Int, limit: Int) {
         try {
             val response = apiService.getTransactions(page, limit)
-            val entities = response.data?.data.orEmpty().map { it.toEntity() }
+            val dtos = response.data?.data.orEmpty()
+            val entities = dtos.map { dto ->
+                val categoryName = dto.category?.name ?: dto.categoryId?.let { categoryDao.getCategory(it)?.name }
+                val accountName = dto.account?.name ?: accountDao.getAccount(dto.accountId)?.name
+                dto.toEntity().copy(
+                    categoryName = categoryName,
+                    accountName = accountName
+                )
+            }
             transactionDao.replaceAll(entities)
             AppLogger.room("REPLACE", "transactions", payload = "Refreshed ${entities.size} items from API (page=$page, limit=$limit)", result = "ReplaceAll")
         } catch (e: Exception) {

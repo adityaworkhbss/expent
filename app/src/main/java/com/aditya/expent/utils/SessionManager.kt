@@ -138,42 +138,34 @@ class SessionManager @Inject constructor(
     }
 
     fun setOnboardingComplete(complete: Boolean) {
-
         Log.d(TAG, "setOnboardingComplete() called with = $complete")
-
         prefs.edit(commit = true) {
             putBoolean("onboarding_complete", complete)
         }
-
         Log.d(TAG, "Onboarding complete flag saved")
     }
 
     fun isOnboardingComplete(): Boolean {
-
         val value = prefs.getBoolean("onboarding_complete", false)
-
-        Log.d(TAG, "isOnboardingComplete() = $value")
-
-        return value
+        val step = getOnboardingStep()
+        Log.d(TAG, "isOnboardingComplete() = $value, step = $step")
+        return value || step >= 4
     }
 
     fun getOnboardingStep(): Int {
-
         val step = prefs.getInt("onboarding_step", 0)
-
         Log.d(TAG, "getOnboardingStep() = $step")
-
         return step
     }
 
     fun setOnboardingStep(step: Int) {
-
         Log.d(TAG, "setOnboardingStep() called with = $step")
-
         prefs.edit(commit = true) {
             putInt("onboarding_step", step)
+            if (step >= 4) {
+                putBoolean("onboarding_complete", true)
+            }
         }
-
         Log.d(TAG, "Onboarding step saved")
     }
 

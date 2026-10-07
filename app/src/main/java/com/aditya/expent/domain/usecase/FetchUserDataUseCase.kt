@@ -24,6 +24,7 @@ class FetchUserDataUseCase @Inject constructor(
     suspend operator fun invoke() = coroutineScope {
         Log.d("FetchUserDataUseCase", "Starting post-login data fetch from remote API into Room DB...")
         
+        // 1. Fetch base reference entities first (Categories, Accounts, Customization)
         val categoriesJob = async {
             runCatching { categoryRepository.refreshCategories() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch categories", it) }
@@ -32,6 +33,16 @@ class FetchUserDataUseCase @Inject constructor(
             runCatching { paymentModeRepository.refreshAccounts() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch accounts", it) }
         }
+        val customizationJob = async {
+            runCatching { customizationRepository.refreshCustomization() }
+                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch customization", it) }
+        }
+
+        categoriesJob.await()
+        accountsJob.await()
+        customizationJob.await()
+
+        // 2. Fetch dependent entities that reference categories and accounts (Budgets, Expenses, Transactions)
         val budgetsJob = async {
             runCatching { incomeBudgetRepository.refreshBudgets() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch budgets", it) }
@@ -44,17 +55,10 @@ class FetchUserDataUseCase @Inject constructor(
             runCatching { transactionRepository.refreshTransactions(1, 100) }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch transactions", it) }
         }
-        val customizationJob = async {
-            runCatching { customizationRepository.refreshCustomization() }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch customization", it) }
-        }
 
-        categoriesJob.await()
-        accountsJob.await()
         budgetsJob.await()
         expensesJob.await()
         transactionsJob.await()
-        customizationJob.await()
 
         sessionManager.setLastSyncTime(System.currentTimeMillis())
         Log.d("FetchUserDataUseCase", "Completed post-login data fetch successfully!")

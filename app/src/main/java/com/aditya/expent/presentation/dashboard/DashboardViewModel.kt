@@ -134,7 +134,9 @@ class DashboardViewModel @Inject constructor(
     fun loadCategories() {
         viewModelScope.launch {
             getCategoriesUseCase()
-                .catch { /* Keep default empty on error */ }
+                .catch {
+                    /* Keep default empty on error */
+                }
                 .collect { categoryList ->
                     val dtoList = categoryList.map { cat ->
                         CategoryResponseDto(
