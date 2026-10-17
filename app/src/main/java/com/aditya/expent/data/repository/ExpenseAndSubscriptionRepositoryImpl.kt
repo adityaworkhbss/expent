@@ -115,7 +115,8 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             )
         }
 
-        enqueueSync("emi", "CREATE", gson.toJson(requests))
+        val localIds = entities.map { it.id }.joinToString(",")
+        enqueueSync("emi", "CREATE", gson.toJson(requests), localIds)
         syncScheduler.enqueueExpenseSync()
     }
 

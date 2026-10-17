@@ -76,7 +76,8 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
                 endDate = if (income.endDate.isBlank()) null else income.endDate
             )
         }
-        enqueueSync("budget", "CREATE", gson.toJson(requests))
+        val localIds = entities.map { it.id }.joinToString(",")
+        enqueueSync("budget", "CREATE", gson.toJson(requests), localIds)
         syncScheduler.enqueueBudgetSync()
     }
 

@@ -267,8 +267,10 @@ class SyncWorker(
                             listOf(gson.fromJson(item.payload, BudgetRequestDto::class.java))
                         }
                         val created = apiService.saveBudgets(list)
-                        if (item.entityId.isNotBlank()) {
-                            entryPoint.budgetDao().deleteById(item.entityId)
+                        // Delete all local pending entities (entityId may be comma-separated)
+                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                            entryPoint.budgetDao().deleteById(localId)
+                            AppLogger.room("DELETE", "budgets", payload = "LocalID: $localId", result = "Removed pending local entity")
                         }
                         val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
                         entryPoint.budgetDao().insert(entities)
@@ -316,8 +318,10 @@ class SyncWorker(
                             listOf(gson.fromJson(item.payload, ExpenseIncomeRequestDto::class.java))
                         }
                         val created = apiService.saveExpensesAndSubscriptions(list)
-                        if (item.entityId.isNotBlank()) {
-                            entryPoint.expenseDao().deleteById(item.entityId)
+                        // Delete all local pending entities (entityId may be comma-separated)
+                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                            entryPoint.expenseDao().deleteById(localId)
+                            AppLogger.room("DELETE", "expenses", payload = "LocalID: $localId", result = "Removed pending local entity")
                         }
                         val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
                         entryPoint.expenseDao().insert(entities)

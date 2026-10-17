@@ -113,17 +113,17 @@ class OnboardViewModel @Inject constructor(
     init {
         val savedStep = sessionManager.getOnboardingStep()
         Log.d("OnboardVM", "Saved onboarding step from session: $savedStep")
-        if (savedStep > 0) {
-            val initialStep = when (savedStep) {
-                1 -> OnboardStep.PAYMENT_MODES
-                2 -> OnboardStep.INCOMING
-                3 -> OnboardStep.OUTGOING
-                4 -> OnboardStep.FINISH
-                else -> OnboardStep.WELCOME
-            }
-            _state.update { it.copy(currentStep = initialStep) }
-            loadCategories()
+        val initialStep = when (savedStep) {
+            0 -> OnboardStep.WELCOME
+            1 -> OnboardStep.PAYMENT_MODES   // categories done
+            2 -> OnboardStep.INCOMING        // payment modes done
+            3 -> OnboardStep.OUTGOING        // incoming done
+            4 -> OnboardStep.FINISH          // all done
+            else -> OnboardStep.WELCOME
         }
+        _state.update { it.copy(currentStep = initialStep) }
+        // Always load categories so existing server categories appear in available list
+        loadCategories()
     }
 
     fun loadCategories() {
