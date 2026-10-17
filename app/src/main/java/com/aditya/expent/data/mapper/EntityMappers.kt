@@ -221,7 +221,14 @@ fun BudgetEntity.toDto(): BudgetResponseDto =
         startDate = startDate,
         endDate = endDate,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        category = categoryName?.let {
+            CategoryResponseDto(
+                id = categoryId.orEmpty(),
+                name = it,
+                type = "INCOME"
+            )
+        }
     )
 
 fun ExpenseEntity.toDto(): ExpenseIncomeResponseDto =

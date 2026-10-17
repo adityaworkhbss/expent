@@ -124,15 +124,43 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         endDate: String?
     ) {
         val userId = sessionManager.getUser()?.id.orEmpty()
+        var resolvedCatId = categoryId
+        var resolvedCatName: String? = null
+
+        if (!categoryId.isNullOrBlank()) {
+            val byId = categoryDao.getCategory(categoryId)
+            if (byId != null) {
+                resolvedCatId = byId.id
+                resolvedCatName = byId.name
+            } else {
+                val byName = categoryDao.getCategoryByName(categoryId)
+                if (byName != null) {
+                    resolvedCatId = byName.id
+                    resolvedCatName = byName.name
+                } else {
+                    val newCat = CategoryEntity(
+                        id = if (categoryId.startsWith("local-")) categoryId else "local-${UUID.randomUUID()}",
+                        name = categoryId.removePrefix("local-").replaceFirstChar { it.uppercase() },
+                        type = "INCOME",
+                        userId = userId,
+                        syncStatus = SyncStatus.PENDING_CREATE
+                    )
+                    categoryDao.insert(newCat)
+                    resolvedCatId = newCat.id
+                    resolvedCatName = newCat.name
+                }
+            }
+        }
+
         val entity = BudgetEntity(
             id = "local-${UUID.randomUUID()}",
             userId = userId,
-            categoryId = categoryId,
+            categoryId = resolvedCatId,
             periodType = periodType,
             limitAmount = amount.toString(),
             startDate = startDate.ifBlank { nowIso() },
             endDate = if (endDate.isNullOrBlank()) null else endDate,
-            categoryName = null,
+            categoryName = resolvedCatName,
             syncStatus = SyncStatus.PENDING_CREATE,
             isDeleted = false
         )
@@ -140,7 +168,7 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         AppLogger.room("CREATE", "budgets", entity, "Inserted budget ${entity.id}")
 
         val request = BudgetRequestDto(
-            categoryId = categoryId,
+            categoryId = resolvedCatId,
             periodType = periodType,
             limitAmount = amount,
             startDate = startDate.ifBlank { null },
@@ -174,8 +202,26 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         endDate: String?
     ) {
         val budget = budgetDao.getBudget(id) ?: return
+        var resolvedCatId = categoryId
+        var resolvedCatName: String? = budget.categoryName
+
+        if (!categoryId.isNullOrBlank()) {
+            val byId = categoryDao.getCategory(categoryId)
+            if (byId != null) {
+                resolvedCatId = byId.id
+                resolvedCatName = byId.name
+            } else {
+                val byName = categoryDao.getCategoryByName(categoryId)
+                if (byName != null) {
+                    resolvedCatId = byName.id
+                    resolvedCatName = byName.name
+                }
+            }
+        }
+
         val updated = budget.copy(
-            categoryId = categoryId,
+            categoryId = resolvedCatId,
+            categoryName = resolvedCatName,
             periodType = periodType,
             limitAmount = amount.toString(),
             startDate = startDate,
@@ -185,17 +231,21 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         budgetDao.update(updated)
         AppLogger.room("UPDATE", "budgets", updated, "Updated budget $id")
 
+        val requestPayload = BudgetRequestDto(
+            categoryId = resolvedCatId,
+            periodType = periodType,
+            limitAmount = amount,
+            startDate = startDate.ifBlank { null },
+            endDate = if (endDate.isNullOrBlank()) null else endDate
+        )
+
         enqueueSync(
             "budget",
             "UPDATE",
             gson.toJson(
                 mapOf(
                     "id" to id,
-                    "categoryId" to categoryId,
-                    "periodType" to periodType,
-                    "amount" to amount,
-                    "startDate" to startDate,
-                    "endDate" to endDate
+                    "request" to requestPayload
                 )
             ),
             id
@@ -206,7 +256,11 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
     override suspend fun refreshBudgets() {
         try {
             val response = apiService.getBudgets()
-            val entities = response.data.orEmpty().map { it.toEntity() }
+            val entities = response.data.orEmpty().map { dto ->
+                val resolvedCatName = dto.category?.name
+                    ?: dto.categoryId?.let { categoryDao.getCategory(it)?.name }
+                dto.toEntity().copy(categoryName = resolvedCatName)
+            }
             budgetDao.replaceAll(entities)
             AppLogger.room("REPLACE", "budgets", "Refreshed ${entities.size} items from API", "Success")
         } catch (e: Exception) {

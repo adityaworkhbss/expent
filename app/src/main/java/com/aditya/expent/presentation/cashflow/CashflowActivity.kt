@@ -204,6 +204,7 @@ fun CashflowScreen(
             income = income,
             expense = expense,
             categories = categories.filter { it.type.equals(categoriesType, ignoreCase = true) },
+            allCategories = categories,
             themeColor = themeColor,
             onBack = onBack,
             onDeleteBudget = onDeleteBudget,
@@ -225,6 +226,7 @@ fun CashflowContentScreen(
     income: List<BudgetResponseDto>,
     expense: List<ExpenseIncomeResponseDto>,
     categories: List<CategoryResponseDto> = emptyList(),
+    allCategories: List<CategoryResponseDto> = emptyList(),
     themeColor: Color,
     onBack: () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
@@ -266,8 +268,14 @@ fun CashflowContentScreen(
     }
 
     val incomes = income.map { item ->
+        val resolvedName = item.category?.name?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+            ?: item.categoryId?.let { catId ->
+                allCategories.firstOrNull { it.id == catId }?.name
+                    ?: categories.firstOrNull { it.id == catId }?.name
+            }
+            ?: "Salary"
         Subscription(
-            name = item.category?.name.toString(),
+            name = resolvedName,
             amount = item.limitAmount.toString(),
             billingDate = item.startDate ?: "",
             id = item.id
@@ -372,6 +380,7 @@ fun CashflowContentScreen(
                     EnhancedSubscriptionCard(
                         subscription = sub,
                         themeColor = themeColor,
+                        isIncome = title.contentEquals("Incoming"),
                         onEditClick = {
                             sheetMode = if (title == "Incoming") {
                                 CashflowBottomSheetMode.EditIncome(sub)
@@ -392,6 +401,7 @@ fun CashflowContentScreen(
             CashflowBottomSheet(
                 mode = mode,
                 categories = categories,
+                allCategories = allCategories,
                 incomeList = income,
                 themeColor = themeColor,
                 onDismiss = { sheetMode = null },
@@ -421,6 +431,7 @@ fun CashflowContentScreen(
 fun CashflowBottomSheet(
     mode: CashflowBottomSheetMode,
     categories: List<CategoryResponseDto>,
+    allCategories: List<CategoryResponseDto> = categories,
     incomeList: List<BudgetResponseDto>,
     themeColor: Color,
     onDismiss: () -> Unit,
@@ -430,6 +441,29 @@ fun CashflowBottomSheet(
     onDeleteEmi: (id: String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
+
+    val isIncomeFlow = mode is CashflowBottomSheetMode.AddIncome || mode is CashflowBottomSheetMode.EditIncome
+    val effectiveCategories = remember(categories, allCategories, isIncomeFlow) {
+        if (isIncomeFlow) {
+            val incomeCats = (categories + allCategories)
+                .filter { it.type.equals("INCOME", ignoreCase = true) }
+                .distinctBy { it.name.lowercase() }
+            if (incomeCats.isNotEmpty()) {
+                incomeCats
+            } else {
+                listOf(
+                    CategoryResponseDto(id = "local-salary", name = "Salary", type = "INCOME"),
+                    CategoryResponseDto(id = "local-freelance", name = "Freelance", type = "INCOME"),
+                    CategoryResponseDto(id = "local-investments", name = "Investments", type = "INCOME"),
+                    CategoryResponseDto(id = "local-gifts", name = "Gifts", type = "INCOME"),
+                    CategoryResponseDto(id = "local-business", name = "Business Profits", type = "INCOME"),
+                    CategoryResponseDto(id = "local-other-income", name = "Other Income", type = "INCOME")
+                )
+            }
+        } else {
+            categories
+        }
+    }
 
     val initialName = when (mode) {
         is CashflowBottomSheetMode.EditEmi -> mode.emi.name
@@ -451,14 +485,24 @@ fun CashflowBottomSheet(
         is CashflowBottomSheetMode.EditEmi -> mode.emi.endDate ?: ""
         else -> ""
     }
+    val initialCategoryName = when (mode) {
+        is CashflowBottomSheetMode.EditIncome -> {
+            if (mode.income.name.isNotBlank() && !mode.income.name.equals("null", ignoreCase = true)) {
+                mode.income.name
+            } else {
+                effectiveCategories.firstOrNull()?.name ?: "Salary"
+            }
+        }
+        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.name
+        is CashflowBottomSheetMode.AddIncome -> effectiveCategories.firstOrNull { it.name.equals("Salary", ignoreCase = true) }?.name
+            ?: effectiveCategories.firstOrNull()?.name ?: "Salary"
+        else -> ""
+    }
     val initialCategoryId = when (mode) {
         is CashflowBottomSheetMode.EditIncome -> incomeList.find { it.id == mode.income.id }?.categoryId
+            ?: effectiveCategories.find { it.name.equals(initialCategoryName, ignoreCase = true) }?.id
+        is CashflowBottomSheetMode.AddIncome -> effectiveCategories.find { it.name.equals(initialCategoryName, ignoreCase = true) }?.id
         else -> null
-    }
-    val initialCategoryName = when (mode) {
-        is CashflowBottomSheetMode.EditIncome -> mode.income.name
-        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.name
-        else -> ""
     }
     val initialTenure = when (mode) {
         is CashflowBottomSheetMode.EditEmi -> mode.emi.totalMonths
@@ -544,7 +588,7 @@ fun CashflowBottomSheet(
                     onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = if (categories.isEmpty()) "No Categories Found" else if (selectedCategoryName.isBlank()) "Select Category" else selectedCategoryName,
+                        value = if (effectiveCategories.isEmpty()) "No Categories Found" else if (selectedCategoryName.isBlank()) "Select Category" else selectedCategoryName,
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Category") },
@@ -557,7 +601,7 @@ fun CashflowBottomSheet(
                             focusedLabelColor = themeColor
                         ),
                         leadingIcon = {
-                            if (selectedCategoryName.isNotBlank() && categories.isNotEmpty()) {
+                            if (selectedCategoryName.isNotBlank() && effectiveCategories.isNotEmpty()) {
                                 val iconAndColor = CategoryUtils.getCategoryIconAndColor(selectedCategoryName)
                                 Icon(
                                     imageVector = iconAndColor.first,
@@ -584,7 +628,7 @@ fun CashflowBottomSheet(
                             .background(MaterialTheme.colorScheme.surface)
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
                     ) {
-                        if (categories.isEmpty()) {
+                        if (effectiveCategories.isEmpty()) {
                             DropdownMenuItem(
                                 text = {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -605,7 +649,7 @@ fun CashflowBottomSheet(
                                 onClick = { categoryDropdownExpanded = false }
                             )
                         } else {
-                            categories.forEach { category ->
+                            effectiveCategories.forEach { category ->
                                 val isSelected = selectedCategoryName == category.name
                                 val iconAndColor = CategoryUtils.getCategoryIconAndColor(category.name)
                                 DropdownMenuItem(
@@ -1112,6 +1156,7 @@ fun EnhancedEmiCard(
 fun EnhancedSubscriptionCard(
     subscription: Subscription,
     themeColor: Color,
+    isIncome: Boolean = false,
     onEditClick: () -> Unit
 ) {
 
@@ -1172,7 +1217,7 @@ fun EnhancedSubscriptionCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Billing on ${AppUtils().getDayWithSuffix(subscription.billingDate)}",
+                    text = if (isIncome) "Credited on ${AppUtils().getDayWithSuffix(subscription.billingDate)}" else "Billing on ${AppUtils().getDayWithSuffix(subscription.billingDate)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
