@@ -467,6 +467,7 @@ fun CashflowBottomSheet(
 
     val initialName = when (mode) {
         is CashflowBottomSheetMode.EditEmi -> mode.emi.name
+        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.name
         else -> ""
     }
     val initialAmount = when (mode) {
@@ -529,10 +530,10 @@ fun CashflowBottomSheet(
     val title = when (mode) {
         is CashflowBottomSheetMode.AddIncome -> "Add new incoming flow"
         is CashflowBottomSheetMode.EditIncome -> "Edit Active Flow"
-        is CashflowBottomSheetMode.AddSubscription -> "Add new outgoing flow"
-        is CashflowBottomSheetMode.EditSubscription -> "Edit Active Flow"
-        is CashflowBottomSheetMode.AddEmi -> "Add new EMI/Loan"
-        is CashflowBottomSheetMode.EditEmi -> "Edit EMI/Loan"
+        is CashflowBottomSheetMode.AddSubscription -> "Add Active Subscription"
+        is CashflowBottomSheetMode.EditSubscription -> "Edit Subscription"
+        is CashflowBottomSheetMode.AddEmi -> "Add Recurring EMI / Loan"
+        is CashflowBottomSheetMode.EditEmi -> "Edit EMI / Loan"
     }
 
     val isEdit = mode is CashflowBottomSheetMode.EditIncome ||
@@ -540,6 +541,7 @@ fun CashflowBottomSheet(
             mode is CashflowBottomSheetMode.EditEmi
 
     val isEmi = mode is CashflowBottomSheetMode.AddEmi || mode is CashflowBottomSheetMode.EditEmi
+    val isSubscription = mode is CashflowBottomSheetMode.AddSubscription || mode is CashflowBottomSheetMode.EditSubscription
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -564,12 +566,12 @@ fun CashflowBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 1. Name the EMI Field (only for EMI)
-            if (isEmi) {
+            // 1. Name Field (for EMI and Subscription)
+            if (isEmi || isSubscription) {
                 OutlinedTextField(
                     value = nameText,
                     onValueChange = { nameText = it },
-                    label = { Text("Name the EMI / Loan") },
+                    label = { Text(if (isEmi) "Name the EMI / Loan" else "Subscription Name (e.g. Netflix)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -757,23 +759,6 @@ fun CashflowBottomSheet(
                         shape = RoundedCornerShape(12.dp)
                     )
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 6. End Date Field
-                OutlinedTextField(
-                    value = AppUtils().formatIsoDate(endDateText),
-                    onValueChange = { },
-                    label = { Text("End Date") },
-                    readOnly = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    trailingIcon = {
-                        IconButton(onClick = { showEndDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
-                        }
-                    }
-                )
             }
 
             ExpentDatePicker(
@@ -782,14 +767,6 @@ fun CashflowBottomSheet(
                 onDateSelected = {
                     dateText = it
                     showDatePicker = false
-                }
-            )
-            ExpentDatePicker(
-                showDialog = showEndDatePicker,
-                onDismiss = { showEndDatePicker = false },
-                onDateSelected = {
-                    endDateText = it
-                    showEndDatePicker = false
                 }
             )
 
@@ -809,7 +786,7 @@ fun CashflowBottomSheet(
                         if (mode is CashflowBottomSheetMode.EditIncome) {
                             onSaveBudget(id, selectedCategoryId, amountText.toDoubleOrNull() ?: 0.0, dateText, null)
                         } else if (mode is CashflowBottomSheetMode.EditSubscription) {
-                            onSaveEmi(id, "subscription", selectedCategoryName, amountText, dateText, null, null)
+                            onSaveEmi(id, "subscription", nameText, amountText, dateText, null, null)
                         } else if (mode is CashflowBottomSheetMode.EditEmi) {
                             onSaveEmi(id, "expense", nameText, amountText, dateText, tenureText, monthsPaidText)
                         }
@@ -850,7 +827,7 @@ fun CashflowBottomSheet(
                         if (mode is CashflowBottomSheetMode.AddIncome) {
                             onSaveBudget(null, selectedCategoryId, amountText.toDoubleOrNull() ?: 0.0, dateText, null)
                         } else if (mode is CashflowBottomSheetMode.AddSubscription) {
-                            onSaveEmi(null, "subscription", selectedCategoryName, amountText, dateText, null, null)
+                            onSaveEmi(null, "subscription", nameText, amountText, dateText, null, null)
                         } else if (mode is CashflowBottomSheetMode.AddEmi) {
                             onSaveEmi(null, "expense", nameText, amountText, dateText, tenureText, monthsPaidText)
                         }
