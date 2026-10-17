@@ -53,7 +53,8 @@ class PaymentModeRepositoryImpl @Inject constructor(
                 user_id = userId
             )
         }
-        enqueueSync("account", "CREATE", gson.toJson(requests))
+        val localIds = entities.map { it.id }.joinToString(",")
+        enqueueSync("account", "CREATE", gson.toJson(requests), localIds)
         syncScheduler.enqueueAccountSync()
     }
 
@@ -84,10 +85,10 @@ class PaymentModeRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun enqueueSync(entityType: String, operation: String, payload: String) {
+    private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
         val pendingEntity = PendingSyncEntity(
             entityType = entityType,
-            entityId = "",
+            entityId = entityId,
             operation = operation,
             payload = payload,
             createdAt = System.currentTimeMillis()

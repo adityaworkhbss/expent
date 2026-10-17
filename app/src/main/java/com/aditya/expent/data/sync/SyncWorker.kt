@@ -179,6 +179,11 @@ class SyncWorker(
                         listOf(gson.fromJson(item.payload, CategoryRequestDto::class.java))
                     }
                     val created = apiService.createCategories(list)
+                    // Delete local pending entities before inserting server-returned ones
+                    item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                        entryPoint.categoryDao().deleteById(localId)
+                        AppLogger.room("DELETE", "categories", payload = "LocalID: $localId", result = "Removed pending local entity")
+                    }
                     val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
                     entryPoint.categoryDao().insert(entities)
                     AppLogger.room("CREATE", "categories", payload = entities, result = "Inserted ${entities.size} categories")
@@ -199,6 +204,11 @@ class SyncWorker(
                         listOf(gson.fromJson(item.payload, PaymentModeRequestDto::class.java))
                     }
                     val created = apiService.savePaymentModes(list)
+                    // Delete local pending entities before inserting server-returned ones
+                    item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                        entryPoint.accountDao().deleteById(localId)
+                        AppLogger.room("DELETE", "accounts", payload = "LocalID: $localId", result = "Removed pending local entity")
+                    }
                     val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
                     entryPoint.accountDao().insert(entities)
                     AppLogger.room("CREATE", "accounts", payload = entities, result = "Inserted ${entities.size} accounts")

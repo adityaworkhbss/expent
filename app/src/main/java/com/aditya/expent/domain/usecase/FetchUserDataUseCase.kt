@@ -8,6 +8,7 @@ import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.domain.repository.PaymentModeRepository
 import com.aditya.expent.domain.repository.TransactionRepository
 import com.aditya.expent.utils.SessionManager
+import com.aditya.expent.data.sync.SyncScheduler
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
@@ -19,11 +20,15 @@ class FetchUserDataUseCase @Inject constructor(
     private val expenseAndSubscriptionRepository: ExpenseAndSubscriptionRepository,
     private val transactionRepository: TransactionRepository,
     private val customizationRepository: CustomizationRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val syncScheduler: SyncScheduler
 ) {
     suspend operator fun invoke() = coroutineScope {
         Log.d("FetchUserDataUseCase", "Starting post-login data fetch from remote API into Room DB...")
-        
+
+        // Cancel any in-flight sync workers to avoid concurrent writes that cause duplicates
+        syncScheduler.cancelAllSync()
+
         // 1. Fetch base reference entities first (Categories, Accounts, Customization)
         val categoriesJob = async {
             runCatching { categoryRepository.refreshCategories() }

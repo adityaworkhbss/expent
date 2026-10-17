@@ -244,7 +244,7 @@ class OnboardViewModel @Inject constructor(
                     OnboardStep.FINISH -> OnboardStep.FINISH
                 }
                 if (next == OnboardStep.FINISH) {
-                    // All onboarding data is in Room — trigger full sync to push to API
+
                     syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                 }

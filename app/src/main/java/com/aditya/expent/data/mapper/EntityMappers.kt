@@ -44,7 +44,7 @@ fun OnboardCategory.toEntity(
     isDeleted: Boolean = false
 ): CategoryEntity =
     CategoryEntity(
-        id = if (id.isBlank()) java.util.UUID.randomUUID().toString() else id,
+        id = if (id.isBlank()) "local-${java.util.UUID.randomUUID()}" else id,
         name = name,
         type = type,
         userId = userId,
@@ -86,7 +86,7 @@ fun OnboardPaymentMode.toEntity(
     isDeleted: Boolean = false
 ): AccountEntity =
     AccountEntity(
-        id = java.util.UUID.randomUUID().toString(),
+        id = "local-${java.util.UUID.randomUUID()}",
         name = name,
         type = type,
         userId = userId,

@@ -55,9 +55,10 @@ class CategoryRepositoryImpl @Inject constructor(
                 user_id = userId
             )
         }
+        val localIds = entities.map { it.id }.joinToString(",")
         val pendingEntity = PendingSyncEntity(
             entityType = "category",
-            entityId = "",
+            entityId = localIds,
             operation = "CREATE",
             payload = gson.toJson(requests),
             createdAt = System.currentTimeMillis()

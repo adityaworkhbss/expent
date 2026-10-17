@@ -73,6 +73,14 @@ class SyncScheduler @Inject constructor(
         )
     }
 
+    fun cancelAllSync() {
+        workManager.cancelUniqueWork(INITIAL_SYNC_WORK_NAME)
+        listOf(
+            "category_sync", "account_sync", "transaction_sync",
+            "budget_sync", "expense_sync", "customization_sync", "onboarding_sync"
+        ).forEach { workManager.cancelUniqueWork(it) }
+    }
+
     companion object {
         const val KEY_FULL_REFRESH = "key_full_refresh"
         const val INITIAL_SYNC_WORK_NAME = "expent_initial_sync"
