@@ -127,26 +127,33 @@ class OnboardViewModel @Inject constructor(
     }
 
     fun loadCategories() {
-        if (state.value.hasFetchedCategories) return
-
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            runCatching {
-                getCategoriesUseCase().first()
-            }.onSuccess { fetchedCategories ->
-                _state.update { s ->
-                    val currentAvailable = s.availableCategories
-                    val merged = (currentAvailable + fetchedCategories).distinctBy { cat -> "${cat.name}-${cat.type}" }
-                    s.copy(
-                        availableCategories = merged,
-                        selectedCategories = fetchedCategories,
-                        isLoading = false,
-                        hasFetchedCategories = true
-                    )
+            getCategoriesUseCase()
+                .catch { Log.e("OnboardVM", "Failed to load categories", it) }
+                .collect { fetchedCategories ->
+                    _state.update { s ->
+                        val currentAvailable = s.availableCategories
+                        val merged = (fetchedCategories + currentAvailable)
+                            .distinctBy { cat -> "${cat.name.lowercase()}-${cat.type.uppercase()}" }
+                        s.copy(
+                            availableCategories = merged,
+                            selectedCategories = if (s.selectedCategories.isEmpty() && fetchedCategories.isNotEmpty()) {
+                                fetchedCategories
+                            } else if (s.selectedCategories.isNotEmpty()) {
+                                s.selectedCategories.map { sel ->
+                                    fetchedCategories.find {
+                                        it.name.equals(sel.name, ignoreCase = true) &&
+                                        it.type.equals(sel.type, ignoreCase = true)
+                                    } ?: sel
+                                }
+                            } else {
+                                s.selectedCategories
+                            },
+                            isLoading = false,
+                            hasFetchedCategories = true
+                        )
+                    }
                 }
-            }.onFailure {
-                _state.update { it.copy(error = "Failed to load categories", isLoading = false) }
-            }
         }
     }
 

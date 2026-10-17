@@ -124,6 +124,7 @@ fun OnboardRoute(
                             salary = state.salary,
                             customIncomes = state.customIncomes,
                             selectedCategories = state.selectedCategories,
+                            availableCategories = state.availableCategories,
                             onSalaryAmountChange = { viewModel.onSalaryAmountChanged(it) },
                             onSalaryCategoryChange = { viewModel.onSalaryCategoryChanged(it) },
                             onSalaryPeriodChange = { viewModel.onSalaryPeriodChanged(it) },
@@ -766,6 +767,7 @@ fun IncomingStep(
     salary: RecurringIncome,
     customIncomes: List<RecurringIncome>,
     selectedCategories: List<OnboardCategory>,
+    availableCategories: List<OnboardCategory> = emptyList(),
     onSalaryAmountChange: (String) -> Unit,
     onSalaryCategoryChange: (String?) -> Unit,
     onSalaryPeriodChange: (String) -> Unit,
@@ -782,6 +784,28 @@ fun IncomingStep(
     
     var showSalaryStartDatePicker by remember { mutableStateOf(false) }
     var showNewIncomeDatePicker by remember { mutableStateOf(false) }
+
+    val incomeCategories = remember(selectedCategories, availableCategories) {
+        val fromSelected = selectedCategories.filter { it.type.equals("INCOME", ignoreCase = true) }
+        val fromAvailable = availableCategories.filter { it.type.equals("INCOME", ignoreCase = true) }
+        val combined = (fromSelected + fromAvailable).distinctBy { it.name.lowercase() }
+        if (combined.isNotEmpty()) combined else listOf(
+            OnboardCategory("Salary", "INCOME"),
+            OnboardCategory("Freelance", "INCOME"),
+            OnboardCategory("Investments", "INCOME"),
+            OnboardCategory("Gifts", "INCOME"),
+            OnboardCategory("Business Profits", "INCOME")
+        )
+    }
+
+    LaunchedEffect(incomeCategories) {
+        if (salary.categoryId.isNullOrBlank() && incomeCategories.isNotEmpty()) {
+            val defaultCat = incomeCategories.firstOrNull { it.name.equals("Salary", ignoreCase = true) }
+                ?: incomeCategories.first()
+            val catIdentifier = if (defaultCat.id.isNotBlank()) defaultCat.id else defaultCat.name
+            onSalaryCategoryChange(catIdentifier)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -880,11 +904,16 @@ fun IncomingStep(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
                     incomeCategories.forEach { category ->
-                        val isSel = salary.categoryId == category.id
+                        val isSel = salary.categoryId != null && (
+                            salary.categoryId == category.id ||
+                            salary.categoryId.equals(category.name, ignoreCase = true)
+                        )
                         Surface(
-                            onClick = { onSalaryCategoryChange(category.id) },
+                            onClick = {
+                                val catIdentifier = if (category.id.isNotBlank()) category.id else category.name
+                                onSalaryCategoryChange(catIdentifier)
+                            },
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(
@@ -1079,11 +1108,16 @@ fun IncomingStep(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
                     incomeCategories.forEach { category ->
-                        val isSel = newIncomeCategory == category.id
+                        val isSel = newIncomeCategory != null && (
+                            newIncomeCategory == category.id ||
+                            newIncomeCategory.equals(category.name, ignoreCase = true)
+                        )
                         Surface(
-                            onClick = { newIncomeCategory = category.id },
+                            onClick = {
+                                val catIdentifier = if (category.id.isNotBlank()) category.id else category.name
+                                newIncomeCategory = catIdentifier
+                            },
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(

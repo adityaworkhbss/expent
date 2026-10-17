@@ -22,6 +22,8 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
+import com.aditya.expent.data.local.dao.CategoryDao
+import com.aditya.expent.data.local.entity.CategoryEntity
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -30,6 +32,7 @@ import javax.inject.Inject
 class IncomeBudgetRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     private val budgetDao: BudgetDao,
+    private val categoryDao: CategoryDao,
     private val pendingSyncDao: PendingSyncDao,
     private val syncScheduler: SyncScheduler,
     private val sessionManager: SessionManager,
@@ -50,16 +53,47 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         val userId = sessionManager.getUser()?.id.orEmpty()
         val allIncomes = listOf(salary) + additionalIncome
 
-        val entities = allIncomes.map { income ->
+        val resolvedIncomes = allIncomes.map { income ->
+            var catId = income.categoryId
+            var catName: String? = null
+            if (!catId.isNullOrBlank()) {
+                val byId = categoryDao.getCategory(catId)
+                if (byId != null) {
+                    catId = byId.id
+                    catName = byId.name
+                } else {
+                    val byName = categoryDao.getCategoryByName(catId)
+                    if (byName != null) {
+                        catId = byName.id
+                        catName = byName.name
+                    } else {
+                        // Create local category entity for this income category
+                        val newCat = CategoryEntity(
+                            id = "local-${UUID.randomUUID()}",
+                            name = catId,
+                            type = "INCOME",
+                            userId = userId,
+                            syncStatus = SyncStatus.PENDING_CREATE
+                        )
+                        categoryDao.insert(newCat)
+                        catId = newCat.id
+                        catName = newCat.name
+                    }
+                }
+            }
+            Triple(income, catId, catName)
+        }
+
+        val entities = resolvedIncomes.map { (income, resolvedCatId, resolvedCatName) ->
             BudgetEntity(
                 id = "local-${UUID.randomUUID()}",
                 userId = userId,
-                categoryId = income.categoryId,
+                categoryId = resolvedCatId,
                 periodType = income.periodType,
                 limitAmount = income.amount,
                 startDate = income.startDate.ifBlank { nowIso() },
                 endDate = if (income.endDate.isBlank()) null else income.endDate,
-                categoryName = null,
+                categoryName = resolvedCatName,
                 syncStatus = SyncStatus.PENDING_CREATE,
                 isDeleted = false
             )
@@ -67,9 +101,9 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         budgetDao.insert(entities)
         AppLogger.room("CREATE", "budgets", entities, "Inserted ${entities.size} income budgets")
 
-        val requests = allIncomes.map { income ->
+        val requests = resolvedIncomes.map { (income, resolvedCatId, _) ->
             BudgetRequestDto(
-                categoryId = income.categoryId,
+                categoryId = resolvedCatId,
                 periodType = income.periodType,
                 limitAmount = income.amount.toDoubleOrNull() ?: 0.0,
                 startDate = income.startDate.ifBlank { null },

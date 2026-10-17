@@ -13,6 +13,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id=:id")
     suspend fun getCategory(id: String): CategoryEntity?
 
+    @Query("SELECT * FROM categories WHERE LOWER(name) = LOWER(:name) AND (isDeleted = 0 OR isDeleted IS NULL) LIMIT 1")
+    suspend fun getCategoryByName(name: String): CategoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(category: CategoryEntity)
 
