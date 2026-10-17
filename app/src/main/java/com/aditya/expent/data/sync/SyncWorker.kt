@@ -261,10 +261,18 @@ class SyncWorker(
                     }
                     else -> {
                         val type = object : TypeToken<List<BudgetRequestDto>>() {}.type
-                        val list: List<BudgetRequestDto> = runCatching {
+                        val rawList: List<BudgetRequestDto> = runCatching {
                             gson.fromJson<List<BudgetRequestDto>>(item.payload, type)
                         }.getOrElse {
                             listOf(gson.fromJson(item.payload, BudgetRequestDto::class.java))
+                        }
+                        // Resolve any local-* categoryIds to real server IDs
+                        val list = rawList.map { req ->
+                            val catId = req.categoryId
+                            if (catId != null && catId.startsWith("local-")) {
+                                val serverCat = entryPoint.categoryDao().getCategory(catId)
+                                req.copy(categoryId = serverCat?.id ?: catId)
+                            } else req
                         }
                         val created = apiService.saveBudgets(list)
                         // Delete all local pending entities (entityId may be comma-separated)

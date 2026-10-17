@@ -882,9 +882,9 @@ fun IncomingStep(
                 ) {
                     val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
                     incomeCategories.forEach { category ->
-                        val isSel = salary.categoryId == category.name
+                        val isSel = salary.categoryId == category.id
                         Surface(
-                            onClick = { onSalaryCategoryChange(category.name) },
+                            onClick = { onSalaryCategoryChange(category.id) },
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(
@@ -1081,9 +1081,9 @@ fun IncomingStep(
                 ) {
                     val incomeCategories = selectedCategories.filter { it.type == "INCOME" }
                     incomeCategories.forEach { category ->
-                        val isSel = newIncomeCategory == category.name
+                        val isSel = newIncomeCategory == category.id
                         Surface(
-                            onClick = { newIncomeCategory = category.name },
+                            onClick = { newIncomeCategory = category.id },
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(

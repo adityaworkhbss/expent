@@ -75,6 +75,7 @@ class AuthViewModel @Inject constructor(
 
                     fetchUserDataUseCase()
 
+                    syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
                 } else {
@@ -105,6 +106,7 @@ class AuthViewModel @Inject constructor(
 
                     fetchUserDataUseCase()
 
+                    syncScheduler.scheduleInitialSync()
                     syncScheduler.schedulePeriodicSync()
                     _authState.value = AuthState(isSuccess = true)
                 } else {
