@@ -2,6 +2,7 @@ package com.aditya.expent
 
 import android.app.Application
 import com.aditya.expent.data.sync.SyncScheduler
+import com.aditya.expent.presentation.widget.AddTransactionWidget
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -21,5 +22,6 @@ class ExpentApplication : Application() {
             syncScheduler.schedulePeriodicSync()
             syncScheduler.scheduleInitialSync()
         }
+        AddTransactionWidget.updateAll(this)
     }
 }

@@ -7,4 +7,13 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Add-transaction widget (matches app light theme: white surface, income/expense chips) -->
+    <color name="widget_surface">#FFFFFFFF</color>
+    <color name="widget_outline">#1A000000</color>
+    <color name="widget_text">#FF1C1B1F</color>
+    <color name="widget_expense_bg">#1FF44336</color>
+    <color name="widget_expense_text">#FFD32F2F</color>
+    <color name="widget_income_bg">#1F4CAF50</color>
+    <color name="widget_income_text">#FF2E7D32</color>
 </resources>

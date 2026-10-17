@@ -239,7 +239,7 @@ fun CashflowContentScreen(
 
 
     val recurringExpenses: List<RecurringExpense> = expense.mapNotNull { item ->
-        if (!item.endDate.isNullOrBlank()) {
+        if ((item.tenure ?: 0) > 0) {
             RecurringExpense(
                 name = item.resolvedName,
                 amount = item.resolvedAmount,
@@ -255,7 +255,7 @@ fun CashflowContentScreen(
     }
 
     val subscriptions: List<Subscription> = expense.mapNotNull { item ->
-        if (item.endDate.isNullOrBlank()) {
+        if ((item.tenure ?: 0) <= 0) {
             Subscription(
                 name = item.resolvedName,
                 amount = item.principal ?: item.resolvedAmount,
@@ -494,7 +494,6 @@ fun CashflowBottomSheet(
                 effectiveCategories.firstOrNull()?.name ?: "Salary"
             }
         }
-        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.name
         is CashflowBottomSheetMode.AddIncome -> effectiveCategories.firstOrNull { it.name.equals("Salary", ignoreCase = true) }?.name
             ?: effectiveCategories.firstOrNull()?.name ?: "Salary"
         else -> ""
@@ -578,8 +577,8 @@ fun CashflowBottomSheet(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 2. Category Dropdown (only for Income and Subscription)
-            if (!isEmi) {
+            // 2. Category Dropdown (only for Income)
+            if (!isEmi && !isSubscription) {
                 val arrowRotation by animateFloatAsState(
                     targetValue = if (categoryDropdownExpanded) 180f else 0f,
                     label = "ArrowRotation"
@@ -1383,13 +1382,13 @@ private val previewExpense = listOf(
         transactionId = null,
         name = "Rent",
         principal = "0",
-        tenure = 0,
+        tenure = 8,
         monthlyEmi = "15000",
         startDate = "2026-01-05T00:00:00.000Z",
         endDate = "2026-09-05T00:00:00.000Z",
         nextDueDate = "2026-02-05T00:00:00.000Z",
         remainingBalance = "0",
-        monthsPaid = 0,
+        monthsPaid = 3,
         active = true,
         createdAt = "2026-05-17T07:31:12.495Z",
         updatedAt = "2026-05-17T07:31:12.495Z",

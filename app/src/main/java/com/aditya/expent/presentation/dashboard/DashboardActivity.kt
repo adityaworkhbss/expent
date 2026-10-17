@@ -60,6 +60,7 @@ import com.aditya.expent.presentation.auth.AuthActivity
 import com.aditya.expent.presentation.transactions.TransactionActivity
 import com.aditya.expent.presentation.component.ExpentDatePicker
 import com.aditya.expent.presentation.profile.ProfileActivity
+import com.aditya.expent.presentation.widget.AddTransactionWidget
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
@@ -87,13 +88,20 @@ class DashboardActivity : ComponentActivity() {
 
     private val viewModel: DashboardViewModel by viewModels()
 
+    // Set when launched from the add-transaction home screen widget
+    private var widgetAddType by mutableStateOf<TransactionType?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         if (sessionManager.getUser() == null) {
             startActivity(Intent(this, AuthActivity::class.java))
             finish()
             return
+        }
+
+        if (savedInstanceState == null) {
+            widgetAddType = AddTransactionWidget.requestedType(intent)
         }
 
         setContent {
@@ -113,11 +121,18 @@ class DashboardActivity : ComponentActivity() {
                         },
                         onAddAiTransaction = { text ->
                             viewModel.addAiTransaction(text)
-                        }
+                        },
+                        requestedAddType = widgetAddType,
+                        onAddRequestHandled = { widgetAddType = null }
                     )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        AddTransactionWidget.requestedType(intent)?.let { widgetAddType = it }
     }
     override fun onResume() {
         super.onResume()
@@ -150,13 +165,25 @@ fun DashboardScreen(
     state: DashboardState,
     onAddTransaction: (String, Double, String, TransactionType, String, String, String) -> Unit,
     onDeleteTransaction: (String) -> Unit,
-    onAddAiTransaction: (String) -> Unit
+    onAddAiTransaction: (String) -> Unit,
+    requestedAddType: TransactionType? = null,
+    onAddRequestHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     Log.d("DashboardActivity", "DashboardScreen Composing: state.reminder = ${state.reminder}, state.aiTransaction = ${state.aiTransaction}")
     var isExpanded by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    var addSheetInitialType by remember { mutableStateOf(TransactionType.EXPENSE) }
+
+    // Open the add sheet when the home screen widget asks for it
+    LaunchedEffect(requestedAddType) {
+        if (requestedAddType != null) {
+            addSheetInitialType = requestedAddType
+            showBottomSheet = true
+            onAddRequestHandled()
+        }
+    }
 
     var showConfirmDialog by remember { mutableStateOf(false) }
     var selectedReminderForDialog by remember { mutableStateOf<Reminder?>(null) }
@@ -204,7 +231,10 @@ fun DashboardScreen(
     Scaffold(
         floatingActionButton = {
             GlowFloatingActionButton(
-                onClick = { showBottomSheet = true },
+                onClick = {
+                    addSheetInitialType = TransactionType.EXPENSE
+                    showBottomSheet = true
+                },
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         }
@@ -503,6 +533,8 @@ fun DashboardScreen(
             if (showBottomSheet) {
                 AddTransactionBottomSheet(
                     categories = state.categories,
+                    incomeAmounts = state.incomeAmountByCategory,
+                    initialType = addSheetInitialType,
                     accounts = state.accounts,
                     aiTransactionEnabled = state.aiTransaction,
                     onDismiss = { showBottomSheet = false },
@@ -1778,24 +1810,32 @@ fun AddTransactionBottomSheet(
     aiTransactionEnabled: Boolean,
     onDismiss: () -> Unit,
     onSave: (String, Double, String, TransactionType, String, String, String) -> Unit,
-    onAiSave: (String) -> Unit = {}
+    onAiSave: (String) -> Unit = {},
+    incomeAmounts: Map<String, Double> = emptyMap(),
+    initialType: TransactionType = TransactionType.EXPENSE
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     Log.d("DashboardActivity", "AddTransactionBottomSheet: aiTransactionEnabled = $aiTransactionEnabled")
     var amountText by remember { mutableStateOf("") }
 
-    var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
+    var selectedType by remember(initialType) { mutableStateOf(initialType) }
+    val isIncome = selectedType == TransactionType.INCOME
 
-    var selectedCategory by remember(categories, selectedType) {
-        val firstFiltered = categories.firstOrNull { cat ->
-            if (selectedType == TransactionType.INCOME) {
-                cat.type.equals("income", ignoreCase = true)
-            } else {
-                cat.type.equals("expense", ignoreCase = true)
-            }
+    // Income only offers categories that have an income source set up in Cashflow
+    val typeCategories = remember(categories, incomeAmounts, selectedType) {
+        if (selectedType == TransactionType.INCOME) {
+            categories.filter { it.type.equals("income", ignoreCase = true) && incomeAmounts.containsKey(it.name) }
+        } else {
+            categories.filter { it.type.equals("expense", ignoreCase = true) }
         }
-        mutableStateOf(firstFiltered?.name ?: "Others")
     }
+
+    var selectedCategory by remember(typeCategories) {
+        mutableStateOf(typeCategories.firstOrNull()?.name ?: if (isIncome) "" else "Others")
+    }
+
+    // Income amount comes from the selected category's income source; expense amount is typed in
+    val resolvedAmount: Double? = if (isIncome) incomeAmounts[selectedCategory] else amountText.toDoubleOrNull()
 
     // Account filtering: INCOME shows PAY_NOW only, EXPENSE shows all accounts
     val filteredAccounts = remember(accounts, selectedType) {
@@ -2041,26 +2081,45 @@ fun AddTransactionBottomSheet(
                         color = activeColor
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    BasicTextField(
-                        value = amountText,
-                        onValueChange = {
-                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
-                                amountText = it
-                            }
-                        },
-                        textStyle = MaterialTheme.typography.displayMedium.copy(
-                            fontWeight = FontWeight.Black,
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Start,
+                    if (isIncome) {
+                        Text(
+                            text = String.format("%.2f", resolvedAmount ?: 0.0),
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 44.sp
+                            ),
                             color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Decimal
-                        ),
-                        cursorBrush = SolidColor(activeColor),
-                        modifier = Modifier
-                            .width(IntrinsicSize.Min)
-                            .defaultMinSize(minWidth = 100.dp)
+                        )
+                    } else {
+                        BasicTextField(
+                            value = amountText,
+                            onValueChange = {
+                                if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
+                                    amountText = it
+                                }
+                            },
+                            textStyle = MaterialTheme.typography.displayMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 44.sp,
+                                textAlign = TextAlign.Start,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Decimal
+                            ),
+                            cursorBrush = SolidColor(activeColor),
+                            modifier = Modifier
+                                .width(IntrinsicSize.Min)
+                                .defaultMinSize(minWidth = 100.dp)
+                        )
+                    }
+                }
+                if (isIncome) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Based on the selected income category",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -2075,20 +2134,14 @@ fun AddTransactionBottomSheet(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                val filteredCategory = categories.filter { cat ->
-                    if (selectedType == TransactionType.INCOME) {
-                        cat.type.equals("income", ignoreCase = true)
-                    } else {
-                        cat.type.equals("expense", ignoreCase = true)
-                    }
-                }.map { cat ->
+                val filteredCategory = typeCategories.map { cat ->
                     val iconAndColor = getCategoryIconAndColor(cat.name)
                     Triple(cat.name, iconAndColor.first, iconAndColor.second)
                 }
 
                 if (filteredCategory.isEmpty()) {
                     Text(
-                        text = "No Categories Found",
+                        text = if (isIncome) "No income sources yet. Add them in Cashflow → Incoming." else "No Categories Found",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 4.dp)
@@ -2279,7 +2332,7 @@ fun AddTransactionBottomSheet(
             }
 
             // Save Trigger Button
-            val isEnabled = amountText.toDoubleOrNull()?.let { it > 0 } == true
+            val isEnabled = resolvedAmount?.let { it > 0 } == true
             
             val interactionSource = remember { MutableInteractionSource() }
             val isPressed by interactionSource.collectIsPressedAsState()
@@ -2290,7 +2343,7 @@ fun AddTransactionBottomSheet(
 
                     Button(
                         onClick = {
-                            val amt = amountText.toDoubleOrNull()
+                            val amt = resolvedAmount
                             if (amt != null && amt > 0) {
                                 onSave(selectedCategory, amt, selectedCategory, selectedType, selectedDateText, selectedAccountName, selectedAccountId)
                             }
@@ -2333,7 +2386,8 @@ fun AddTransactionBottomSheet(
         onDateSelected = {
             selectedDateText = it
             showDatePicker = false
-        }
+        },
+        allowFutureDates = false
     )
 }
 

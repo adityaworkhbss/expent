@@ -102,7 +102,23 @@ fun TransactionScreen(
     val currentTransactions = state.transactions
     val currentCategories = state.category
 
-    val filteredTransactions = remember(searchText, selectedCategory, selectedTypeFilter, currentTransactions.size) {
+    // Category chips follow the type tab: All shows every category, Income/Expense only that type
+    val typeCategories = remember(currentCategories, selectedTypeFilter) {
+        when (selectedTypeFilter) {
+            "Income" -> currentCategories.filter { it.type.equals("INCOME", ignoreCase = true) }
+            "Expense" -> currentCategories.filter { it.type.equals("EXPENSE", ignoreCase = true) }
+            else -> currentCategories
+        }
+    }
+
+    // Reset the category chip when it doesn't belong to the newly selected type
+    LaunchedEffect(typeCategories) {
+        if (selectedCategory != "All" && typeCategories.none { it.name.equals(selectedCategory, ignoreCase = true) }) {
+            selectedCategory = "All"
+        }
+    }
+
+    val filteredTransactions = remember(searchText, selectedCategory, selectedTypeFilter, currentTransactions) {
         currentTransactions.filter { transaction ->
             val matchesSearch = transaction.title.contains(searchText, ignoreCase = true) ||
                     transaction.category.contains(searchText, ignoreCase = true)
@@ -274,10 +290,9 @@ fun TransactionScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(horizontal = 2.dp)
         ) {
-            var categories = currentCategories.map { it ->
+            val categories = listOf(Pair("All", Icons.Default.Category)) + typeCategories.map {
                 Pair(it.name, CategoryUtils.getCategoryIconAndColor(it.name).first)
             }
-            categories = listOf(Pair("All", Icons.Default.Category)) + categories
 
             items(categories) { (catName, icon) ->
                 val isSelected = selectedCategory == catName

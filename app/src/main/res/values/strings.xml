@@ -2,4 +2,9 @@
     <string name="app_name">Expent</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="widget_add_transaction_title">Expent · Add transaction</string>
+    <string name="widget_add_transaction_description">Quickly add an expense or income</string>
+    <string name="widget_add_transaction_prompt">Wanna add transaction ?</string>
+    <string name="widget_add_expense">+ Expense</string>
+    <string name="widget_add_income">+ Income</string>
 </resources>

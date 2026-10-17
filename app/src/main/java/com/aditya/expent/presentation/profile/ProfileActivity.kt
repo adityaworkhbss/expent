@@ -559,440 +559,430 @@ fun ProfileScreen(
         }
     }
 
-    // 2. PAYMENT MODES MANAGER DIALOG
+    // 2. PAYMENT MODES MANAGER BOTTOM SHEET
     if (showPaymentModes) {
         var newPaymentModeText by remember { mutableStateOf("") }
         var newPaymentModeType by remember { mutableStateOf("PAY_NOW") }
 
-        Dialog(
+        ModalBottomSheet(
             onDismissRequest = { showPaymentModes = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.7f)
-                    .shadow(16.dp, RoundedCornerShape(28.dp))
-                    .border(1.dp, Color(0xFF0288D1).copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.8f)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp)
             ) {
+                Text(
+                    text = "Payment Modes Manager",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Input & selector column to add new payment mode
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "Payment Modes Manager",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Input & selector column to add new payment mode
-                    Column(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = newPaymentModeText,
-                                onValueChange = { newPaymentModeText = it },
-                                placeholder = { Text("e.g. UPI, ICICI Card...") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFF0288D1)
-                                )
+                        OutlinedTextField(
+                            value = newPaymentModeText,
+                            onValueChange = { newPaymentModeText = it },
+                            placeholder = { Text("e.g. UPI, ICICI Card...") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF0288D1)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            IconButton(
-                                onClick = {
-                                    if (newPaymentModeText.isNotBlank()) {
-                                        viewModel?.savePaymentMode(newPaymentModeText.trim(), newPaymentModeType)
-                                        newPaymentModeText = ""
-                                    }
-                                },
-                                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFF0288D1), contentColor = Color.White),
-                                modifier = Modifier.size(50.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Add Mode")
-                            }
-                        }
-
-                        // Type selector for new payment mode
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        IconButton(
+                            onClick = {
+                                if (newPaymentModeText.isNotBlank()) {
+                                    viewModel?.savePaymentMode(newPaymentModeText.trim(), newPaymentModeType)
+                                    newPaymentModeText = ""
+                                }
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFF0288D1), contentColor = Color.White),
+                            modifier = Modifier.size(50.dp)
                         ) {
-                            listOf("PAY_NOW", "PAY_LATER").forEach { type ->
-                                val isSel = newPaymentModeType == type
-                                Surface(
-                                    onClick = { newPaymentModeType = type },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isSel) Color(0xFF0288D1) else Color.Transparent,
-                                            shape = RoundedCornerShape(12.dp)
-                                        ),
-                                    color = if (isSel) Color(0xFF0288D1).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            Icon(Icons.Default.Add, contentDescription = "Add Mode")
+                        }
+                    }
+
+                    // Type selector for new payment mode
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("PAY_NOW", "PAY_LATER").forEach { type ->
+                            val isSel = newPaymentModeType == type
+                            Surface(
+                                onClick = { newPaymentModeType = type },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSel) Color(0xFF0288D1) else Color.Transparent,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                color = if (isSel) Color(0xFF0288D1).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (isSel) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color(0xFF0288D1),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                        }
-                                        Text(
-                                            text = if (type == "PAY_NOW") "Pay Now" else "Pay Later",
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSel) Color(0xFF0288D1) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontSize = 13.sp
+                                    if (isSel) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color(0xFF0288D1),
+                                            modifier = Modifier.size(16.dp)
                                         )
+                                        Spacer(modifier = Modifier.width(6.dp))
                                     }
+                                    Text(
+                                        text = if (type == "PAY_NOW") "Pay Now" else "Pay Later",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSel) Color(0xFF0288D1) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 13.sp
+                                    )
                                 }
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                    Text(
-                        text = "Available Cards & Accounts:",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Text(
+                    text = "Available Cards & Accounts:",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                    // List of current cards
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (paymentModes.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 32.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                // List of current cards
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (paymentModes.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No payment methods added yet.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(paymentModes) { mode ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
                                     Text(
-                                        text = "No payment methods added yet.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = mode.name,
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Surface(
+                                        color = if (mode.type == "PAY_LATER") Color(0xFFE91E63).copy(alpha = 0.15f) else Color(0xFF0288D1).copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (mode.type == "PAY_LATER") "PAY LATER" else "PAY NOW",
+                                            color = if (mode.type == "PAY_LATER") Color(0xFFE91E63) else Color(0xFF0288D1),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        viewModel?.deletePaymentMode(mode.id)
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = ColorExpense,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
-                        } else {
-                            items(paymentModes) { mode ->
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { showPaymentModes = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0288D1)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+
+    // 3. CATEGORIES MANAGER BOTTOM SHEET
+    if (showCategoriesManager) {
+        var newCategoryText by remember { mutableStateOf("") }
+        var newCategoryType by remember { mutableStateOf("EXPENSE") }
+
+        ModalBottomSheet(
+            onDismissRequest = { showCategoriesManager = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.8f)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp)
+            ) {
+                Text(
+                    text = "Categories Manager",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Input & selector column to add new category
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = newCategoryText,
+                            onValueChange = { newCategoryText = it },
+                            placeholder = { Text("e.g. Gift, Fuel...") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFFAB47BC)
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        IconButton(
+                            onClick = {
+                                if (newCategoryText.isNotBlank()) {
+                                    viewModel?.saveCategory(newCategoryText.trim(), newCategoryType)
+                                    newCategoryText = ""
+                                }
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFFAB47BC), contentColor = Color.White),
+                            modifier = Modifier.size(50.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Category")
+                        }
+                    }
+
+                    // Type selector for new category
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("EXPENSE", "INCOME").forEach { type ->
+                            val isSel = newCategoryType == type
+                            Surface(
+                                onClick = { newCategoryType = type },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSel) Color(0xFFAB47BC) else Color.Transparent,
+                                        shape = RoundedCornerShape(12.dp)
+                                    ),
+                                color = if (isSel) Color(0xFFAB47BC).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    if (isSel) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color(0xFFAB47BC),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text(
+                                        text = if (type == "EXPENSE") "Expense" else "Income",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSel) Color(0xFFAB47BC) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = "Current Categories:",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (categories.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No categories added yet.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(categories) { cat ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f)
+                                                else ColorExpense.copy(alpha = 0.15f)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (cat.type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                            contentDescription = null,
+                                            tint = if (cat.type == "INCOME") ColorIncome else ColorExpense,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(
-                                            text = mode.name,
+                                            text = cat.name,
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Surface(
-                                            color = if (mode.type == "PAY_LATER") Color(0xFFE91E63).copy(alpha = 0.15f) else Color(0xFF0288D1).copy(alpha = 0.15f),
+                                            color = if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
                                             shape = RoundedCornerShape(6.dp)
                                         ) {
                                             Text(
-                                                text = if (mode.type == "PAY_LATER") "PAY LATER" else "PAY NOW",
-                                                color = if (mode.type == "PAY_LATER") Color(0xFFE91E63) else Color(0xFF0288D1),
+                                                text = if (cat.type == "INCOME") "INCOME" else "EXPENSE",
+                                                color = if (cat.type == "INCOME") ColorIncome else ColorExpense,
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Black,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
                                         }
                                     }
-                                    IconButton(
-                                        onClick = {
-                                            viewModel?.deletePaymentMode(mode.id)
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = ColorExpense,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
                                 }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { showPaymentModes = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0288D1)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. CATEGORIES MANAGER DIALOG
-    if (showCategoriesManager) {
-        var newCategoryText by remember { mutableStateOf("") }
-        var newCategoryType by remember { mutableStateOf("EXPENSE") }
-
-        Dialog(
-            onDismissRequest = { showCategoriesManager = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .fillMaxHeight(0.72f)
-                    .shadow(16.dp, RoundedCornerShape(28.dp))
-                    .border(1.dp, Color(0xFFAB47BC).copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
-                ) {
-                    Text(
-                        text = "Categories Manager",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Input & selector column to add new category
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = newCategoryText,
-                                onValueChange = { newCategoryText = it },
-                                placeholder = { Text("e.g. Gift, Fuel...") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Color(0xFFAB47BC)
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            IconButton(
-                                onClick = {
-                                    if (newCategoryText.isNotBlank()) {
-                                        viewModel?.saveCategory(newCategoryText.trim(), newCategoryType)
-                                        newCategoryText = ""
-                                    }
-                                },
-                                colors = IconButtonDefaults.iconButtonColors(containerColor = Color(0xFFAB47BC), contentColor = Color.White),
-                                modifier = Modifier.size(50.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Add Category")
-                            }
-                        }
-
-                        // Type selector for new category
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("EXPENSE", "INCOME").forEach { type ->
-                                val isSel = newCategoryType == type
-                                Surface(
-                                    onClick = { newCategoryType = type },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isSel) Color(0xFFAB47BC) else Color.Transparent,
-                                            shape = RoundedCornerShape(12.dp)
-                                        ),
-                                    color = if (isSel) Color(0xFFAB47BC).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                IconButton(
+                                    onClick = { viewModel?.deleteCategory(cat.id) },
+                                    modifier = Modifier.size(24.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (isSel) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color(0xFFAB47BC),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                        }
-                                        Text(
-                                            text = if (type == "EXPENSE") "Expense" else "Income",
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSel) Color(0xFFAB47BC) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontSize = 13.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        text = "Current Categories:",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (categories.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 32.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "No categories added yet.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = ColorExpense,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
-                        } else {
-                            items(categories) { cat ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(40.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f)
-                                                    else ColorExpense.copy(alpha = 0.15f)
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = if (cat.type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                                                contentDescription = null,
-                                                tint = if (cat.type == "INCOME") ColorIncome else ColorExpense,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = cat.name,
-                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Surface(
-                                                color = if (cat.type == "INCOME") ColorIncome.copy(alpha = 0.15f) else ColorExpense.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(6.dp)
-                                            ) {
-                                                Text(
-                                                    text = if (cat.type == "INCOME") "INCOME" else "EXPENSE",
-                                                    color = if (cat.type == "INCOME") ColorIncome else ColorExpense,
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Black,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                    IconButton(
-                                        onClick = { viewModel?.deleteCategory(cat.id) },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = ColorExpense,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
-                        onClick = { showCategoriesManager = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFAB47BC)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                Button(
+                    onClick = { showCategoriesManager = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFAB47BC)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }

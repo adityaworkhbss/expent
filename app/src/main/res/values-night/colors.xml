@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Add-transaction widget (matches app dark theme surface #1E1E1E) -->
+    <color name="widget_surface">#FF1E1E1E</color>
+    <color name="widget_outline">#26FFFFFF</color>
+    <color name="widget_text">#FFE6E1E5</color>
+    <color name="widget_expense_bg">#33F44336</color>
+    <color name="widget_expense_text">#FFEF9A9A</color>
+    <color name="widget_income_bg">#334CAF50</color>
+    <color name="widget_income_text">#FFA5D6A7</color>
+</resources>

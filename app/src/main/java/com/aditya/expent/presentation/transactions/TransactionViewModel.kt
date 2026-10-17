@@ -8,6 +8,7 @@ import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.GetTransactionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,6 @@ data class TransactionsState(
     val category: List<CategoryResponseDto> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val page: Int = 1,
     val pageSize: Int = 20,
     val isExpanded: Boolean = false
 )
@@ -33,6 +33,8 @@ class TransactionViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(TransactionsState())
     val state: StateFlow<TransactionsState> = _state.asStateFlow()
+
+    private var transactionsJob: Job? = null
 
     init {
         getTransactions()
@@ -65,11 +67,14 @@ class TransactionViewModel @Inject constructor(
         }
     }
 
+    // The Room flow re-emits on every table change, so keep a single collector and replace
+    // the list on each emission instead of appending (appending duplicated item keys)
     private fun getTransactions() {
         _state.value = state.value.copy(isLoading = true, error = null)
-        viewModelScope.launch {
+        transactionsJob?.cancel()
+        transactionsJob = viewModelScope.launch {
             getTransactionUseCase(
-                page = state.value.page,
+                page = 1,
                 limit = state.value.pageSize
             )
                 .catch { exception ->
@@ -96,26 +101,23 @@ class TransactionViewModel @Inject constructor(
                             paymentMethod = dto.paymentMethod ?: dto.account?.name
                         )
                     }
-                    if (transactions.isEmpty()) {
-                        _state.value = state.value.copy(
-                            isLoading = false,
-                            error = "No more transactions to load",
-                            isExpanded = true
-                        )
-                        return@collect
-                    }
                     _state.value = state.value.copy(
-                        transactions = state.value.transactions + transactions,
-                        isLoading = false,
-                        error = null,
-                        page = state.value.page + 1,
-                        pageSize = state.value.pageSize + 20
+                        transactions = transactions.distinctBy { it.id },
+                        isLoading = false
                     )
                 }
         }
     }
 
     fun onExpandClick() {
+        if (state.value.transactions.size < state.value.pageSize) {
+            _state.value = state.value.copy(
+                error = "No more transactions to load",
+                isExpanded = true
+            )
+            return
+        }
+        _state.value = state.value.copy(pageSize = state.value.pageSize + 20)
         getTransactions()
     }
 }
