@@ -22,8 +22,13 @@ class ExpentApplication : Application() {
         val user = sessionManager.getUser()
         AppLogger.setUser(user?.id)
         if (user != null) {
-            syncScheduler.schedulePeriodicSync()
-            syncScheduler.scheduleInitialSync()
+            if (sessionManager.isOnboardingComplete()) {
+                syncScheduler.schedulePeriodicSync()
+                syncScheduler.scheduleInitialSync()
+            } else {
+                // Mid-onboarding Room is the source of truth: only flush anything still queued, no GETs
+                syncScheduler.enqueuePendingSync()
+            }
         }
         AddTransactionWidget.updateAll(this)
     }

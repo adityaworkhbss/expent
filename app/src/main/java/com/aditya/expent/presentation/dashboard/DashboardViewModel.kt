@@ -46,7 +46,9 @@ data class DashboardState(
     val aiTransaction: Boolean = false,
     val reminder: Boolean = false,
     val greetingMessage: String = "Welcome",
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    // One-off feedback from AI ("Smart") add, shown as a toast then cleared
+    val aiMessage: String? = null
 ) {
     // Income amount per category name, taken from the income sources set up in Cashflow
     val incomeAmountByCategory: Map<String, Double>
@@ -232,56 +234,74 @@ class DashboardViewModel @Inject constructor(
 
             runCatching {
                 val response = parseTransactionUseCase(rawText)
-                if (response.success && !response.requiresUserInput && response.data != null) {
-                    val data = response.data
-                    val amount = data.amount
-                    val type = if (data.resolvedTransactionType.equals("INCOME", ignoreCase = true)) TransactionType.INCOME else TransactionType.EXPENSE
-
-                    // Match the parsed category against the user's categories of the same type
-                    val typeCategories = _state.value.categories.filter { it.type.equals(type.name, ignoreCase = true) }
-                    val matchedCategory = data.categoryId?.let { id -> _state.value.categories.firstOrNull { it.id == id } }
-                        ?: typeCategories.firstOrNull { it.name.equals(data.resolvedCategoryName, ignoreCase = true) }
-                        ?: typeCategories.firstOrNull { it.name.equals("Others", ignoreCase = true) }
-                    val categoryName = matchedCategory?.name ?: data.resolvedCategoryName
-                    val categoryId = matchedCategory?.id
-
-                    // Income only goes to PAY_NOW accounts, same as the manual form
-                    val eligibleAccounts = if (type == TransactionType.INCOME) {
-                        _state.value.accounts.filter { it.type.equals("PAY_NOW", ignoreCase = true) }
-                    } else {
-                        _state.value.accounts
-                    }
-                    val account = data.accountId?.let { id -> _state.value.accounts.firstOrNull { it.id == id } }
-                        ?: data.accountName?.let { name -> _state.value.accounts.firstOrNull { it.name.equals(name, ignoreCase = true) } }
-                        ?: eligibleAccounts.firstOrNull()
-                        ?: _state.value.accounts.firstOrNull()
-                    if (account == null) {
-                        Log.e("DashboardViewModel", "No account available to store AI transaction")
-                        _state.value = _state.value.copy(isLoading = false)
-                        return@runCatching
-                    }
-
-                    val newTransaction = Transaction(
-                        id = "local-${java.util.UUID.randomUUID()}",
-                        title = data.resolvedNote.ifBlank { rawText },
-                        amount = if (type == TransactionType.EXPENSE) -Math.abs(amount) else Math.abs(amount),
-                        date = resolveParsedDate(data.date),
-                        category = categoryName,
-                        type = type,
-                        accountId = account.id,
-                        categoryId = categoryId,
-                        paymentMethod = data.paymentMethod ?: account.name
+                val data = response.data
+                if (!response.success || data == null) {
+                    AppLogger.error("DashboardViewModel", "AI parse failed: $response")
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        aiMessage = response.message ?: "Couldn't understand that transaction. Please try again."
                     )
-
-                    addTransactionsUseCase(newTransaction)
-                    _state.value = _state.value.copy(isLoading = false)
-                } else {
-                    Log.e("DashboardViewModel", "AI parse failed or requires user input: $response")
-                    _state.value = _state.value.copy(isLoading = false)
+                    return@runCatching
                 }
+                if (response.requiresUserInput) {
+                    val missing = response.missingRequiredFields.joinToString(" and ").ifBlank { "some details" }
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        aiMessage = "Couldn't find the $missing. Try e.g. \"Spent 250 on Uber today\"."
+                    )
+                    return@runCatching
+                }
+
+                val type = if (data.resolvedTransactionType.equals("INCOME", ignoreCase = true)) TransactionType.INCOME else TransactionType.EXPENSE
+
+                // Backend returns the user's real category/account IDs; local lookups are only fallbacks
+                val localCategory = data.categoryId?.let { id -> _state.value.categories.firstOrNull { it.id == id } }
+                    ?: _state.value.categories.firstOrNull {
+                        it.type.equals(type.name, ignoreCase = true) && it.name.equals(data.resolvedCategoryName, ignoreCase = true)
+                    }
+                val categoryId = data.categoryId ?: localCategory?.id
+                val categoryName = data.categoryName ?: localCategory?.name ?: data.resolvedCategoryName
+
+                // account_id is null when the backend couldn't match an account; fall back like the manual form
+                // (income goes to PAY_NOW accounts)
+                val fallbackAccount = if (type == TransactionType.INCOME) {
+                    _state.value.accounts.firstOrNull { it.type.equals("PAY_NOW", ignoreCase = true) }
+                } else {
+                    null
+                } ?: _state.value.accounts.firstOrNull()
+                val accountId = data.accountId ?: fallbackAccount?.id
+                if (accountId == null) {
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        aiMessage = "Add a payment mode in Profile before adding transactions."
+                    )
+                    return@runCatching
+                }
+                val accountName = data.accountName
+                    ?: _state.value.accounts.firstOrNull { it.id == accountId }?.name
+
+                val newTransaction = Transaction(
+                    id = "local-${java.util.UUID.randomUUID()}",
+                    title = data.resolvedNote.ifBlank { rawText },
+                    amount = if (type == TransactionType.EXPENSE) -Math.abs(data.amount) else Math.abs(data.amount),
+                    date = resolveParsedDate(data.date),
+                    category = categoryName,
+                    type = type,
+                    accountId = accountId,
+                    categoryId = categoryId,
+                    paymentMethod = data.paymentMethod ?: accountName,
+                    merchant = data.merchant
+                )
+
+                // Saved to Room first (PENDING_CREATE), then the sync worker posts it to /transactions
+                addTransactionsUseCase(newTransaction)
+                _state.value = _state.value.copy(isLoading = false, aiMessage = "Added: ${newTransaction.title}")
             }.onFailure { error ->
                 AppLogger.error("DashboardViewModel", "Failed to parse AI transaction", error)
-                _state.value = _state.value.copy(isLoading = false)
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    aiMessage = "Couldn't reach the server to read that. Check your connection and try again."
+                )
             }
         }
     }
@@ -303,6 +323,10 @@ class DashboardViewModel @Inject constructor(
                 }.getOrNull()
             }
         return output.format(if (parsed == null || parsed.after(today)) today else parsed)
+    }
+
+    fun clearAiMessage() {
+        _state.value = _state.value.copy(aiMessage = null)
     }
 
     fun deleteTransaction(id: String) {

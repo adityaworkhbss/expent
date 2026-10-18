@@ -4,7 +4,10 @@ import com.google.gson.annotations.SerializedName
 
 data class ParseTransactionRequestDto(
     @SerializedName("text")
-    val text: String
+    val text: String,
+    // User's local date (yyyy-MM-dd) so "today" / "yesterday" resolve to the right day
+    @SerializedName("today")
+    val today: String
 )
 
 data class ParseTransactionResponseDto(

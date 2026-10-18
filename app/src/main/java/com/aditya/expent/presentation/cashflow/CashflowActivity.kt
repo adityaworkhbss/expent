@@ -258,7 +258,7 @@ fun CashflowContentScreen(
         if ((item.tenure ?: 0) <= 0) {
             Subscription(
                 name = item.resolvedName,
-                amount = item.principal ?: item.resolvedAmount,
+                amount = item.resolvedAmount,
                 billingDate = item.resolvedStartDate,
                 id = item.id
             )

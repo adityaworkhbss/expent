@@ -92,6 +92,8 @@ data class OnboardState(
         OnboardCategory("Gifts", "INCOME"),
         OnboardCategory("Business Profits", "INCOME")
     ),
+    // Categories as stored in Room (what the user actually saved), unlike the suggestion list above
+    val savedCategories: List<OnboardCategory> = emptyList(),
     val hasFetchedCategories: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null
@@ -123,11 +125,11 @@ class OnboardViewModel @Inject constructor(
             else -> OnboardStep.WELCOME
         }
         _state.update { it.copy(currentStep = initialStep) }
-        // Always load categories so existing server categories appear in available list
+        // Observe Room only (no API call); login already fetched server categories when onboardingCount >= 1
         loadCategories()
     }
 
-    fun loadCategories() {
+    private fun loadCategories() {
         viewModelScope.launch {
             getCategoriesUseCase()
                 .catch { AppLogger.error("OnboardVM", "Failed to load categories", it) }
@@ -138,6 +140,7 @@ class OnboardViewModel @Inject constructor(
                             .distinctBy { cat -> "${cat.name.lowercase()}-${cat.type.uppercase()}" }
                         s.copy(
                             availableCategories = merged,
+                            savedCategories = fetchedCategories,
                             selectedCategories = if (s.selectedCategories.isEmpty() && fetchedCategories.isNotEmpty()) {
                                 fetchedCategories
                             } else if (s.selectedCategories.isNotEmpty()) {

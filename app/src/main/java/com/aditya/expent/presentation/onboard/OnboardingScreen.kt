@@ -102,18 +102,14 @@ fun OnboardRoute(
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (step) {
                         OnboardStep.WELCOME -> WelcomeStep(onNext = { viewModel.nextStep() })
-                        OnboardStep.CATEGORIES -> {
-                            LaunchedEffect(Unit) {
-                                viewModel.loadCategories()
-                            }
-                            CategoriesStep(
-                                availableCategories = state.availableCategories,
-                                selectedCategories = state.selectedCategories,
-                                onCategoriesChange = { viewModel.onCategoriesSelected(it) },
-                                onNext = { viewModel.nextStep() },
-                                isLoading = state.isLoading
-                            )
-                        }
+                        // Categories are already observed from Room in the ViewModel's init
+                        OnboardStep.CATEGORIES -> CategoriesStep(
+                            availableCategories = state.availableCategories,
+                            selectedCategories = state.selectedCategories,
+                            onCategoriesChange = { viewModel.onCategoriesSelected(it) },
+                            onNext = { viewModel.nextStep() },
+                            isLoading = state.isLoading
+                        )
                         OnboardStep.PAYMENT_MODES -> PaymentModesStep(
                             paymentModes = state.paymentModes,
                             onPaymentModesChange = { viewModel.onPaymentModesChanged(it) },
@@ -123,8 +119,8 @@ fun OnboardRoute(
                         OnboardStep.INCOMING -> IncomingStep(
                             salary = state.salary,
                             customIncomes = state.customIncomes,
-                            selectedCategories = state.selectedCategories,
-                            availableCategories = state.availableCategories,
+                            // Only categories the user saved (Room) with type INCOME
+                            incomeCategories = state.savedCategories.filter { it.type.equals("INCOME", ignoreCase = true) },
                             onSalaryAmountChange = { viewModel.onSalaryAmountChanged(it) },
                             onSalaryCategoryChange = { viewModel.onSalaryCategoryChanged(it) },
                             onSalaryPeriodChange = { viewModel.onSalaryPeriodChanged(it) },
@@ -766,8 +762,7 @@ fun PaymentModesStep(
 fun IncomingStep(
     salary: RecurringIncome,
     customIncomes: List<RecurringIncome>,
-    selectedCategories: List<OnboardCategory>,
-    availableCategories: List<OnboardCategory> = emptyList(),
+    incomeCategories: List<OnboardCategory>,
     onSalaryAmountChange: (String) -> Unit,
     onSalaryCategoryChange: (String?) -> Unit,
     onSalaryPeriodChange: (String) -> Unit,
@@ -784,19 +779,6 @@ fun IncomingStep(
     
     var showSalaryStartDatePicker by remember { mutableStateOf(false) }
     var showNewIncomeDatePicker by remember { mutableStateOf(false) }
-
-    val incomeCategories = remember(selectedCategories, availableCategories) {
-        val fromSelected = selectedCategories.filter { it.type.equals("INCOME", ignoreCase = true) }
-        val fromAvailable = availableCategories.filter { it.type.equals("INCOME", ignoreCase = true) }
-        val combined = (fromSelected + fromAvailable).distinctBy { it.name.lowercase() }
-        if (combined.isNotEmpty()) combined else listOf(
-            OnboardCategory("Salary", "INCOME"),
-            OnboardCategory("Freelance", "INCOME"),
-            OnboardCategory("Investments", "INCOME"),
-            OnboardCategory("Gifts", "INCOME"),
-            OnboardCategory("Business Profits", "INCOME")
-        )
-    }
 
     LaunchedEffect(incomeCategories) {
         if (salary.categoryId.isNullOrBlank() && incomeCategories.isNotEmpty()) {
@@ -1006,7 +988,7 @@ fun IncomingStep(
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "${customIncome.periodType.lowercase().replaceFirstChar { it.uppercase() }} | Category: ${customIncome.categoryId ?: "General"}",
+                            text = customIncome.periodType.lowercase().replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1813,7 +1795,7 @@ fun IncomingStepPreview() {
                 customIncomes = listOf(
                     RecurringIncome(name = "Freelance", amount = "1500", startDate = "01/01/2023")
                 ),
-                selectedCategories = listOf(OnboardCategory("Salary", "INCOME")),
+                incomeCategories = listOf(OnboardCategory("Salary", "INCOME")),
                 onSalaryAmountChange = {},
                 onSalaryCategoryChange = {},
                 onSalaryPeriodChange = {},

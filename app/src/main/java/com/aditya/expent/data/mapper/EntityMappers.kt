@@ -123,7 +123,8 @@ fun ExpenseIncomeResponseDto.toEntity(
         name = resolvedName,
         principal = principal ?: "",
         tenure = tenure ?: 0,
-        monthlyEmi = monthlyEmi ?: "",
+        // The amount entered in the app is the monthly EMI; the server may echo it back as "amount"
+        monthlyEmi = monthlyEmiAmount,
         startDate = resolvedStartDate,
         endDate = endDate,
         nextDueDate = nextDueDate ?: "",

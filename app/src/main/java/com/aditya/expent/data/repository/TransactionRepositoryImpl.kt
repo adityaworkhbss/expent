@@ -79,7 +79,7 @@ class TransactionRepositoryImpl @Inject constructor(
             categoryId = transaction.categoryId,
             transferToAccountId = transaction.transferToAccountId,
             note = transaction.title,
-            merchant = null,
+            merchant = transaction.merchant,
             paymentMethod = transaction.paymentMethod,
             tags = null,
             status = "CLEARED",
@@ -100,7 +100,8 @@ class TransactionRepositoryImpl @Inject constructor(
     }
 
     override suspend fun parseTransaction(text: String): ParseTransactionResponseDto {
-        val response = apiService.parseTransaction(ParseTransactionRequestDto(text))
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        val response = apiService.parseTransaction(ParseTransactionRequestDto(text, today))
         return response
     }
 

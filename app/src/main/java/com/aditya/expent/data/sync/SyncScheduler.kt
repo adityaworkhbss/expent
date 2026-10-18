@@ -62,6 +62,7 @@ class SyncScheduler @Inject constructor(
     fun enqueueExpenseSync() = triggerPushSync()
     fun enqueueCustomizationSync() = triggerPushSync()
     fun enqueueOnboardingSync() = triggerPushSync()
+    fun enqueuePendingSync() = triggerPushSync()
 
     private fun triggerPushSync() {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()

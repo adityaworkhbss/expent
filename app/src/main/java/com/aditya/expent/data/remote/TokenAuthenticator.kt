@@ -56,7 +56,6 @@ class TokenAuthenticator @Inject constructor(
                     .build()
             }
 
-            // Otherwise, perform the refresh call
             return try {
                 Log.d(TAG, "Performing token refresh with refresh token: ${refreshToken.take(10)}...${refreshToken.takeLast(10)}")
                 if (refreshToken.isBlank()) {
@@ -88,10 +87,8 @@ class TokenAuthenticator @Inject constructor(
 
                 if (e is retrofit2.HttpException && e.code() == 401) {
                     Log.e(TAG, "Refresh token expired/invalid, clearing session")
-                    sessionManager.clearSession() // might have problem in going debugs
-
+                    sessionManager.clearSession()
                 }
-                
                 null
             }
         }

@@ -123,7 +123,8 @@ class DashboardActivity : ComponentActivity() {
                             viewModel.addAiTransaction(text)
                         },
                         requestedAddType = widgetAddType,
-                        onAddRequestHandled = { widgetAddType = null }
+                        onAddRequestHandled = { widgetAddType = null },
+                        onAiMessageShown = { viewModel.clearAiMessage() }
                     )
                 }
             }
@@ -167,7 +168,8 @@ fun DashboardScreen(
     onDeleteTransaction: (String) -> Unit,
     onAddAiTransaction: (String) -> Unit,
     requestedAddType: TransactionType? = null,
-    onAddRequestHandled: () -> Unit = {}
+    onAddRequestHandled: () -> Unit = {},
+    onAiMessageShown: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -175,6 +177,14 @@ fun DashboardScreen(
     var isExpanded by remember { mutableStateOf(false) }
     var showBottomSheet by remember { mutableStateOf(false) }
     var addSheetInitialType by remember { mutableStateOf(TransactionType.EXPENSE) }
+
+    // Feedback from AI ("Smart") add: saved, missing fields, or failure
+    LaunchedEffect(state.aiMessage) {
+        state.aiMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            onAiMessageShown()
+        }
+    }
 
     // Open the add sheet when the home screen widget asks for it
     LaunchedEffect(requestedAddType) {

@@ -14,7 +14,9 @@ data class AuthDataDto(
     @SerializedName("name")
     val name: String? = null,
     @SerializedName("id")
-    val id: String? = null
+    val id: String? = null,
+    @SerializedName("userId")
+    val userId: String? = null
 )
 
 data class AuthResponseDto(
@@ -43,7 +45,7 @@ data class AuthResponseDto(
 
     val user: UserDto
         get() = userDto ?: UserDto(
-            id = data?.id ?: "",
+            id = data?.userId ?: data?.id ?: "",
             email = data?.email ?: "",
             name = data?.name ?: "",
             onboardingStep = data?.onboardingStep ?: flatOnboardingStep ?: 0

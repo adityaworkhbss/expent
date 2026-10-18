@@ -95,8 +95,21 @@ data class ExpenseIncomeResponseDto(
     val resolvedName: String
         get() = name ?: description ?: "EMI"
 
+    // Gson parses JSON numbers in an Any field as Double, so 300 would otherwise read "300.0"
+    private val amountText: String?
+        get() = when (val raw = amountRaw) {
+            is Number -> java.math.BigDecimal(raw.toString()).stripTrailingZeros().toPlainString()
+            else -> raw?.toString()
+        }?.takeIf { it.isNotBlank() }
+
+    val monthlyEmiAmount: String
+        get() = monthlyEmi?.takeIf { it.isNotBlank() } ?: amountText ?: ""
+
     val resolvedAmount: String
-        get() = amountRaw?.toString() ?: monthlyEmi ?: principal ?: "0"
+        get() = amountText
+            ?: monthlyEmi?.takeIf { it.isNotBlank() }
+            ?: principal?.takeIf { it.isNotBlank() }
+            ?: "0"
 
     val resolvedStartDate: String
         get() = startDate ?: date ?: ""

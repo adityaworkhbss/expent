@@ -167,6 +167,14 @@ class SyncWorker(
         }
     }
 
+    // The POST already landed on the server, so a failure in the local Room swap must not leave the
+    // item queued: the next push (e.g. accounts) would send it again and duplicate it server-side.
+    private inline fun afterRemoteSuccess(item: PendingSyncEntity, block: () -> Unit) {
+        runCatching(block).onFailure {
+            AppLogger.syncError("LOCAL_SWAP_FAILED", "Server accepted ${item.entityType}:${item.operation} (ID=${item.id}) but updating Room failed", it)
+        }
+    }
+
     private suspend fun processPendingItem(
         item: PendingSyncEntity,
         apiService: ApiService,
@@ -189,14 +197,16 @@ class SyncWorker(
                         listOf(gson.fromJson(item.payload, CategoryRequestDto::class.java))
                     }
                     val created = apiService.createCategories(list)
-                    // Delete local pending entities before inserting server-returned ones
-                    item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
-                        entryPoint.categoryDao().deleteById(localId)
-                        AppLogger.room("DELETE", "categories", payload = "LocalID: $localId", result = "Removed pending local entity")
+                    afterRemoteSuccess(item) {
+                        // Delete local pending entities before inserting server-returned ones
+                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                            entryPoint.categoryDao().deleteById(localId)
+                            AppLogger.room("DELETE", "categories", payload = "LocalID: $localId", result = "Removed pending local entity")
+                        }
+                        val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
+                        entryPoint.categoryDao().insert(entities)
+                        AppLogger.room("CREATE", "categories", payload = entities, result = "Inserted ${entities.size} categories")
                     }
-                    val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
-                    entryPoint.categoryDao().insert(entities)
-                    AppLogger.room("CREATE", "categories", payload = entities, result = "Inserted ${entities.size} categories")
                 }
                 true
             }
@@ -214,14 +224,16 @@ class SyncWorker(
                         listOf(gson.fromJson(item.payload, PaymentModeRequestDto::class.java))
                     }
                     val created = apiService.savePaymentModes(list)
-                    // Delete local pending entities before inserting server-returned ones
-                    item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
-                        entryPoint.accountDao().deleteById(localId)
-                        AppLogger.room("DELETE", "accounts", payload = "LocalID: $localId", result = "Removed pending local entity")
+                    afterRemoteSuccess(item) {
+                        // Delete local pending entities before inserting server-returned ones
+                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                            entryPoint.accountDao().deleteById(localId)
+                            AppLogger.room("DELETE", "accounts", payload = "LocalID: $localId", result = "Removed pending local entity")
+                        }
+                        val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
+                        entryPoint.accountDao().insert(entities)
+                        AppLogger.room("CREATE", "accounts", payload = entities, result = "Inserted ${entities.size} accounts")
                     }
-                    val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
-                    entryPoint.accountDao().insert(entities)
-                    AppLogger.room("CREATE", "accounts", payload = entities, result = "Inserted ${entities.size} accounts")
                 }
                 true
             }
@@ -285,14 +297,16 @@ class SyncWorker(
                             } else req
                         }
                         val created = apiService.saveBudgets(list)
-                        // Delete all local pending entities (entityId may be comma-separated)
-                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
-                            entryPoint.budgetDao().deleteById(localId)
-                            AppLogger.room("DELETE", "budgets", payload = "LocalID: $localId", result = "Removed pending local entity")
+                        afterRemoteSuccess(item) {
+                            // Delete all local pending entities (entityId may be comma-separated)
+                            item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                                entryPoint.budgetDao().deleteById(localId)
+                                AppLogger.room("DELETE", "budgets", payload = "LocalID: $localId", result = "Removed pending local entity")
+                            }
+                            val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
+                            entryPoint.budgetDao().insert(entities)
+                            AppLogger.room("CREATE", "budgets", payload = entities, result = "Inserted ${entities.size} budgets")
                         }
-                        val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
-                        entryPoint.budgetDao().insert(entities)
-                        AppLogger.room("CREATE", "budgets", payload = entities, result = "Inserted ${entities.size} budgets")
                     }
                 }
                 true
@@ -336,14 +350,16 @@ class SyncWorker(
                             listOf(gson.fromJson(item.payload, ExpenseIncomeRequestDto::class.java))
                         }
                         val created = apiService.saveExpensesAndSubscriptions(list)
-                        // Delete all local pending entities (entityId may be comma-separated)
-                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
-                            entryPoint.expenseDao().deleteById(localId)
-                            AppLogger.room("DELETE", "expenses", payload = "LocalID: $localId", result = "Removed pending local entity")
+                        afterRemoteSuccess(item) {
+                            // Delete all local pending entities (entityId may be comma-separated)
+                            item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                                entryPoint.expenseDao().deleteById(localId)
+                                AppLogger.room("DELETE", "expenses", payload = "LocalID: $localId", result = "Removed pending local entity")
+                            }
+                            val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
+                            entryPoint.expenseDao().insert(entities)
+                            AppLogger.room("CREATE", "expenses", payload = entities, result = "Inserted ${entities.size} expenses")
                         }
-                        val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
-                        entryPoint.expenseDao().insert(entities)
-                        AppLogger.room("CREATE", "expenses", payload = entities, result = "Inserted ${entities.size} expenses")
                     }
                 }
                 true
@@ -353,14 +369,16 @@ class SyncWorker(
                 if (item.operation == "CREATE") {
                     val dto = gson.fromJson(item.payload, CreateTransactionRequestDto::class.java)
                     val created = apiService.addTransaction(dto)
-                    if (item.entityId.isNotBlank()) {
-                        entryPoint.transactionDao().deleteById(item.entityId)
-                        AppLogger.room("DELETE", "transactions", payload = "ID: ${item.entityId}", result = "Removed local temp transaction")
-                    }
-                    val entity = created.data?.toEntity(SyncStatus.SYNCED)
-                    if (entity != null) {
-                        entryPoint.transactionDao().insert(entity)
-                        AppLogger.room("CREATE", "transactions", payload = entity, result = "Inserted server transaction ${entity.id}")
+                    afterRemoteSuccess(item) {
+                        if (item.entityId.isNotBlank()) {
+                            entryPoint.transactionDao().deleteById(item.entityId)
+                            AppLogger.room("DELETE", "transactions", payload = "ID: ${item.entityId}", result = "Removed local temp transaction")
+                        }
+                        val entity = created.data?.toEntity(SyncStatus.SYNCED)
+                        if (entity != null) {
+                            entryPoint.transactionDao().insert(entity)
+                            AppLogger.room("CREATE", "transactions", payload = entity, result = "Inserted server transaction ${entity.id}")
+                        }
                     }
                 }
                 true

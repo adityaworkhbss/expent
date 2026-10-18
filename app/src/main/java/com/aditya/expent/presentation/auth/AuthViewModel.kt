@@ -76,10 +76,12 @@ class AuthViewModel @Inject constructor(
                         sessionManager.setOnboardingStep(it.onboardingStep)
                     }
 
+                    // fetchUserDataUseCase already pulled exactly what onboardingCount allows,
+                    // so no extra full-refresh sync here; periodic sync starts once onboarding is done
                     fetchUserDataUseCase()
-
-                    syncScheduler.scheduleInitialSync()
-                    syncScheduler.schedulePeriodicSync()
+                    if (sessionManager.isOnboardingComplete()) {
+                        syncScheduler.schedulePeriodicSync()
+                    }
                     _authState.value = AuthState(isSuccess = true)
                 } else {
                     val errorMsg = loginResult.exceptionOrNull()?.message ?: "Backend verification failed"
@@ -111,9 +113,9 @@ class AuthViewModel @Inject constructor(
                     }
 
                     fetchUserDataUseCase()
-
-                    syncScheduler.scheduleInitialSync()
-                    syncScheduler.schedulePeriodicSync()
+                    if (sessionManager.isOnboardingComplete()) {
+                        syncScheduler.schedulePeriodicSync()
+                    }
                     _authState.value = AuthState(isSuccess = true)
                 } else {
                     val errorMsg = loginResult.exceptionOrNull()?.message ?: "Test login failed"
