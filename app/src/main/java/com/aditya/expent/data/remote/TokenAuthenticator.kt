@@ -1,6 +1,7 @@
 package com.aditya.expent.data.remote
 
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.data.remote.dto.TokenRefreshRequestDto
 import com.aditya.expent.utils.SessionManager
 import kotlinx.coroutines.runBlocking
@@ -83,7 +84,7 @@ class TokenAuthenticator @Inject constructor(
                     .header("Authorization", "Bearer ${refreshResponse.accessToken}")
                     .build()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to refresh token: ${e.message}")
+                AppLogger.error(TAG, "Failed to refresh token: ${e.message}", e)
 
                 if (e is retrofit2.HttpException && e.code() == 401) {
                     Log.e(TAG, "Refresh token expired/invalid, clearing session")

@@ -36,10 +36,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.aditya.expent" />
+                  <option name="mobileSdkAppId" value="1:1090449187817:android:58cb52fe40bfee7ee22178" />
+                  <option name="projectId" value="expent-app" />
+                  <option name="projectNumber" value="1090449187817" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

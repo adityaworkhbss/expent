@@ -1,6 +1,9 @@
 package com.aditya.expent.utils
 
 import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 object AppLogger {
 
@@ -29,6 +32,7 @@ object AppLogger {
             builder.append("Request Payload: (empty)")
         }
         logChunked(TAG_API, Log.INFO, builder.toString())
+        breadcrumb("[API] --> $method $url")
     }
 
     fun apiResponse(method: String, url: String, code: Int, durationMs: Long? = null, payload: String? = null) {
@@ -42,12 +46,14 @@ object AppLogger {
         }
         val priority = if (code in 200..299) Log.INFO else Log.WARN
         logChunked(TAG_API, priority, builder.toString())
+        breadcrumb("[API] <-- $code $method $url$durationStr")
     }
 
     fun apiError(method: String, url: String, error: String?, durationMs: Long? = null, throwable: Throwable? = null) {
         val durationStr = durationMs?.let { " (${it}ms)" } ?: ""
         val message = "[API] [ERROR] <-- FAILED $method $url$durationStr: ${error ?: "Unknown error"}"
         logChunked(TAG_API, Log.ERROR, message, throwable)
+        report(message, throwable)
     }
 
     fun room(
@@ -72,11 +78,32 @@ object AppLogger {
     fun sync(action: String, details: String) {
         val message = "[SYNC] [$action] $details"
         logChunked(TAG_SYNC, Log.INFO, message)
+        breadcrumb(message)
     }
 
     fun syncError(action: String, details: String, throwable: Throwable? = null) {
         val message = "[SYNC] [ERROR] [$action] $details"
         logChunked(TAG_SYNC, Log.ERROR, message, throwable)
+        report(message, throwable)
+    }
+
+    fun error(tag: String, message: String, throwable: Throwable? = null, reportToCrashlytics: Boolean = true) {
+        logChunked(tag, Log.ERROR, message, throwable)
+        if (reportToCrashlytics) report("[$tag] $message", throwable) else breadcrumb("[$tag] $message")
+    }
+
+    fun setUser(userId: String?) {
+        FirebaseCrashlytics.getInstance().setUserId(userId.orEmpty())
+    }
+
+    private fun breadcrumb(message: String) {
+        FirebaseCrashlytics.getInstance().log(message)
+    }
+
+    private fun report(message: String, throwable: Throwable?) {
+        breadcrumb(message)
+        if (throwable == null || throwable is IOException || throwable is CancellationException) return
+        FirebaseCrashlytics.getInstance().recordException(throwable)
     }
 
     private fun formatData(data: Any?): String {

@@ -1,6 +1,7 @@
 package com.aditya.expent.data.repository
 
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.BuildConfig
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.AuthRequestDto
@@ -38,7 +39,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             Result.success(user)
         } catch (e: Exception) {
-            Log.e("AuthRepo", "Error loginWithGoogle: ${e.message}", e)
+            AppLogger.error("AuthRepo", "Error loginWithGoogle: ${e.message}", e)
             Result.failure(e)
         }
     }

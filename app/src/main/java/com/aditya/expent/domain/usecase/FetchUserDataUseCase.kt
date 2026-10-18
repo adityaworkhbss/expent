@@ -1,6 +1,7 @@
 package com.aditya.expent.domain.usecase
 
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import com.aditya.expent.domain.repository.CategoryRepository
 import com.aditya.expent.domain.repository.CustomizationRepository
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
@@ -40,15 +41,15 @@ class FetchUserDataUseCase @Inject constructor(
         // 1. Fetch base reference entities first (Categories, Accounts, Customization)
         val categoriesJob = async {
             runCatching { categoryRepository.refreshCategories() }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch categories", it) }
+                .onFailure { AppLogger.error("FetchUserDataUseCase", "Failed to fetch categories", it) }
         }
         val accountsJob = if (onboardingStep >= 2) async {
             runCatching { paymentModeRepository.refreshAccounts() }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch accounts", it) }
+                .onFailure { AppLogger.error("FetchUserDataUseCase", "Failed to fetch accounts", it) }
         } else null
         val customizationJob = if (onboardingStep >= 4) async {
             runCatching { customizationRepository.refreshCustomization() }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch customization", it) }
+                .onFailure { AppLogger.error("FetchUserDataUseCase", "Failed to fetch customization", it) }
         } else null
 
         categoriesJob.await()
@@ -58,15 +59,15 @@ class FetchUserDataUseCase @Inject constructor(
         // 2. Fetch dependent entities that reference categories and accounts (Budgets, Expenses, Transactions)
         val budgetsJob = if (onboardingStep >= 3) async {
             runCatching { incomeBudgetRepository.refreshBudgets() }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch budgets", it) }
+                .onFailure { AppLogger.error("FetchUserDataUseCase", "Failed to fetch budgets", it) }
         } else null
         val expensesJob = if (onboardingStep >= 4) async {
             runCatching { expenseAndSubscriptionRepository.refreshExpensesAndSubscriptions() }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch expenses/subscriptions", it) }
+                .onFailure { AppLogger.error("FetchUserDataUseCase", "Failed to fetch expenses/subscriptions", it) }
         } else null
         val transactionsJob = if (onboardingStep >= 4) async {
             runCatching { transactionRepository.refreshTransactions(1, 100) }
-                .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch transactions", it) }
+                .onFailure { AppLogger.error("FetchUserDataUseCase", "Failed to fetch transactions", it) }
         } else null
 
         budgetsJob?.await()

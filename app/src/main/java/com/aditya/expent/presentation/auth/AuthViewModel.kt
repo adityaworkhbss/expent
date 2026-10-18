@@ -2,8 +2,11 @@ package com.aditya.expent.presentation.auth
 
 import android.content.Context
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.usecase.FetchUserDataUseCase
@@ -80,12 +83,15 @@ class AuthViewModel @Inject constructor(
                     _authState.value = AuthState(isSuccess = true)
                 } else {
                     val errorMsg = loginResult.exceptionOrNull()?.message ?: "Backend verification failed"
-                    Log.e("rest re", "BACKEND AUTH FAILED", loginResult.exceptionOrNull())
+                    // Already reported to Crashlytics by AuthRepositoryImpl
+                    AppLogger.error("AuthViewModel", "BACKEND AUTH FAILED", loginResult.exceptionOrNull(), reportToCrashlytics = false)
                     _authState.value = AuthState(error = errorMsg)
                 }
 
             } catch (e: Exception) {
-                Log.e("rest re", "GOOGLE AUTH FAILED", e)
+                // User dismissing the sheet / having no Google account isn't a bug
+                val isExpected = e is GetCredentialCancellationException || e is NoCredentialException
+                AppLogger.error("AuthViewModel", "GOOGLE AUTH FAILED", e, reportToCrashlytics = !isExpected)
                 _authState.value = AuthState(error = e.localizedMessage ?: "Authentication failed")
             }
         }
@@ -115,7 +121,7 @@ class AuthViewModel @Inject constructor(
                     _authState.value = AuthState(error = errorMsg)
                 }
             } catch (e: Exception) {
-                Log.e("AuthViewModel", "TEST LOGIN EXCEPTION", e)
+                AppLogger.error("AuthViewModel", "TEST LOGIN EXCEPTION", e)
                 _authState.value = AuthState(error = e.localizedMessage ?: "Test login failed")
             }
         }

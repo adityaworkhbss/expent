@@ -42,10 +42,11 @@ class SessionManager @Inject constructor(
             }
 
             Log.d(TAG, "User saved successfully")
+            AppLogger.setUser(user.id)
 
         } catch (e: Exception) {
 
-            Log.e(TAG, "Failed to save user", e)
+            AppLogger.error(TAG, "Failed to save user", e)
         }
     }
 
@@ -76,7 +77,7 @@ class SessionManager @Inject constructor(
 
         } catch (e: Exception) {
 
-            Log.e(TAG, "Failed to parse user", e)
+            AppLogger.error(TAG, "Failed to parse user", e)
 
             null
         }
@@ -99,7 +100,7 @@ class SessionManager @Inject constructor(
 
         } catch (e: Exception) {
 
-            Log.e(TAG, "Failed to save customization", e)
+            AppLogger.error(TAG, "Failed to save customization", e)
         }
     }
 
@@ -131,7 +132,7 @@ class SessionManager @Inject constructor(
 
         } catch (e: Exception) {
 
-            Log.e(TAG, "Failed to parse customization", e)
+            AppLogger.error(TAG, "Failed to parse customization", e)
 
             null
         }
@@ -184,6 +185,7 @@ class SessionManager @Inject constructor(
         }
 
         Log.d(TAG, "Session cleared successfully")
+        AppLogger.setUser(null)
     }
 
     fun logout() {
@@ -196,6 +198,7 @@ class SessionManager @Inject constructor(
         }
 
         Log.d(TAG, "All preferences cleared successfully")
+        AppLogger.setUser(null)
     }
 
     fun printAllPrefs() {
@@ -220,7 +223,7 @@ class SessionManager @Inject constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create EncryptedSharedPreferences, clearing and retrying", e)
+            AppLogger.error(TAG, "Failed to create EncryptedSharedPreferences, clearing and retrying", e)
             // If the encrypted prefs are corrupted (e.g. after backup restore),
             // delete the file and create a fresh one.
             context.getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE).edit(commit = true) { clear() }

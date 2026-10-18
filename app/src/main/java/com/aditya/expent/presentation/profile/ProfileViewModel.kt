@@ -1,6 +1,7 @@
 package com.aditya.expent.presentation.profile
 
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
@@ -116,7 +117,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             getCustomizationUseCase()
                 .catch {
-                    Log.e("ProfileViewModel", "loadCustomization FAILURE", it)
+                    AppLogger.error("ProfileViewModel", "loadCustomization FAILURE", it)
                 }
                 .collect { customization ->
                     Log.d("ProfileViewModel", "loadCustomization SUCCESS: aiTransaction=${customization.aiTransaction}, reminder=${customization.reminder}")
@@ -140,7 +141,7 @@ class ProfileViewModel @Inject constructor(
                 updateCustomizationUseCase(aiTransaction, reminder)
                 Log.d("ProfileViewModel", "updateCustomization SUCCESS")
             }.onFailure {
-                Log.e("ProfileViewModel", "updateCustomization FAILURE: reverting", it)
+                AppLogger.error("ProfileViewModel", "updateCustomization FAILURE: reverting", it)
                 loadCustomization()
             }
         }

@@ -1,6 +1,7 @@
 package com.aditya.expent.presentation.onboard
 
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.OnboardCategory
@@ -129,7 +130,7 @@ class OnboardViewModel @Inject constructor(
     fun loadCategories() {
         viewModelScope.launch {
             getCategoriesUseCase()
-                .catch { Log.e("OnboardVM", "Failed to load categories", it) }
+                .catch { AppLogger.error("OnboardVM", "Failed to load categories", it) }
                 .collect { fetchedCategories ->
                     _state.update { s ->
                         val currentAvailable = s.availableCategories

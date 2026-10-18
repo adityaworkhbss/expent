@@ -2,6 +2,7 @@ package com.aditya.expent.presentation.dashboard
 
 import android.os.Build
 import android.util.Log
+import com.aditya.expent.utils.AppLogger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.model.Transaction
@@ -105,7 +106,7 @@ class DashboardViewModel @Inject constructor(
         Log.d("DashboardViewModel", "loadCustomization: Calling getCustomizationUseCase")
         viewModelScope.launch {
             getCustomizationUseCase()
-                .catch { Log.e("DashboardViewModel", "loadCustomization FAILURE", it) }
+                .catch { AppLogger.error("DashboardViewModel", "loadCustomization FAILURE", it) }
                 .collect { customization ->
                     Log.d("DashboardViewModel", "loadCustomization SUCCESS: aiTransaction=${customization.aiTransaction}")
                     _state.value = _state.value.copy(
@@ -226,7 +227,7 @@ class DashboardViewModel @Inject constructor(
                 runCatching {
                     updateCustomizationUseCase(aiTransaction = true, reminder = _state.value.reminder)
                     _state.value = _state.value.copy(aiTransaction = true)
-                }.onFailure { Log.e("DashboardViewModel", "Failed to enable AI transactions", it) }
+                }.onFailure { AppLogger.error("DashboardViewModel", "Failed to enable AI transactions", it) }
             }
 
             runCatching {
@@ -279,7 +280,7 @@ class DashboardViewModel @Inject constructor(
                     _state.value = _state.value.copy(isLoading = false)
                 }
             }.onFailure { error ->
-                Log.e("DashboardViewModel", "Failed to parse AI transaction", error)
+                AppLogger.error("DashboardViewModel", "Failed to parse AI transaction", error)
                 _state.value = _state.value.copy(isLoading = false)
             }
         }
