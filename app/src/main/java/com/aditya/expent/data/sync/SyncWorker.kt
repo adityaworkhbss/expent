@@ -36,11 +36,17 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class SyncWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
+
+    companion object {
+        private val queueMutex = Mutex()
+    }
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
@@ -87,45 +93,49 @@ class SyncWorker(
             val apiService = entryPoint.apiService()
             val gson = entryPoint.gson()
 
-            // 1. Process pending offline sync tasks
-            val pendingItems = pendingSyncDao.getAllPendingSyncs()
-            AppLogger.sync("QUEUE", "Found ${pendingItems.size} pending offline sync items in queue")
-
+            // 1. Process pending offline sync tasks (one worker at a time so items are never POSTed twice)
             var hasPendingFailures = false
 
-            for (item in pendingItems) {
-                try {
-                    AppLogger.sync("PROCESS_ITEM", "Attempting sync: ID=${item.id}, Type=${item.entityType}, Op=${item.operation}, EntityId=${item.entityId}")
-                    val success = processPendingItem(item, apiService, entryPoint, gson)
-                    if (success) {
-                        pendingSyncDao.delete(item)
-                        AppLogger.room("DELETE", "pending_sync", payload = "ID: ${item.id}", result = "Task deleted after successful sync")
-                        AppLogger.sync("ITEM_SUCCESS", "Successfully synced item ID=${item.id} (${item.entityType}:${item.operation})")
-                    } else {
-                        hasPendingFailures = true
-                    }
-                } catch (e: Exception) {
-                    AppLogger.syncError("ITEM_FAILED", "Error processing pending sync item ${item.id} (${item.entityType}): ${e.message}", e)
-                    val nextRetry = item.retryCount + 1
-                    if (nextRetry >= 5) {
-                        AppLogger.sync("ITEM_DISCARD", "Discarding pending sync item ${item.id} after 5 failed attempts")
-                        pendingSyncDao.delete(item)
-                        AppLogger.room("DELETE", "pending_sync", payload = "ID: ${item.id}", result = "Task discarded (max retries)")
-                    } else {
-                        pendingSyncDao.update(item.copy(retryCount = nextRetry))
-                        AppLogger.room("UPDATE", "pending_sync", payload = "ID: ${item.id}, retryCount=$nextRetry", result = "Updated retry count")
-                        hasPendingFailures = true
+            queueMutex.withLock {
+                val pendingItems = pendingSyncDao.getAllPendingSyncs()
+                AppLogger.sync("QUEUE", "Found ${pendingItems.size} pending offline sync items in queue")
+
+                for (item in pendingItems) {
+                    try {
+                        AppLogger.sync("PROCESS_ITEM", "Attempting sync: ID=${item.id}, Type=${item.entityType}, Op=${item.operation}, EntityId=${item.entityId}")
+                        val success = processPendingItem(item, apiService, entryPoint, gson)
+                        if (success) {
+                            pendingSyncDao.delete(item)
+                            AppLogger.room("DELETE", "pending_sync", payload = "ID: ${item.id}", result = "Task deleted after successful sync")
+                            AppLogger.sync("ITEM_SUCCESS", "Successfully synced item ID=${item.id} (${item.entityType}:${item.operation})")
+                        } else {
+                            hasPendingFailures = true
+                        }
+                    } catch (e: Exception) {
+                        AppLogger.syncError("ITEM_FAILED", "Error processing pending sync item ${item.id} (${item.entityType}): ${e.message}", e)
+                        val nextRetry = item.retryCount + 1
+                        if (nextRetry >= 5) {
+                            AppLogger.sync("ITEM_DISCARD", "Discarding pending sync item ${item.id} after 5 failed attempts")
+                            pendingSyncDao.delete(item)
+                            AppLogger.room("DELETE", "pending_sync", payload = "ID: ${item.id}", result = "Task discarded (max retries)")
+                        } else {
+                            pendingSyncDao.update(item.copy(retryCount = nextRetry))
+                            AppLogger.room("UPDATE", "pending_sync", payload = "ID: ${item.id}, retryCount=$nextRetry", result = "Updated retry count")
+                            hasPendingFailures = true
+                        }
                     }
                 }
             }
 
-            // 2. Fetch fresh data from remote API & persist into Room DB if requested and not throttled
+            // 2. Fetch fresh data from remote API & persist into Room DB if requested and not throttled.
+            // While onboarding is in progress Room is the source of truth, so there is nothing to pull.
             val isFullRefreshRequested = inputData.getBoolean(SyncScheduler.KEY_FULL_REFRESH, false)
+            val isOnboardingComplete = sessionManager.isOnboardingComplete()
             val lastSyncTime = sessionManager.getLastSyncTime()
             val timeSinceLastSync = System.currentTimeMillis() - lastSyncTime
             val throttleWindowMs = 5 * 60 * 1000L // 5 minutes
 
-            if (isFullRefreshRequested && (lastSyncTime == 0L || timeSinceLastSync > throttleWindowMs)) {
+            if (isFullRefreshRequested && isOnboardingComplete && (lastSyncTime == 0L || timeSinceLastSync > throttleWindowMs)) {
                 AppLogger.sync("REFRESH_START", "Fetching remote data to refresh local Room database...")
                 runCatching { categoryRepo.refreshCategories() }
                 runCatching { paymentRepo.refreshAccounts() }
@@ -137,7 +147,7 @@ class SyncWorker(
             } else {
                 AppLogger.sync(
                     "REFRESH_SKIPPED",
-                    "Skipping full remote refresh (requested=$isFullRefreshRequested, lastSync=${timeSinceLastSync / 1000}s ago, throttle=${throttleWindowMs / 1000}s)"
+                    "Skipping full remote refresh (requested=$isFullRefreshRequested, onboardingComplete=$isOnboardingComplete, lastSync=${timeSinceLastSync / 1000}s ago, throttle=${throttleWindowMs / 1000}s)"
                 )
             }
 

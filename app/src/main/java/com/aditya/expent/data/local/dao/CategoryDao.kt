@@ -16,6 +16,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE LOWER(name) = LOWER(:name) AND (isDeleted = 0 OR isDeleted IS NULL) LIMIT 1")
     suspend fun getCategoryByName(name: String): CategoryEntity?
 
+    @Query("SELECT * FROM categories WHERE LOWER(name) = LOWER(:name) AND UPPER(type) = UPPER(:type) AND (isDeleted = 0 OR isDeleted IS NULL) LIMIT 1")
+    suspend fun getCategoryByNameAndType(name: String, type: String): CategoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(category: CategoryEntity)
 

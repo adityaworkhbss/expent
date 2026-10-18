@@ -2,8 +2,6 @@ package com.aditya.expent.data.repository
 
 import android.util.Log
 import com.aditya.expent.BuildConfig
-import com.aditya.expent.data.local.dao.UserDao
-import com.aditya.expent.data.mapper.toEntity
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.AuthRequestDto
 import com.aditya.expent.data.remote.dto.AuthTestRequestDto
@@ -12,8 +10,7 @@ import com.aditya.expent.domain.repository.AuthRepository
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
-    private val apiService: ApiService,
-    private val userDao: UserDao
+    private val apiService: ApiService
 ) : AuthRepository {
 
     override suspend fun loginWithGoogle(idToken: String): Result<User> {
@@ -38,10 +35,6 @@ class AuthRepositoryImpl @Inject constructor(
                 refreshToken = response.refreshToken,
                 onboardingStep = response.user.onboardingStep
             )
-
-            // Persist user to Room DB (SSOT) — only non-sensitive fields
-            userDao.insert(response.user.toEntity())
-            Log.d("AuthRepo", "User persisted to Room DB: ${user.id}")
 
             Result.success(user)
         } catch (e: Exception) {

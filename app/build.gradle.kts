@@ -36,10 +36,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        jvmToolchain(17)
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -61,6 +57,10 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.15"
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {

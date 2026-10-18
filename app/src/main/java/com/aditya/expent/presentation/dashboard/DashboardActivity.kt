@@ -1834,8 +1834,20 @@ fun AddTransactionBottomSheet(
         mutableStateOf(typeCategories.firstOrNull()?.name ?: if (isIncome) "" else "Others")
     }
 
-    // Income amount comes from the selected category's income source; expense amount is typed in
-    val resolvedAmount: Double? = if (isIncome) incomeAmounts[selectedCategory] else amountText.toDoubleOrNull()
+    // Income amount is pre-filled from the selected category's income source and stays editable
+    LaunchedEffect(selectedType, selectedCategory, incomeAmounts) {
+        if (isIncome) {
+            amountText = incomeAmounts[selectedCategory]
+                ?.toBigDecimal()?.stripTrailingZeros()?.toPlainString()
+                .orEmpty()
+        }
+    }
+    // Don't carry a pre-filled income amount over into an expense
+    LaunchedEffect(selectedType) {
+        if (!isIncome) amountText = ""
+    }
+
+    val resolvedAmount: Double? = amountText.toDoubleOrNull()
 
     // Account filtering: INCOME shows PAY_NOW only, EXPENSE shows all accounts
     val filteredAccounts = remember(accounts, selectedType) {
@@ -2081,43 +2093,32 @@ fun AddTransactionBottomSheet(
                         color = activeColor
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    if (isIncome) {
-                        Text(
-                            text = String.format("%.2f", resolvedAmount ?: 0.0),
-                            style = MaterialTheme.typography.displayMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                fontSize = 44.sp
-                            ),
+                    BasicTextField(
+                        value = amountText,
+                        onValueChange = {
+                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
+                                amountText = it
+                            }
+                        },
+                        textStyle = MaterialTheme.typography.displayMedium.copy(
+                            fontWeight = FontWeight.Black,
+                            fontSize = 44.sp,
+                            textAlign = TextAlign.Start,
                             color = MaterialTheme.colorScheme.onSurface
-                        )
-                    } else {
-                        BasicTextField(
-                            value = amountText,
-                            onValueChange = {
-                                if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
-                                    amountText = it
-                                }
-                            },
-                            textStyle = MaterialTheme.typography.displayMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                fontSize = 44.sp,
-                                textAlign = TextAlign.Start,
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Decimal
-                            ),
-                            cursorBrush = SolidColor(activeColor),
-                            modifier = Modifier
-                                .width(IntrinsicSize.Min)
-                                .defaultMinSize(minWidth = 100.dp)
-                        )
-                    }
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal
+                        ),
+                        cursorBrush = SolidColor(activeColor),
+                        modifier = Modifier
+                            .width(IntrinsicSize.Min)
+                            .defaultMinSize(minWidth = 100.dp)
+                    )
                 }
                 if (isIncome) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Based on the selected income category",
+                        text = "Pre-filled from the selected income category, tap to edit",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )

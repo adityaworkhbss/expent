@@ -160,8 +160,13 @@ class SessionManager @Inject constructor(
 
     fun setOnboardingStep(step: Int) {
         Log.d(TAG, "setOnboardingStep() called with = $step")
+        // Keep the saved user's copy in step so both reads agree
+        val updatedUserJson = getUser()?.let { gson.toJson(it.copy(onboardingStep = step)) }
         prefs.edit(commit = true) {
             putInt("onboarding_step", step)
+            if (updatedUserJson != null) {
+                putString("user_data", updatedUserJson)
+            }
             if (step >= 4) {
                 putBoolean("onboarding_complete", true)
             }

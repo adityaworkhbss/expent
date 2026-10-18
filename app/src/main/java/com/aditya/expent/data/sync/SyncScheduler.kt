@@ -31,9 +31,10 @@ class SyncScheduler @Inject constructor(
             .setInputData(workDataOf(KEY_FULL_REFRESH to true))
             .build()
 
+        // KEEP: replacing would cancel an in-flight POST and the item would be sent again on retry
         workManager.enqueueUniqueWork(
             INITIAL_SYNC_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             syncRequest
         )
     }
@@ -52,38 +53,39 @@ class SyncScheduler @Inject constructor(
         )
     }
 
-    fun enqueueCategorySync() = triggerOneTimeSync("category_sync")
-    fun enqueueTransactionSync() = triggerOneTimeSync("transaction_sync")
-    fun enqueueAccountSync() = triggerOneTimeSync("account_sync")
-    fun enqueueBudgetSync() = triggerOneTimeSync("budget_sync")
-    fun enqueueExpenseSync() = triggerOneTimeSync("expense_sync")
-    fun enqueueCustomizationSync() = triggerOneTimeSync("customization_sync")
-    fun enqueueOnboardingSync() = triggerOneTimeSync("onboarding_sync")
+    // Every push shares one unique queue: each SyncWorker drains the whole pending table,
+    // so parallel workers would POST the same items twice (e.g. categories again when accounts are pushed).
+    fun enqueueCategorySync() = triggerPushSync()
+    fun enqueueTransactionSync() = triggerPushSync()
+    fun enqueueAccountSync() = triggerPushSync()
+    fun enqueueBudgetSync() = triggerPushSync()
+    fun enqueueExpenseSync() = triggerPushSync()
+    fun enqueueCustomizationSync() = triggerPushSync()
+    fun enqueueOnboardingSync() = triggerPushSync()
 
-    private fun triggerOneTimeSync(name: String, fullRefresh: Boolean = false) {
+    private fun triggerPushSync() {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(networkConstraints)
-            .setInputData(workDataOf(KEY_FULL_REFRESH to fullRefresh))
+            .setInputData(workDataOf(KEY_FULL_REFRESH to false))
             .build()
 
+        // APPEND_OR_REPLACE runs after the in-flight push instead of cancelling it mid-request
         workManager.enqueueUniqueWork(
-            name,
-            ExistingWorkPolicy.REPLACE,
+            PUSH_SYNC_WORK_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             request
         )
     }
 
     fun cancelAllSync() {
         workManager.cancelUniqueWork(INITIAL_SYNC_WORK_NAME)
-        listOf(
-            "category_sync", "account_sync", "transaction_sync",
-            "budget_sync", "expense_sync", "customization_sync", "onboarding_sync"
-        ).forEach { workManager.cancelUniqueWork(it) }
+        workManager.cancelUniqueWork(PUSH_SYNC_WORK_NAME)
     }
 
     companion object {
         const val KEY_FULL_REFRESH = "key_full_refresh"
         const val INITIAL_SYNC_WORK_NAME = "expent_initial_sync"
         const val PERIODIC_SYNC_WORK_NAME = "expent_periodic_sync"
+        const val PUSH_SYNC_WORK_NAME = "expent_push_sync"
     }
 }

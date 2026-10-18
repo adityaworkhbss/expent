@@ -9,7 +9,6 @@ import com.aditya.expent.data.local.dao.CustomizationDao
 import com.aditya.expent.data.local.dao.ExpenseDao
 import com.aditya.expent.data.local.dao.PendingSyncDao
 import com.aditya.expent.data.local.dao.TransactionDao
-import com.aditya.expent.data.local.dao.UserDao
 import com.aditya.expent.data.local.database.ExpentDatabase
 import dagger.Module
 import dagger.Provides
@@ -61,10 +60,6 @@ object DatabaseModule {
     @Provides
     fun provideTransactionDao(database: ExpentDatabase): TransactionDao =
         database.transactionDao()
-
-    @Provides
-    fun provideUserDao(database: ExpentDatabase): UserDao =
-        database.userDao()
 
     @Provides
     fun provideCustomizationDao(database: ExpentDatabase): CustomizationDao =

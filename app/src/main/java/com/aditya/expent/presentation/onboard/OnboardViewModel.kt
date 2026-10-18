@@ -251,8 +251,7 @@ class OnboardViewModel @Inject constructor(
                     OnboardStep.FINISH -> OnboardStep.FINISH
                 }
                 if (next == OnboardStep.FINISH) {
-
-                    syncScheduler.scheduleInitialSync()
+                    // Every step already pushed its data and Room holds it, so no full refresh here
                     syncScheduler.schedulePeriodicSync()
                 }
                 _state.update { it.copy(currentStep = next) }
@@ -262,8 +261,9 @@ class OnboardViewModel @Inject constructor(
 
     suspend fun updateOnboardingStep() {
         val nextStep = sessionManager.getOnboardingStep() + 1
-        updateOnboardingCountUseCase(nextStep)
+        // Persist locally first; the API call falls back to the pending sync queue when offline
         sessionManager.setOnboardingStep(nextStep)
+        updateOnboardingCountUseCase(nextStep)
     }
 
     fun onCategoriesSelected(categories: List<OnboardCategory>) {

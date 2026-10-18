@@ -38,7 +38,15 @@ class CategoryRepositoryImpl @Inject constructor(
     override suspend fun addCategories(categories: List<OnboardCategory>) {
         val userId = sessionManager.getUser()?.id ?: return
 
-        val entities = categories.map {
+        val newCategories = categories
+            .distinctBy { "${it.name.lowercase()}-${it.type.uppercase()}" }
+            .filter { categoryDao.getCategoryByNameAndType(it.name, it.type) == null }
+        if (newCategories.isEmpty()) {
+            AppLogger.room("SKIP", "categories", "All ${categories.size} selected categories already exist", "Nothing to push")
+            return
+        }
+
+        val entities = newCategories.map {
             it.toEntity(
                 userId = userId,
                 syncStatus = SyncStatus.PENDING_CREATE
@@ -47,8 +55,7 @@ class CategoryRepositoryImpl @Inject constructor(
         categoryDao.insert(entities)
         AppLogger.room("CREATE", "categories", entities, "Inserted ${entities.size} items")
 
-        // Enqueue to PendingSyncDao so SyncWorker can push to API
-        val requests = categories.map { cat ->
+        val requests = newCategories.map { cat ->
             CategoryRequestDto(
                 name = cat.name,
                 type = cat.type,

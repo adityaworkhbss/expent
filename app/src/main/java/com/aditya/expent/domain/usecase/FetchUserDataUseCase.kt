@@ -23,8 +23,16 @@ class FetchUserDataUseCase @Inject constructor(
     private val sessionManager: SessionManager,
     private val syncScheduler: SyncScheduler
 ) {
-    suspend operator fun invoke() = coroutineScope {
-        Log.d("FetchUserDataUseCase", "Starting post-login data fetch from remote API into Room DB...")
+    suspend operator fun invoke(): Unit = coroutineScope {
+        // onboardingCount says what the user has already pushed to the server:
+        // 0 = nothing, 1 = categories, 2 = + accounts, 3 = + budgets, 4 = + EMIs (onboarding done)
+        val onboardingStep = sessionManager.getOnboardingStep()
+        Log.d("FetchUserDataUseCase", "Starting post-login data fetch for onboarding step $onboardingStep")
+
+        if (onboardingStep <= 0) {
+            Log.d("FetchUserDataUseCase", "Nothing on the server yet, skipping fetch")
+            return@coroutineScope
+        }
 
         // Cancel any in-flight sync workers to avoid concurrent writes that cause duplicates
         syncScheduler.cancelAllSync()
@@ -34,36 +42,36 @@ class FetchUserDataUseCase @Inject constructor(
             runCatching { categoryRepository.refreshCategories() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch categories", it) }
         }
-        val accountsJob = async {
+        val accountsJob = if (onboardingStep >= 2) async {
             runCatching { paymentModeRepository.refreshAccounts() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch accounts", it) }
-        }
-        val customizationJob = async {
+        } else null
+        val customizationJob = if (onboardingStep >= 4) async {
             runCatching { customizationRepository.refreshCustomization() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch customization", it) }
-        }
+        } else null
 
         categoriesJob.await()
-        accountsJob.await()
-        customizationJob.await()
+        accountsJob?.await()
+        customizationJob?.await()
 
         // 2. Fetch dependent entities that reference categories and accounts (Budgets, Expenses, Transactions)
-        val budgetsJob = async {
+        val budgetsJob = if (onboardingStep >= 3) async {
             runCatching { incomeBudgetRepository.refreshBudgets() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch budgets", it) }
-        }
-        val expensesJob = async {
+        } else null
+        val expensesJob = if (onboardingStep >= 4) async {
             runCatching { expenseAndSubscriptionRepository.refreshExpensesAndSubscriptions() }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch expenses/subscriptions", it) }
-        }
-        val transactionsJob = async {
+        } else null
+        val transactionsJob = if (onboardingStep >= 4) async {
             runCatching { transactionRepository.refreshTransactions(1, 100) }
                 .onFailure { Log.e("FetchUserDataUseCase", "Failed to fetch transactions", it) }
-        }
+        } else null
 
-        budgetsJob.await()
-        expensesJob.await()
-        transactionsJob.await()
+        budgetsJob?.await()
+        expensesJob?.await()
+        transactionsJob?.await()
 
         sessionManager.setLastSyncTime(System.currentTimeMillis())
         Log.d("FetchUserDataUseCase", "Completed post-login data fetch successfully!")

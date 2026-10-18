@@ -6,7 +6,6 @@ import com.aditya.expent.data.local.entity.CategoryEntity
 import com.aditya.expent.data.local.entity.CustomizationEntity
 import com.aditya.expent.data.local.entity.ExpenseEntity
 import com.aditya.expent.data.local.entity.TransactionEntity
-import com.aditya.expent.data.local.entity.UserEntity
 import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
@@ -15,7 +14,6 @@ import com.aditya.expent.data.remote.dto.TransactionCategoryDto
 import com.aditya.expent.data.remote.dto.TransactionAccountDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
-import com.aditya.expent.data.remote.dto.UserDto
 import com.aditya.expent.data.remote.dto.AccountDto
 import com.aditya.expent.data.local.entity.SyncStatus
 import com.aditya.expent.domain.model.OnboardCategory
@@ -180,13 +178,6 @@ fun TransactionEntity.toDomain(): Transaction =
         paymentMethod = paymentMethod
     )
 
-fun UserDto.toEntity(): UserEntity =
-    UserEntity(
-        id = id,
-        email = email,
-        name = name,
-        onboardingStep = onboardingStep
-    )
 
 fun UserCustomizationResponseDto.toEntity(): CustomizationEntity =
     CustomizationEntity(
