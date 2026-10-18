@@ -1,4 +1,4 @@
-﻿package com.aditya.expent.domain.usecase
+package com.aditya.expent.domain.usecase
 
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import javax.inject.Inject
@@ -8,9 +8,7 @@ class SaveBudgetUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         categoryId: String?,
-        periodType: String,
         amount: Double,
-        startDate: String,
-        endDate: String?
-    ) = repository.saveBudget(categoryId, periodType, amount, startDate, endDate)
+        date: Int
+    ) = repository.saveBudget(categoryId, amount, date)
 }

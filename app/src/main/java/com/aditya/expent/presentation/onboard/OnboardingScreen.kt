@@ -33,12 +33,14 @@ import androidx.compose.ui.unit.sp
 import com.aditya.expent.R
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
-import com.aditya.expent.presentation.component.ExpentDatePicker
+import com.aditya.expent.presentation.component.DayOfMonthPicker
+import com.aditya.expent.presentation.component.dayOfMonthLabel
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.utils.AppUtils
+import com.aditya.expent.utils.DayOfMonth
 import com.airbnb.lottie.compose.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,9 +125,7 @@ fun OnboardRoute(
                             incomeCategories = state.savedCategories.filter { it.type.equals("INCOME", ignoreCase = true) },
                             onSalaryAmountChange = { viewModel.onSalaryAmountChanged(it) },
                             onSalaryCategoryChange = { viewModel.onSalaryCategoryChanged(it) },
-                            onSalaryPeriodChange = { viewModel.onSalaryPeriodChanged(it) },
-                            onSalaryStartDateChange = { viewModel.onSalaryStartDateChanged(it) },
-                            onSalaryEndDateChange = { viewModel.onSalaryEndDateChanged(it) },
+                            onSalaryDateChange = { viewModel.onSalaryDateChanged(it) },
                             onCustomIncomesChange = { viewModel.onCustomIncomesChanged(it) },
                             onNext = { viewModel.nextStep() }
                         )
@@ -765,19 +765,15 @@ fun IncomingStep(
     incomeCategories: List<OnboardCategory>,
     onSalaryAmountChange: (String) -> Unit,
     onSalaryCategoryChange: (String?) -> Unit,
-    onSalaryPeriodChange: (String) -> Unit,
-    onSalaryStartDateChange: (String) -> Unit,
-    onSalaryEndDateChange: (String) -> Unit,
+    onSalaryDateChange: (Int) -> Unit,
     onCustomIncomesChange: (List<RecurringIncome>) -> Unit,
     onNext: () -> Unit
 ) {
-    var newIncomeName by remember { mutableStateOf("") }
     var newIncomeAmount by remember { mutableStateOf("") }
     var newIncomeCategory by remember { mutableStateOf<String?>(null) }
-    var newIncomePeriod by remember { mutableStateOf("MONTHLY") }
-    var newIncomeStartDate by remember { mutableStateOf("") }
-    
-    var showSalaryStartDatePicker by remember { mutableStateOf(false) }
+    var newIncomeDate by remember { mutableStateOf<Int?>(null) }
+
+    var showSalaryDatePicker by remember { mutableStateOf(false) }
     var showNewIncomeDatePicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(incomeCategories) {
@@ -843,40 +839,6 @@ fun IncomingStep(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Frequency:", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("WEEKLY", "MONTHLY").forEach { period ->
-                        val isSel = salary.periodType == period
-                        Surface(
-                            onClick = { onSalaryPeriodChange(period) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                        ) {
-                            Text(
-                                text = period.lowercase().replaceFirstChar { it.uppercase() },
-                                modifier = Modifier.padding(vertical = 10.dp),
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 Text("Salary Category:", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -918,15 +880,15 @@ fun IncomingStep(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = salary.startDate,
+                    value = dayOfMonthLabel(salary.date),
                     onValueChange = { },
-                    label = { Text("Start Date") },
+                    label = { Text("Credited on") },
                     readOnly = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     trailingIcon = {
-                        IconButton(onClick = { showSalaryStartDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                        IconButton(onClick = { showSalaryDatePicker = true }) {
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Day", tint = EmeraldPrimary)
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -935,12 +897,14 @@ fun IncomingStep(
                     )
                 )
 
-                ExpentDatePicker(
-                    showDialog = showSalaryStartDatePicker,
-                    onDismiss = { showSalaryStartDatePicker = false },
-                    onDateSelected = {
-                        onSalaryStartDateChange(it)
-                        showSalaryStartDatePicker = false
+                DayOfMonthPicker(
+                    showDialog = showSalaryDatePicker,
+                    selectedDay = salary.date,
+                    accentColor = EmeraldPrimary,
+                    onDismiss = { showSalaryDatePicker = false },
+                    onDaySelected = {
+                        onSalaryDateChange(it)
+                        showSalaryDatePicker = false
                     }
                 )
             }
@@ -988,7 +952,7 @@ fun IncomingStep(
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = customIncome.periodType.lowercase().replaceFirstChar { it.uppercase() },
+                            text = "Credited on ${dayOfMonthLabel(customIncome.date)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1022,63 +986,21 @@ fun IncomingStep(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = newIncomeName,
-                        onValueChange = { newIncomeName = it },
-                        placeholder = { Text("Source e.g., Rent") },
-                        modifier = Modifier.weight(1.4f),
-                        shape = RoundedCornerShape(14.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EmeraldPrimary,
-                            focusedLabelColor = EmeraldPrimary
-                        )
+                // The category is the income's name, so there is no separate name field
+                OutlinedTextField(
+                    value = newIncomeAmount,
+                    onValueChange = { newIncomeAmount = it },
+                    placeholder = { Text("Amount") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldPrimary,
+                        focusedLabelColor = EmeraldPrimary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = newIncomeAmount,
-                        onValueChange = { newIncomeAmount = it },
-                        placeholder = { Text("Amount") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EmeraldPrimary,
-                            focusedLabelColor = EmeraldPrimary
-                        )
-                    )
-                }
+                )
                 
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("WEEKLY", "MONTHLY").forEach { period ->
-                        val isSel = newIncomePeriod == period
-                        Surface(
-                            onClick = { newIncomePeriod = period },
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSel) EmeraldPrimary else Color.Transparent,
-                                    shape = RoundedCornerShape(12.dp)
-                                ),
-                            color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                        ) {
-                            Text(
-                                text = period.lowercase().replaceFirstChar { it.uppercase() },
-                                modifier = Modifier.padding(vertical = 8.dp),
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text("Category:", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
@@ -1123,15 +1045,15 @@ fun IncomingStep(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 OutlinedTextField(
-                    value = newIncomeStartDate,
+                    value = dayOfMonthLabel(newIncomeDate),
                     onValueChange = { },
-                    placeholder = { Text("Start Date") },
+                    placeholder = { Text("Credited on (day)") },
                     readOnly = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     trailingIcon = {
                         IconButton(onClick = { showNewIncomeDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Day", tint = EmeraldPrimary)
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1140,36 +1062,38 @@ fun IncomingStep(
                     )
                 )
 
-                ExpentDatePicker(
+                DayOfMonthPicker(
                     showDialog = showNewIncomeDatePicker,
+                    selectedDay = newIncomeDate,
+                    accentColor = EmeraldPrimary,
                     onDismiss = { showNewIncomeDatePicker = false },
-                    onDateSelected = {
-                        newIncomeStartDate = it
+                    onDaySelected = {
+                        newIncomeDate = it
                         showNewIncomeDatePicker = false
                     }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                val newIncomeCategoryItem = incomeCategories.firstOrNull { it.id == newIncomeCategory }
+                val canAddIncome = newIncomeCategoryItem != null && newIncomeAmount.isNotBlank() && newIncomeDate != null
                 Button(
                     onClick = {
-                        if (newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank() && newIncomeStartDate.isNotBlank()) {
+                        if (newIncomeCategoryItem != null && canAddIncome) {
                             onCustomIncomesChange(customIncomes + RecurringIncome(
-                                name = newIncomeName.trim(),
+                                name = newIncomeCategoryItem.name,
                                 amount = newIncomeAmount.trim(),
-                                periodType = newIncomePeriod,
-                                startDate = newIncomeStartDate,
-                                categoryId = newIncomeCategory
+                                categoryId = newIncomeCategoryItem.id,
+                                date = newIncomeDate
                             ))
-                            newIncomeName = ""
                             newIncomeAmount = ""
-                            newIncomeStartDate = ""
+                            newIncomeDate = null
                             newIncomeCategory = null
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(14.dp),
-                    enabled = newIncomeName.isNotBlank() && newIncomeAmount.isNotBlank() && newIncomeStartDate.isNotBlank(),
+                    enabled = canAddIncome,
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
@@ -1188,7 +1112,7 @@ fun IncomingStep(
                 .height(56.dp)
                 .padding(bottom = 8.dp),
             shape = RoundedCornerShape(16.dp),
-            enabled = salary.amount.isNotBlank() && salary.startDate.isNotBlank(),
+            enabled = salary.amount.isNotBlank() && salary.date != null,
             colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
         ) {
             Text("Continue", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
@@ -1214,12 +1138,12 @@ fun OutgoingStep(
     var emiAmount by remember { mutableStateOf("") }
     var emiTotalMonths by remember { mutableStateOf("") }
     var emiMonthsPaid by remember { mutableStateOf("") }
-    var emiStartDate by remember { mutableStateOf("") }
+    var emiDate by remember { mutableStateOf<Int?>(null) }
     var showEmiDatePicker by remember { mutableStateOf(false) }
 
     var subName by remember { mutableStateOf("") }
     var subAmount by remember { mutableStateOf("") }
-    var subDate by remember { mutableStateOf("") }
+    var subDate by remember { mutableStateOf<Int?>(null) }
     var showSubDatePicker by remember { mutableStateOf(false) }
 
     Column(
@@ -1306,7 +1230,7 @@ fun OutgoingStep(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Started: ${emi.startDate}",
+                            text = "Due: ${emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty()}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1416,15 +1340,15 @@ fun OutgoingStep(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 OutlinedTextField(
-                    value = emiStartDate,
+                    value = dayOfMonthLabel(emiDate),
                     onValueChange = { },
-                    placeholder = { Text("Start Date") },
+                    placeholder = { Text("Due on (day)") },
                     readOnly = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     trailingIcon = {
                         IconButton(onClick = { showEmiDatePicker = true }) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                            Icon(Icons.Default.DateRange, contentDescription = "Select Day", tint = EmeraldPrimary)
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1432,33 +1356,38 @@ fun OutgoingStep(
                         focusedLabelColor = EmeraldPrimary
                     )
                 )
-                
-                ExpentDatePicker(
+
+                DayOfMonthPicker(
                     showDialog = showEmiDatePicker,
+                    selectedDay = emiDate,
+                    accentColor = EmeraldPrimary,
                     onDismiss = { showEmiDatePicker = false },
-                    onDateSelected = {
-                        emiStartDate = it
+                    onDaySelected = {
+                        emiDate = it
                         showEmiDatePicker = false
                     }
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
-                
+
+                // An EMI needs a tenure; something that never ends belongs under subscriptions
+                val canAddEmi = emiName.isNotBlank() && emiAmount.isNotBlank() &&
+                    (emiTotalMonths.toIntOrNull() ?: 0) > 0 && emiMonthsPaid.isNotBlank() && emiDate != null
                 Button(
                     onClick = {
-                        if (emiName.isNotBlank() && emiAmount.isNotBlank() && emiTotalMonths.isNotBlank() && emiMonthsPaid.isNotBlank() && emiStartDate.isNotBlank()) {
-                            onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(),emiStartDate.trim()))
+                        if (canAddEmi) {
+                            onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(), emiDate))
                             emiName = ""
                             emiAmount = ""
                             emiTotalMonths = ""
                             emiMonthsPaid = ""
-                            emiStartDate = ""
+                            emiDate = null
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
-                    enabled = emiName.isNotBlank() && emiAmount.isNotBlank() && emiTotalMonths.isNotBlank() && emiMonthsPaid.isNotBlank() && emiStartDate.isNotBlank()
+                    enabled = canAddEmi
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1506,7 +1435,7 @@ fun OutgoingStep(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(sub.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            text = "Billing date: ${sub.billingDate} of every month", 
+                            text = "Billing on ${dayOfMonthLabel(sub.date)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1570,9 +1499,9 @@ fun OutgoingStep(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     OutlinedTextField(
-                        value = subDate,
+                        value = subDate?.let { DayOfMonth.withSuffix(it) }.orEmpty(),
                         onValueChange = { },
-                        placeholder = { Text("Billing Date") },
+                        placeholder = { Text("Billing day") },
                         readOnly = true,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
@@ -1589,30 +1518,33 @@ fun OutgoingStep(
                     )
                 }
                 
-                ExpentDatePicker(
+                DayOfMonthPicker(
                     showDialog = showSubDatePicker,
+                    selectedDay = subDate,
+                    accentColor = EmeraldPrimary,
                     onDismiss = { showSubDatePicker = false },
-                    onDateSelected = {
+                    onDaySelected = {
                         subDate = it
                         showSubDatePicker = false
                     }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
+                val canAddSubscription = subName.isNotBlank() && subAmount.isNotBlank() && subDate != null
                 Button(
                     onClick = {
-                        if (subName.isNotBlank() && subAmount.isNotBlank() && subDate.isNotBlank()) {
-                            onSubscriptionsChange(subscriptions + Subscription(subName.trim(), subAmount.trim(), subDate.trim()))
+                        if (canAddSubscription) {
+                            onSubscriptionsChange(subscriptions + Subscription(subName.trim(), subAmount.trim(), subDate))
                             subName = ""
                             subAmount = ""
-                            subDate = ""
+                            subDate = null
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
-                    enabled = subName.isNotBlank() && subAmount.isNotBlank() && subDate.isNotBlank()
+                    enabled = canAddSubscription
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1791,16 +1723,14 @@ fun IncomingStepPreview() {
     ExpentTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             IncomingStep(
-                salary = RecurringIncome(name = "Salary", amount = "5000", startDate = "01/01/2023"),
+                salary = RecurringIncome(name = "Salary", amount = "5000", date = 1),
                 customIncomes = listOf(
-                    RecurringIncome(name = "Freelance", amount = "1500", startDate = "01/01/2023")
+                    RecurringIncome(name = "Freelance", amount = "1500", date = 10)
                 ),
                 incomeCategories = listOf(OnboardCategory("Salary", "INCOME")),
                 onSalaryAmountChange = {},
                 onSalaryCategoryChange = {},
-                onSalaryPeriodChange = {},
-                onSalaryStartDateChange = {},
-                onSalaryEndDateChange = {},
+                onSalaryDateChange = {},
                 onCustomIncomesChange = {},
                 onNext = {}
             )
@@ -1816,8 +1746,8 @@ fun OutgoingStepPreview() {
             OutgoingStep(
                 creditCardBill = "200",
                 nextMonthPendingPayment = "150",
-                recurringExpenses = listOf(RecurringExpense("Car Loan", "300", "48", "12", "01/01/2023")),
-                subscriptions = listOf(Subscription("Netflix", "15", "12th")),
+                recurringExpenses = listOf(RecurringExpense("Car Loan", "300", "48", "12", 5)),
+                subscriptions = listOf(Subscription("Netflix", "15", 12)),
                 onCreditCardBillChange = {},
                 onNextMonthPendingPaymentChange = {},
                 onRecurringExpensesChange = {},

@@ -2,9 +2,9 @@ package com.aditya.expent.presentation.cashflow
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.domain.model.Budget
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
-import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
+import com.aditya.expent.domain.model.Expense
 import com.aditya.expent.domain.usecase.GetBudgetUseCase
 import com.aditya.expent.domain.usecase.DeleteBudgetUseCase
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
@@ -24,8 +24,8 @@ import javax.inject.Inject
 
 data class BudgetUiState(
     val isLoading: Boolean = false,
-    val budgets: List<BudgetResponseDto> = emptyList(),
-    val expense: List<ExpenseIncomeResponseDto> = emptyList(),
+    val budgets: List<Budget> = emptyList(),
+    val expense: List<Expense> = emptyList(),
     val categories: List<CategoryResponseDto> = emptyList(),
     val error: String? = null
 )
@@ -126,14 +126,12 @@ class CashflowViewModel @Inject constructor(
     fun updateBudget(
         id: String,
         categoryId: String?,
-        periodType: String,
         amount: Double,
-        startDate: String,
-        endDate: String?
+        date: Int
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            runCatching { updateBudgetUseCase(id, categoryId, periodType, amount, startDate, endDate) }
+            runCatching { updateBudgetUseCase(id, categoryId, amount, date) }
                 .onSuccess {
                     _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
@@ -148,14 +146,12 @@ class CashflowViewModel @Inject constructor(
 
     fun saveBudget(
         categoryId: String?,
-        periodType: String,
         amount: Double,
-        startDate: String,
-        endDate: String?
+        date: Int
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            runCatching { saveBudgetUseCase(categoryId, periodType, amount, startDate, endDate) }
+            runCatching { saveBudgetUseCase(categoryId, amount, date) }
                 .onSuccess {
                     _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
@@ -184,18 +180,18 @@ class CashflowViewModel @Inject constructor(
         }
     }
 
+    /** [tenure] null = every month (subscription). */
     fun updateEmi(
         id: String,
-        type: String,
         name: String,
-        amount: String,
-        startDate: String,
-        tenure: String? = null,
-        monthsPaid: String? = null
+        amount: Double,
+        date: Int,
+        tenure: Int?,
+        paid: Int
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            runCatching { updateEmiUseCase(id, type, name, amount, startDate, tenure, monthsPaid) }
+            runCatching { updateEmiUseCase(id, name, amount, date, tenure, paid) }
                 .onSuccess {
                     _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
@@ -208,17 +204,17 @@ class CashflowViewModel @Inject constructor(
         }
     }
 
+    /** [tenure] null = every month (subscription). */
     fun saveEmi(
-        type: String,
         name: String,
-        amount: String,
-        startDate: String,
-        tenure: String? = null,
-        monthsPaid: String? = null
+        amount: Double,
+        date: Int,
+        tenure: Int?,
+        paid: Int
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            runCatching { saveEmiUseCase(type, name, amount, startDate, tenure, monthsPaid) }
+            runCatching { saveEmiUseCase(name, amount, date, tenure, paid) }
                 .onSuccess {
                     _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }

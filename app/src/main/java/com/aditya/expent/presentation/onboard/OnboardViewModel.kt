@@ -9,7 +9,6 @@ import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
-import com.aditya.expent.domain.usecase.SaveBudgetUseCase
 import com.aditya.expent.domain.usecase.SaveExpensesAndSubscriptionsUseCase
 import com.aditya.expent.domain.usecase.SaveIncomeBudgetUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
@@ -34,20 +33,21 @@ enum class OnboardStep(val index: Int) {
     FINISH(-1)
 }
 
+// Form models for recurring monthly items. `date` is the day of the month (1-31), null until picked.
+
 data class RecurringExpense(
     val name: String,
     val amount: String,
     val totalMonths: String,
     val monthsPaid: String,
-    val startDate: String,
-    val id : String? = null,
-    val endDate: String? = null
+    val date: Int?,
+    val id: String? = null
 )
 
 data class Subscription(
     val name: String,
     val amount: String,
-    val billingDate: String,
+    val date: Int?,
     val id: String? = null
 )
 
@@ -55,9 +55,7 @@ data class RecurringIncome(
     val name: String = "",
     val amount: String = "",
     val categoryId: String? = null,
-    val periodType: String = "MONTHLY",
-    val startDate: String = "",
-    val endDate: String = ""
+    val date: Int? = null
 )
 
 data class OnboardState(
@@ -70,11 +68,6 @@ data class OnboardState(
     val recurringExpenses: List<RecurringExpense> = emptyList(),
     val subscriptions: List<Subscription> = emptyList(),
     val paymentModes: List<OnboardPaymentMode> = emptyList(),
-    val budgetLimit: String = "",
-    val budgetPeriod: String = "MONTHLY",
-    val budgetCategoryId: String? = null,
-    val budgetStartDate: String = "",
-    val budgetEndDate: String = "",
     val availableCategories: List<OnboardCategory> = listOf(
         OnboardCategory("Food & Dining", "EXPENSE"),
         OnboardCategory("Transportation", "EXPENSE"),
@@ -282,16 +275,8 @@ class OnboardViewModel @Inject constructor(
         _state.update { it.copy(salary = it.salary.copy(categoryId = categoryId)) }
     }
 
-    fun onSalaryPeriodChanged(period: String) {
-        _state.update { it.copy(salary = it.salary.copy(periodType = period)) }
-    }
-
-    fun onSalaryStartDateChanged(date: String) {
-        _state.update { it.copy(salary = it.salary.copy(startDate = date)) }
-    }
-
-    fun onSalaryEndDateChanged(date: String) {
-        _state.update { it.copy(salary = it.salary.copy(endDate = date)) }
+    fun onSalaryDateChanged(day: Int) {
+        _state.update { it.copy(salary = it.salary.copy(date = day)) }
     }
 
     fun onCustomIncomesChanged(incomes: List<RecurringIncome>) {

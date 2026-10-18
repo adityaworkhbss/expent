@@ -1,21 +1,21 @@
 package com.aditya.expent.data.repository
 
-import android.util.Log
 import com.aditya.expent.data.local.dao.ExpenseDao
 import com.aditya.expent.data.local.dao.PendingSyncDao
 import com.aditya.expent.data.local.entity.ExpenseEntity
 import com.aditya.expent.data.local.entity.PendingSyncEntity
 import com.aditya.expent.data.local.entity.SyncStatus
-import com.aditya.expent.data.mapper.toDto
+import com.aditya.expent.data.mapper.toDomain
 import com.aditya.expent.data.mapper.toEntity
+import com.aditya.expent.data.mapper.toRequest
 import com.aditya.expent.data.remote.ApiService
-import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
-import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import com.aditya.expent.data.sync.SyncScheduler
+import com.aditya.expent.domain.model.Expense
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
 import com.aditya.expent.utils.AppLogger
+import com.aditya.expent.utils.DayOfMonth
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
@@ -35,9 +35,9 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
     private val gson: Gson
 ) : ExpenseAndSubscriptionRepository {
 
-    override fun getExpensesAndSubscription(): Flow<List<ExpenseIncomeResponseDto>> {
+    override fun getExpensesAndSubscription(): Flow<List<Expense>> {
         return expenseDao.getExpenses().map { entities ->
-            entities.map { it.toDto() }
+            entities.map { it.toDomain() }
         }
     }
 
@@ -45,77 +45,30 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         expenses: List<RecurringExpense>,
         subscriptions: List<Subscription>
     ) {
-        val userId = sessionManager.getUser()?.id.orEmpty()
-        val now = nowIso()
-
         val entities = expenses.map { expense ->
-            ExpenseEntity(
-                id = "local-${UUID.randomUUID()}",
-                userId = userId,
-                accountId = null,
-                transactionId = null,
+            newEntity(
                 name = expense.name,
-                principal = expense.amount,
-                tenure = expense.totalMonths.toIntOrNull() ?: 0,
-                monthlyEmi = expense.amount,
-                startDate = expense.startDate,
-                endDate = null,
-                nextDueDate = expense.startDate,
-                remainingBalance = expense.amount,
-                monthsPaid = expense.monthsPaid.toIntOrNull() ?: 0,
-                active = true,
-                createdAt = now,
-                updatedAt = now,
-                accountName = null,
-                syncStatus = SyncStatus.PENDING_CREATE,
-                isDeleted = false
+                amount = expense.amount.toDoubleOrNull() ?: 0.0,
+                date = expense.date ?: DayOfMonth.today(),
+                tenure = expense.totalMonths.toIntOrNull()?.takeIf { it > 0 },
+                paid = expense.monthsPaid.toIntOrNull() ?: 0
             )
         } + subscriptions.map { subscription ->
-            ExpenseEntity(
-                id = "local-${UUID.randomUUID()}",
-                userId = userId,
-                accountId = null,
-                transactionId = null,
+            newEntity(
                 name = subscription.name,
-                principal = subscription.amount,
-                tenure = 0,
-                monthlyEmi = subscription.amount,
-                startDate = subscription.billingDate,
-                endDate = null,
-                nextDueDate = subscription.billingDate,
-                remainingBalance = subscription.amount,
-                monthsPaid = 0,
-                active = true,
-                createdAt = now,
-                updatedAt = now,
-                accountName = null,
-                syncStatus = SyncStatus.PENDING_CREATE,
-                isDeleted = false
+                amount = subscription.amount.toDoubleOrNull() ?: 0.0,
+                date = subscription.date ?: DayOfMonth.today(),
+                tenure = null,
+                paid = 0
             )
         }
+        if (entities.isEmpty()) return
 
         expenseDao.insert(entities)
         AppLogger.room("CREATE", "expenses", entities, "Inserted ${entities.size} expenses & subscriptions")
 
-        val requests = expenses.map { expense ->
-            ExpenseIncomeRequestDto(
-                type = "expense",
-                name = expense.name,
-                amount = expense.amount,
-                startDate = expense.startDate,
-                tenure = expense.totalMonths,
-                monthsPaid = expense.monthsPaid
-            )
-        } + subscriptions.map { subscription ->
-            ExpenseIncomeRequestDto(
-                type = "subscription",
-                name = subscription.name,
-                amount = subscription.amount,
-                startDate = subscription.billingDate
-            )
-        }
-
-        val localIds = entities.map { it.id }.joinToString(",")
+        val requests = entities.map { it.toRequest() }
+        val localIds = entities.joinToString(",") { it.id }
         enqueueSync("emi", "CREATE", gson.toJson(requests), localIds)
         syncScheduler.enqueueExpenseSync()
     }
@@ -129,90 +82,48 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             )
         )
         AppLogger.room("UPDATE", "expenses", "ID=$id, isDeleted=true", "Marked deleted")
-        
+
         enqueueSync("emi", "DELETE", id, id)
         syncScheduler.enqueueExpenseSync()
     }
 
     override suspend fun updateEmi(
         id: String,
-        type: String,
         name: String,
-        amount: String,
-        startDate: String,
-        tenure: String?,
-        monthsPaid: String?
+        amount: Double,
+        date: Int,
+        tenure: Int?,
+        paid: Int
     ) {
         val expense = expenseDao.getExpense(id) ?: return
         val updated = expense.copy(
             name = name,
-            principal = amount,
-            monthlyEmi = amount,
-            startDate = startDate,
-            tenure = tenure?.toIntOrNull() ?: expense.tenure,
-            monthsPaid = monthsPaid?.toIntOrNull() ?: expense.monthsPaid,
+            amount = amount,
+            date = date.coerceIn(DayOfMonth.MIN, DayOfMonth.MAX),
+            tenure = tenure?.takeIf { it > 0 },
+            paid = if (tenure == null) 0 else paid,
             updatedAt = nowIso(),
             syncStatus = SyncStatus.PENDING_UPDATE
         )
         expenseDao.update(updated)
         AppLogger.room("UPDATE", "expenses", updated, "Updated EMI/expense $id")
 
-        val request = ExpenseIncomeRequestDto(
-            type = type,
-            name = name,
-            amount = amount,
-            startDate = startDate,
-            tenure = tenure,
-            monthsPaid = monthsPaid
-        )
-        enqueueSync("emi", "UPDATE", gson.toJson(mapOf("id" to id, "request" to request)), id)
+        enqueueSync("emi", "UPDATE", gson.toJson(mapOf("id" to id, "request" to updated.toRequest())), id)
         syncScheduler.enqueueExpenseSync()
     }
 
     override suspend fun saveEmi(
-        type: String,
         name: String,
-        amount: String,
-        startDate: String,
-        tenure: String?,
-        monthsPaid: String?
+        amount: Double,
+        date: Int,
+        tenure: Int?,
+        paid: Int
     ) {
-        val userId = sessionManager.getUser()?.id.orEmpty()
-        val now = nowIso()
-
-        val entity = ExpenseEntity(
-            id = "local-${UUID.randomUUID()}",
-            userId = userId,
-            accountId = null,
-            transactionId = null,
-            name = name,
-            principal = amount,
-            tenure = tenure?.toIntOrNull() ?: 0,
-            monthlyEmi = amount,
-            startDate = startDate,
-            endDate = null,
-            nextDueDate = startDate,
-            remainingBalance = amount,
-            monthsPaid = monthsPaid?.toIntOrNull() ?: 0,
-            active = true,
-            createdAt = now,
-            updatedAt = now,
-            accountName = null,
-            syncStatus = SyncStatus.PENDING_CREATE,
-            isDeleted = false
-        )
+        val entity = newEntity(name, amount, date, tenure?.takeIf { it > 0 }, paid)
         expenseDao.insert(entity)
         AppLogger.room("CREATE", "expenses", entity, "Inserted EMI/expense ${entity.id}")
 
-        val request = ExpenseIncomeRequestDto(
-            type = type,
-            name = name,
-            amount = amount,
-            startDate = startDate,
-            tenure = tenure,
-            monthsPaid = monthsPaid
-        )
-        enqueueSync("emi", "CREATE", gson.toJson(listOf(request)), entity.id)
+        enqueueSync("emi", "CREATE", gson.toJson(listOf(entity.toRequest())), entity.id)
         syncScheduler.enqueueExpenseSync()
     }
 
@@ -225,6 +136,28 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             AppLogger.apiError("GET", "expenses", e.message, throwable = e)
         }
+    }
+
+    private suspend fun newEntity(
+        name: String,
+        amount: Double,
+        date: Int,
+        tenure: Int?,
+        paid: Int
+    ): ExpenseEntity {
+        val now = nowIso()
+        return ExpenseEntity(
+            id = "local-${UUID.randomUUID()}",
+            userId = sessionManager.getUser()?.id.orEmpty(),
+            name = name,
+            amount = amount,
+            date = date.coerceIn(DayOfMonth.MIN, DayOfMonth.MAX),
+            tenure = tenure,
+            paid = if (tenure == null) 0 else paid,
+            createdAt = now,
+            updatedAt = now,
+            syncStatus = SyncStatus.PENDING_CREATE
+        )
     }
 
     private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
@@ -240,5 +173,5 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
     }
 
     private fun nowIso(): String =
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date())
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(Date())
 }

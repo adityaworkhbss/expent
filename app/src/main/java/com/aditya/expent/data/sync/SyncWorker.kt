@@ -14,6 +14,7 @@ import com.aditya.expent.data.local.dao.TransactionDao
 import com.aditya.expent.data.local.entity.PendingSyncEntity
 import com.aditya.expent.data.local.entity.SyncStatus
 import com.aditya.expent.data.mapper.toEntity
+import com.aditya.expent.data.mapper.toRequest
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.BudgetRequestDto
 import com.aditya.expent.data.remote.dto.CategoryRequestDto
@@ -175,6 +176,19 @@ class SyncWorker(
         }
     }
 
+    private fun PendingSyncEntity.localIds(): List<String> =
+        entityId.split(",").map { it.trim() }.filter { it.isNotBlank() }
+
+    // UPDATE payloads are {"id": ..., "request": ...}; the row itself is re-read from Room
+    private fun updateTargetId(item: PendingSyncEntity, gson: Gson): String =
+        runCatching { gson.fromJson(item.payload, Map::class.java)["id"] as? String }.getOrNull()
+            ?: item.entityId
+
+    // Fallback for items queued before rows were re-read from Room
+    private inline fun <reified T> parseList(payload: String, gson: Gson): List<T> =
+        runCatching { gson.fromJson<List<T>>(payload, object : TypeToken<List<T>>() {}.type) }
+            .getOrElse { listOf(gson.fromJson(payload, T::class.java)) }
+
     private suspend fun processPendingItem(
         item: PendingSyncEntity,
         apiService: ApiService,
@@ -198,14 +212,25 @@ class SyncWorker(
                     }
                     val created = apiService.createCategories(list)
                     afterRemoteSuccess(item) {
+                        val localIds = item.localIds()
+                        val localCategories = localIds.mapNotNull { entryPoint.categoryDao().getCategory(it) }
                         // Delete local pending entities before inserting server-returned ones
-                        item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
+                        localIds.forEach { localId ->
                             entryPoint.categoryDao().deleteById(localId)
                             AppLogger.room("DELETE", "categories", payload = "LocalID: $localId", result = "Removed pending local entity")
                         }
                         val entities = created.data.orEmpty().map { it.toEntity(userId ?: it.userId, SyncStatus.SYNCED) }
                         entryPoint.categoryDao().insert(entities)
                         AppLogger.room("CREATE", "categories", payload = entities, result = "Inserted ${entities.size} categories")
+
+                        // Budgets / expenses saved offline still point at the local-* id; move them to the server id
+                        localCategories.forEach { local ->
+                            val server = entities.firstOrNull {
+                                it.name.equals(local.name, ignoreCase = true) && it.type.equals(local.type, ignoreCase = true)
+                            } ?: return@forEach
+                            entryPoint.budgetDao().updateCategoryId(local.id, server.id)
+                            entryPoint.expenseDao().updateCategoryId(local.id, server.id)
+                        }
                     }
                 }
                 true
@@ -248,64 +273,48 @@ class SyncWorker(
                         AppLogger.room("DELETE", "budgets", payload = "ID: ${item.payload}", result = "Success")
                     }
                     "UPDATE" -> {
-                        val updateMap = gson.fromJson(item.payload, Map::class.java)
-                        val id = updateMap["id"] as? String ?: item.entityId
-                        val categoryId = updateMap["categoryId"] as? String
-                        val periodType = updateMap["periodType"] as? String ?: "MONTHLY"
-                        val amount = (updateMap["amount"] as? Number)?.toDouble()
-                            ?: (updateMap["amount"] as? String)?.toDoubleOrNull()
-                            ?: 0.0
-                        val startDate = updateMap["startDate"] as? String
-                        val endDate = updateMap["endDate"] as? String
-
-                        val request = BudgetRequestDto(
-                            categoryId = categoryId,
-                            periodType = periodType,
-                            limitAmount = amount,
-                            startDate = startDate,
-                            endDate = endDate
-                        )
-
-                        if (id.startsWith("local-")) {
-                            val created = apiService.saveBudgets(listOf(request))
-                            entryPoint.budgetDao().deleteById(id)
-                            val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
-                            entryPoint.budgetDao().insert(entities)
-                            AppLogger.room("CREATE", "budgets", payload = entities, result = "Swapped local $id with server budget")
-                        } else {
-                            val updated = apiService.updateBudget(id, request)
-                            val entity = updated.data?.toEntity(SyncStatus.SYNCED)
-                            if (entity != null) {
-                                entryPoint.budgetDao().insert(entity)
-                                AppLogger.room("UPDATE", "budgets", payload = entity, result = "Updated budget $id")
+                        val id = updateTargetId(item, gson)
+                        // A local-* row hasn't been created yet; its pending CREATE sends the latest row
+                        if (!id.startsWith("local-")) {
+                            val budget = entryPoint.budgetDao().getBudget(id)
+                            if (budget != null && !budget.isDeleted) {
+                                val updated = apiService.updateBudget(id, budget.toRequest())
+                                afterRemoteSuccess(item) {
+                                    val entity = updated.data?.toEntity(SyncStatus.SYNCED)
+                                        ?.let { it.copy(categoryName = it.categoryName ?: budget.categoryName) }
+                                    if (entity != null) {
+                                        entryPoint.budgetDao().insert(entity)
+                                        AppLogger.room("UPDATE", "budgets", payload = entity, result = "Updated budget $id")
+                                    }
+                                }
                             }
                         }
                     }
                     else -> {
-                        val type = object : TypeToken<List<BudgetRequestDto>>() {}.type
-                        val rawList: List<BudgetRequestDto> = runCatching {
-                            gson.fromJson<List<BudgetRequestDto>>(item.payload, type)
-                        }.getOrElse {
-                            listOf(gson.fromJson(item.payload, BudgetRequestDto::class.java))
+                        // Send the rows as they are now (edits made offline, server category ids), skipping deleted ones
+                        val localIds = item.localIds()
+                        val budgets = localIds.mapNotNull { entryPoint.budgetDao().getBudget(it) }.filterNot { it.isDeleted }
+                        val list = if (localIds.isEmpty()) {
+                            parseList<BudgetRequestDto>(item.payload, gson)
+                        } else {
+                            budgets.map { it.toRequest() }
                         }
-                        // Resolve any local-* categoryIds to real server IDs
-                        val list = rawList.map { req ->
-                            val catId = req.categoryId
-                            if (catId != null && catId.startsWith("local-")) {
-                                val serverCat = entryPoint.categoryDao().getCategory(catId)
-                                req.copy(categoryId = serverCat?.id ?: catId)
-                            } else req
-                        }
-                        val created = apiService.saveBudgets(list)
-                        afterRemoteSuccess(item) {
-                            // Delete all local pending entities (entityId may be comma-separated)
-                            item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
-                                entryPoint.budgetDao().deleteById(localId)
-                                AppLogger.room("DELETE", "budgets", payload = "LocalID: $localId", result = "Removed pending local entity")
+                        if (list.isNotEmpty()) {
+                            val created = apiService.saveBudgets(list)
+                            afterRemoteSuccess(item) {
+                                localIds.forEach { localId ->
+                                    entryPoint.budgetDao().deleteById(localId)
+                                    AppLogger.room("DELETE", "budgets", payload = "LocalID: $localId", result = "Removed pending local entity")
+                                }
+                                val entities = created.data.orEmpty().mapIndexed { index, dto ->
+                                    val entity = dto.toEntity(SyncStatus.SYNCED)
+                                    entity.copy(categoryName = entity.categoryName ?: budgets.getOrNull(index)?.categoryName)
+                                }
+                                entryPoint.budgetDao().insert(entities)
+                                AppLogger.room("CREATE", "budgets", payload = entities, result = "Inserted ${entities.size} budgets")
                             }
-                            val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
-                            entryPoint.budgetDao().insert(entities)
-                            AppLogger.room("CREATE", "budgets", payload = entities, result = "Inserted ${entities.size} budgets")
+                        } else {
+                            localIds.forEach { entryPoint.budgetDao().deleteById(it) }
                         }
                     }
                 }
@@ -322,43 +331,45 @@ class SyncWorker(
                         AppLogger.room("DELETE", "expenses", payload = "ID: ${item.payload}", result = "Success")
                     }
                     "UPDATE" -> {
-                        val updateMap = gson.fromJson(item.payload, Map::class.java)
-                        val id = updateMap["id"] as? String ?: item.entityId
-                        val requestJson = gson.toJson(updateMap["request"])
-                        val request = gson.fromJson(requestJson, ExpenseIncomeRequestDto::class.java)
-
-                        if (id.startsWith("local-")) {
-                            val created = apiService.saveExpensesAndSubscriptions(listOf(request))
-                            entryPoint.expenseDao().deleteById(id)
-                            val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
-                            entryPoint.expenseDao().insert(entities)
-                            AppLogger.room("CREATE", "expenses", payload = entities, result = "Swapped local $id with server EMI")
-                        } else {
-                            val updated = apiService.updateEmi(id, request)
-                            val entity = updated.data?.toEntity(SyncStatus.SYNCED)
-                            if (entity != null) {
-                                entryPoint.expenseDao().insert(entity)
-                                AppLogger.room("UPDATE", "expenses", payload = entity, result = "Updated EMI $id")
+                        val id = updateTargetId(item, gson)
+                        // A local-* row hasn't been created yet; its pending CREATE sends the latest row
+                        if (!id.startsWith("local-")) {
+                            val expense = entryPoint.expenseDao().getExpense(id)
+                            if (expense != null && !expense.isDeleted) {
+                                val updated = apiService.updateEmi(id, expense.toRequest())
+                                afterRemoteSuccess(item) {
+                                    val entity = updated.data?.toEntity(SyncStatus.SYNCED)
+                                    if (entity != null) {
+                                        entryPoint.expenseDao().insert(entity)
+                                        AppLogger.room("UPDATE", "expenses", payload = entity, result = "Updated EMI $id")
+                                    }
+                                }
                             }
                         }
                     }
                     else -> {
-                        val type = object : TypeToken<List<ExpenseIncomeRequestDto>>() {}.type
-                        val list: List<ExpenseIncomeRequestDto> = runCatching {
-                            gson.fromJson<List<ExpenseIncomeRequestDto>>(item.payload, type)
-                        }.getOrElse {
-                            listOf(gson.fromJson(item.payload, ExpenseIncomeRequestDto::class.java))
+                        // Send the rows as they are now (edits made offline), skipping deleted ones
+                        val localIds = item.localIds()
+                        val list = if (localIds.isEmpty()) {
+                            parseList<ExpenseIncomeRequestDto>(item.payload, gson)
+                        } else {
+                            localIds.mapNotNull { entryPoint.expenseDao().getExpense(it) }
+                                .filterNot { it.isDeleted }
+                                .map { it.toRequest() }
                         }
-                        val created = apiService.saveExpensesAndSubscriptions(list)
-                        afterRemoteSuccess(item) {
-                            // Delete all local pending entities (entityId may be comma-separated)
-                            item.entityId.split(",").filter { it.isNotBlank() }.forEach { localId ->
-                                entryPoint.expenseDao().deleteById(localId)
-                                AppLogger.room("DELETE", "expenses", payload = "LocalID: $localId", result = "Removed pending local entity")
+                        if (list.isNotEmpty()) {
+                            val created = apiService.saveExpensesAndSubscriptions(list)
+                            afterRemoteSuccess(item) {
+                                localIds.forEach { localId ->
+                                    entryPoint.expenseDao().deleteById(localId)
+                                    AppLogger.room("DELETE", "expenses", payload = "LocalID: $localId", result = "Removed pending local entity")
+                                }
+                                val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
+                                entryPoint.expenseDao().insert(entities)
+                                AppLogger.room("CREATE", "expenses", payload = entities, result = "Inserted ${entities.size} expenses")
                             }
-                            val entities = created.data.orEmpty().map { it.toEntity(SyncStatus.SYNCED) }
-                            entryPoint.expenseDao().insert(entities)
-                            AppLogger.room("CREATE", "expenses", payload = entities, result = "Inserted ${entities.size} expenses")
+                        } else {
+                            localIds.forEach { entryPoint.expenseDao().deleteById(it) }
                         }
                     }
                 }

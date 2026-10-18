@@ -1,29 +1,26 @@
 package com.aditya.expent.data.repository
 
-import android.os.Build
-import android.util.Log
-import androidx.annotation.RequiresApi
 import com.aditya.expent.data.local.dao.BudgetDao
+import com.aditya.expent.data.local.dao.CategoryDao
 import com.aditya.expent.data.local.dao.PendingSyncDao
 import com.aditya.expent.data.local.entity.BudgetEntity
 import com.aditya.expent.data.local.entity.PendingSyncEntity
 import com.aditya.expent.data.local.entity.SyncStatus
-import com.aditya.expent.data.mapper.toDto
+import com.aditya.expent.data.mapper.toDomain
 import com.aditya.expent.data.mapper.toEntity
+import com.aditya.expent.data.mapper.toRequest
 import com.aditya.expent.data.remote.ApiService
-import com.aditya.expent.data.remote.dto.BudgetRequestDto
-import com.aditya.expent.data.remote.dto.BudgetResponseDto
 import com.aditya.expent.data.sync.SyncScheduler
+import com.aditya.expent.domain.model.Budget
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.presentation.onboard.RecurringIncome
 import com.aditya.expent.utils.AppLogger
+import com.aditya.expent.utils.DayOfMonth
 import com.aditya.expent.utils.SessionManager
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
-import com.aditya.expent.data.local.dao.CategoryDao
-import com.aditya.expent.data.local.entity.CategoryEntity
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -39,143 +36,38 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
     private val gson: Gson
 ) : IncomeBudgetRepository {
 
-    override fun getBudgets(): Flow<List<BudgetResponseDto>> {
+    override fun getBudgets(): Flow<List<Budget>> {
         return budgetDao.getBudgets().map { entities ->
-            entities.map { it.toDto() }
+            entities.map { it.toDomain() }
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun saveIncomeBudget(
         salary: RecurringIncome,
         additionalIncome: List<RecurringIncome>
     ) {
-        val userId = sessionManager.getUser()?.id.orEmpty()
-        val allIncomes = listOf(salary) + additionalIncome
-
-        val resolvedIncomes = allIncomes.map { income ->
-            var catId = income.categoryId
-            var catName: String? = null
-            if (!catId.isNullOrBlank()) {
-                val byId = categoryDao.getCategory(catId)
-                if (byId != null) {
-                    catId = byId.id
-                    catName = byId.name
-                } else {
-                    val byName = categoryDao.getCategoryByName(catId)
-                    if (byName != null) {
-                        catId = byName.id
-                        catName = byName.name
-                    } else {
-                        // Create local category entity for this income category
-                        val newCat = CategoryEntity(
-                            id = "local-${UUID.randomUUID()}",
-                            name = catId,
-                            type = "INCOME",
-                            userId = userId,
-                            syncStatus = SyncStatus.PENDING_CREATE
-                        )
-                        categoryDao.insert(newCat)
-                        catId = newCat.id
-                        catName = newCat.name
-                    }
-                }
-            }
-            Triple(income, catId, catName)
-        }
-
-        val entities = resolvedIncomes.map { (income, resolvedCatId, resolvedCatName) ->
-            BudgetEntity(
-                id = "local-${UUID.randomUUID()}",
-                userId = userId,
-                categoryId = resolvedCatId,
-                periodType = income.periodType,
-                limitAmount = income.amount,
-                startDate = income.startDate.ifBlank { nowIso() },
-                endDate = if (income.endDate.isBlank()) null else income.endDate,
-                categoryName = resolvedCatName,
-                syncStatus = SyncStatus.PENDING_CREATE,
-                isDeleted = false
+        val entities = (listOf(salary) + additionalIncome).map { income ->
+            newEntity(
+                categoryId = income.categoryId,
+                amount = income.amount.toDoubleOrNull() ?: 0.0,
+                date = income.date ?: DayOfMonth.today()
             )
         }
         budgetDao.insert(entities)
         AppLogger.room("CREATE", "budgets", entities, "Inserted ${entities.size} income budgets")
 
-        val requests = resolvedIncomes.map { (income, resolvedCatId, _) ->
-            BudgetRequestDto(
-                categoryId = resolvedCatId,
-                periodType = income.periodType,
-                limitAmount = income.amount.toDoubleOrNull() ?: 0.0,
-                startDate = income.startDate.ifBlank { null },
-                endDate = if (income.endDate.isBlank()) null else income.endDate
-            )
-        }
-        val localIds = entities.map { it.id }.joinToString(",")
+        val requests = entities.map { it.toRequest() }
+        val localIds = entities.joinToString(",") { it.id }
         enqueueSync("budget", "CREATE", gson.toJson(requests), localIds)
         syncScheduler.enqueueBudgetSync()
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
-    override suspend fun saveBudget(
-        categoryId: String?,
-        periodType: String,
-        amount: Double,
-        startDate: String,
-        endDate: String?
-    ) {
-        val userId = sessionManager.getUser()?.id.orEmpty()
-        var resolvedCatId = categoryId
-        var resolvedCatName: String? = null
-
-        if (!categoryId.isNullOrBlank()) {
-            val byId = categoryDao.getCategory(categoryId)
-            if (byId != null) {
-                resolvedCatId = byId.id
-                resolvedCatName = byId.name
-            } else {
-                val byName = categoryDao.getCategoryByName(categoryId)
-                if (byName != null) {
-                    resolvedCatId = byName.id
-                    resolvedCatName = byName.name
-                } else {
-                    val newCat = CategoryEntity(
-                        id = if (categoryId.startsWith("local-")) categoryId else "local-${UUID.randomUUID()}",
-                        name = categoryId.removePrefix("local-").replaceFirstChar { it.uppercase() },
-                        type = "INCOME",
-                        userId = userId,
-                        syncStatus = SyncStatus.PENDING_CREATE
-                    )
-                    categoryDao.insert(newCat)
-                    resolvedCatId = newCat.id
-                    resolvedCatName = newCat.name
-                }
-            }
-        }
-
-        val entity = BudgetEntity(
-            id = "local-${UUID.randomUUID()}",
-            userId = userId,
-            categoryId = resolvedCatId,
-            periodType = periodType,
-            limitAmount = amount.toString(),
-            startDate = startDate.ifBlank { nowIso() },
-            endDate = if (endDate.isNullOrBlank()) null else endDate,
-            categoryName = resolvedCatName,
-            syncStatus = SyncStatus.PENDING_CREATE,
-            isDeleted = false
-        )
+    override suspend fun saveBudget(categoryId: String?, amount: Double, date: Int) {
+        val entity = newEntity(categoryId, amount, date)
         budgetDao.insert(entity)
         AppLogger.room("CREATE", "budgets", entity, "Inserted budget ${entity.id}")
 
-        val request = BudgetRequestDto(
-            categoryId = resolvedCatId,
-            periodType = periodType,
-            limitAmount = amount,
-            startDate = startDate.ifBlank { null },
-            endDate = if (endDate.isNullOrBlank()) null else endDate
-        )
-
-        enqueueSync("budget", "CREATE", gson.toJson(listOf(request)), entity.id)
+        enqueueSync("budget", "CREATE", gson.toJson(listOf(entity.toRequest())), entity.id)
         syncScheduler.enqueueBudgetSync()
     }
 
@@ -188,66 +80,28 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             )
         )
         AppLogger.room("UPDATE", "budgets", "ID=$id, isDeleted=true", "Marked deleted")
-        
+
         enqueueSync("budget", "DELETE", id, id)
         syncScheduler.enqueueBudgetSync()
     }
 
-    override suspend fun updateBudget(
-        id: String,
-        categoryId: String?,
-        periodType: String,
-        amount: Double,
-        startDate: String,
-        endDate: String?
-    ) {
+    override suspend fun updateBudget(id: String, categoryId: String?, amount: Double, date: Int) {
         val budget = budgetDao.getBudget(id) ?: return
-        var resolvedCatId = categoryId
-        var resolvedCatName: String? = budget.categoryName
-
-        if (!categoryId.isNullOrBlank()) {
-            val byId = categoryDao.getCategory(categoryId)
-            if (byId != null) {
-                resolvedCatId = byId.id
-                resolvedCatName = byId.name
-            } else {
-                val byName = categoryDao.getCategoryByName(categoryId)
-                if (byName != null) {
-                    resolvedCatId = byName.id
-                    resolvedCatName = byName.name
-                }
-            }
-        }
-
         val updated = budget.copy(
-            categoryId = resolvedCatId,
-            categoryName = resolvedCatName,
-            periodType = periodType,
-            limitAmount = amount.toString(),
-            startDate = startDate,
-            endDate = endDate,
+            categoryId = categoryId,
+            categoryName = categoryNameFor(categoryId) ?: budget.categoryName,
+            amount = amount,
+            date = date,
+            updatedAt = nowIso(),
             syncStatus = SyncStatus.PENDING_UPDATE
         )
         budgetDao.update(updated)
         AppLogger.room("UPDATE", "budgets", updated, "Updated budget $id")
 
-        val requestPayload = BudgetRequestDto(
-            categoryId = resolvedCatId,
-            periodType = periodType,
-            limitAmount = amount,
-            startDate = startDate.ifBlank { null },
-            endDate = if (endDate.isNullOrBlank()) null else endDate
-        )
-
         enqueueSync(
             "budget",
             "UPDATE",
-            gson.toJson(
-                mapOf(
-                    "id" to id,
-                    "request" to requestPayload
-                )
-            ),
+            gson.toJson(mapOf("id" to id, "request" to updated.toRequest())),
             id
         )
         syncScheduler.enqueueBudgetSync()
@@ -257,9 +111,8 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
         try {
             val response = apiService.getBudgets()
             val entities = response.data.orEmpty().map { dto ->
-                val resolvedCatName = dto.category?.name
-                    ?: dto.categoryId?.let { categoryDao.getCategory(it)?.name }
-                dto.toEntity().copy(categoryName = resolvedCatName)
+                val entity = dto.toEntity()
+                entity.copy(categoryName = entity.categoryName ?: categoryNameFor(entity.categoryId))
             }
             budgetDao.replaceAll(entities)
             AppLogger.room("REPLACE", "budgets", "Refreshed ${entities.size} items from API", "Success")
@@ -267,6 +120,25 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
             AppLogger.apiError("GET", "budgets", e.message, throwable = e)
         }
     }
+
+    private suspend fun newEntity(categoryId: String?, amount: Double, date: Int): BudgetEntity {
+        val now = nowIso()
+        return BudgetEntity(
+            id = "local-${UUID.randomUUID()}",
+            userId = sessionManager.getUser()?.id.orEmpty(),
+            categoryId = categoryId,
+            amount = amount,
+            date = date.coerceIn(DayOfMonth.MIN, DayOfMonth.MAX),
+            categoryName = categoryNameFor(categoryId),
+            createdAt = now,
+            updatedAt = now,
+            syncStatus = SyncStatus.PENDING_CREATE
+        )
+    }
+
+    // Income categories always come from Room (the ones the user saved), so the id is enough
+    private suspend fun categoryNameFor(categoryId: String?): String? =
+        categoryId?.takeIf { it.isNotBlank() }?.let { categoryDao.getCategory(it)?.name }
 
     private suspend fun enqueueSync(entityType: String, operation: String, payload: String, entityId: String = "") {
         val pendingEntity = PendingSyncEntity(
@@ -281,5 +153,5 @@ class IncomeBudgetRepositoryImpl @Inject constructor(
     }
 
     private fun nowIso(): String =
-        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date())
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).format(Date())
 }

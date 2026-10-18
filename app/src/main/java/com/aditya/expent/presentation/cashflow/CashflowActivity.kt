@@ -39,13 +39,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
-import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.domain.model.Budget
+import com.aditya.expent.domain.model.Expense
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.presentation.theme.ExpentTheme
-import com.aditya.expent.utils.AppUtils
-import com.aditya.expent.presentation.component.ExpentDatePicker
+import com.aditya.expent.presentation.component.DayOfMonthPicker
+import com.aditya.expent.presentation.component.dayOfMonthLabel
+import com.aditya.expent.utils.DayOfMonth
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Subscriptions
@@ -55,7 +57,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
-import com.aditya.expent.data.remote.dto.ExpenseIncomeResponseDto
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.OffsetDateTime
 import kotlin.getValue
@@ -110,18 +111,18 @@ class CashflowActivity : ComponentActivity() {
                             finish()
                         },
                         onDeleteBudget = { id -> viewModel.deleteBudget(id) },
-                        onUpdateBudget = { id, categoryId, periodType, amount, startDate, endDate ->
-                            viewModel.updateBudget(id, categoryId, periodType, amount, startDate, endDate)
+                        onUpdateBudget = { id, categoryId, amount, date ->
+                            viewModel.updateBudget(id, categoryId, amount, date)
                         },
-                        onAddBudget = { categoryId, periodType, amount, startDate, endDate ->
-                            viewModel.saveBudget(categoryId, periodType, amount, startDate, endDate)
+                        onAddBudget = { categoryId, amount, date ->
+                            viewModel.saveBudget(categoryId, amount, date)
                         },
                         onDeleteEmi = { id -> viewModel.deleteEmi(id) },
-                        onUpdateEmi = { id, type, name, amount, startDate, tenure, monthsPaid ->
-                            viewModel.updateEmi(id, type, name, amount, startDate, tenure, monthsPaid)
+                        onUpdateEmi = { id, name, amount, date, tenure, paid ->
+                            viewModel.updateEmi(id, name, amount, date, tenure, paid)
                         },
-                        onAddEmi = { type, name, amount, startDate, tenure, monthsPaid ->
-                            viewModel.saveEmi(type, name, amount, startDate, tenure, monthsPaid)
+                        onAddEmi = { name, amount, date, tenure, paid ->
+                            viewModel.saveEmi(name, amount, date, tenure, paid)
                         }
                     )
                 }
@@ -130,18 +131,25 @@ class CashflowActivity : ComponentActivity() {
     }
 }
 
+// Callback shapes: budget (id, categoryId, amount, day) and EMI (id, name, amount, day, tenure, paid).
+// day = day of the month (1-31); tenure null = every month (subscription).
+typealias UpdateBudget = (id: String, categoryId: String?, amount: Double, date: Int) -> Unit
+typealias AddBudget = (categoryId: String?, amount: Double, date: Int) -> Unit
+typealias UpdateEmi = (id: String, name: String, amount: Double, date: Int, tenure: Int?, paid: Int) -> Unit
+typealias AddEmi = (name: String, amount: Double, date: Int, tenure: Int?, paid: Int) -> Unit
+
 @Composable
 fun CashflowScreen(
-    income : List<BudgetResponseDto>,
+    income : List<Budget>,
     categories: List<CategoryResponseDto>,
-    expense : List<ExpenseIncomeResponseDto>,
+    expense : List<Expense>,
     onBack : () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
-    onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
-    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> },
+    onUpdateBudget: UpdateBudget = { _, _, _, _ -> },
+    onAddBudget: AddBudget = { _, _, _ -> },
     onDeleteEmi: (String) -> Unit = {},
-    onUpdateEmi: (String, String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _, _ -> },
-    onAddEmi: (String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _ -> }
+    onUpdateEmi: UpdateEmi = { _, _, _, _, _, _ -> },
+    onAddEmi: AddEmi = { _, _, _, _, _ -> }
 ) {
 
     var selectedTab by remember {
@@ -223,61 +231,53 @@ fun CashflowScreen(
 fun CashflowContentScreen(
     modifier: Modifier = Modifier,
     title: String,
-    income: List<BudgetResponseDto>,
-    expense: List<ExpenseIncomeResponseDto>,
+    income: List<Budget>,
+    expense: List<Expense>,
     categories: List<CategoryResponseDto> = emptyList(),
     allCategories: List<CategoryResponseDto> = emptyList(),
     themeColor: Color,
     onBack: () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
-    onUpdateBudget: (String, String?, String, Double, String, String?) -> Unit = { _, _, _, _, _, _ -> },
-    onAddBudget: (String?, String, Double, String, String?) -> Unit = { _, _, _, _, _ -> },
+    onUpdateBudget: UpdateBudget = { _, _, _, _ -> },
+    onAddBudget: AddBudget = { _, _, _ -> },
     onDeleteEmi: (String) -> Unit = {},
-    onUpdateEmi: (String, String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _, _ -> },
-    onAddEmi: (String, String, String, String, String?, String?) -> Unit = { _, _, _, _, _, _ -> }
+    onUpdateEmi: UpdateEmi = { _, _, _, _, _, _ -> },
+    onAddEmi: AddEmi = { _, _, _, _, _ -> }
 ) {
 
-
-    val recurringExpenses: List<RecurringExpense> = expense.mapNotNull { item ->
-        if ((item.tenure ?: 0) > 0) {
+    // tenure == null → every month (subscription); otherwise an EMI
+    val recurringExpenses: List<RecurringExpense> = expense
+        .filterNot { it.isEveryMonth }
+        .map { item ->
             RecurringExpense(
-                name = item.resolvedName,
-                amount = item.resolvedAmount,
-                totalMonths = (item.tenure ?: 0).toString(),
-                monthsPaid = (item.monthsPaid ?: 0).toString(),
-                startDate = item.resolvedStartDate,
-                id = item.id,
-                endDate = item.endDate
-            )
-        } else {
-            null
-        }
-    }
-
-    val subscriptions: List<Subscription> = expense.mapNotNull { item ->
-        if ((item.tenure ?: 0) <= 0) {
-            Subscription(
-                name = item.resolvedName,
-                amount = item.resolvedAmount,
-                billingDate = item.resolvedStartDate,
+                name = item.name,
+                amount = item.amount.toPlainAmount(),
+                totalMonths = item.tenure.toString(),
+                monthsPaid = item.paid.toString(),
+                date = item.date,
                 id = item.id
             )
-        } else {
-            null
         }
-    }
+
+    val subscriptions: List<Subscription> = expense
+        .filter { it.isEveryMonth }
+        .map { item ->
+            Subscription(
+                name = item.name,
+                amount = item.amount.toPlainAmount(),
+                date = item.date,
+                id = item.id
+            )
+        }
 
     val incomes = income.map { item ->
-        val resolvedName = item.category?.name?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
-            ?: item.categoryId?.let { catId ->
-                allCategories.firstOrNull { it.id == catId }?.name
-                    ?: categories.firstOrNull { it.id == catId }?.name
-            }
-            ?: "Salary"
+        val resolvedName = item.categoryName?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+            ?: item.categoryId?.let { catId -> allCategories.firstOrNull { it.id == catId }?.name }
+            ?: "Income"
         Subscription(
             name = resolvedName,
-            amount = item.limitAmount.toString(),
-            billingDate = item.startDate ?: "",
+            amount = item.amount.toPlainAmount(),
+            date = item.date,
             id = item.id
         )
     }
@@ -405,19 +405,19 @@ fun CashflowContentScreen(
                 incomeList = income,
                 themeColor = themeColor,
                 onDismiss = { sheetMode = null },
-                onSaveBudget = { id, categoryId, amount, startDate, endDate ->
+                onSaveBudget = { id, categoryId, amount, date ->
                     if (id != null) {
-                        onUpdateBudget(id, categoryId, "MONTHLY", amount, startDate, endDate)
+                        onUpdateBudget(id, categoryId, amount, date)
                     } else {
-                        onAddBudget(categoryId, "MONTHLY", amount, startDate, endDate)
+                        onAddBudget(categoryId, amount, date)
                     }
                 },
                 onDeleteBudget = onDeleteBudget,
-                onSaveEmi = { id, typeStr, name, amount, startDate, tenure, monthsPaid ->
+                onSaveEmi = { id, name, amount, date, tenure, paid ->
                     if (id != null) {
-                        onUpdateEmi(id, typeStr, name, amount, startDate, tenure, monthsPaid)
+                        onUpdateEmi(id, name, amount, date, tenure, paid)
                     } else {
-                        onAddEmi(typeStr, name, amount, startDate, tenure, monthsPaid)
+                        onAddEmi(name, amount, date, tenure, paid)
                     }
                 },
                 onDeleteEmi = onDeleteEmi
@@ -432,34 +432,23 @@ fun CashflowBottomSheet(
     mode: CashflowBottomSheetMode,
     categories: List<CategoryResponseDto>,
     allCategories: List<CategoryResponseDto> = categories,
-    incomeList: List<BudgetResponseDto>,
+    incomeList: List<Budget>,
     themeColor: Color,
     onDismiss: () -> Unit,
-    onSaveBudget: (id: String?, categoryId: String?, amount: Double, startDate: String, endDate: String?) -> Unit,
+    onSaveBudget: (id: String?, categoryId: String?, amount: Double, date: Int) -> Unit,
     onDeleteBudget: (id: String) -> Unit,
-    onSaveEmi: (id: String?, type: String, name: String, amount: String, startDate: String, tenure: String?, monthsPaid: String?) -> Unit,
+    onSaveEmi: (id: String?, name: String, amount: Double, date: Int, tenure: Int?, paid: Int) -> Unit,
     onDeleteEmi: (id: String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
 
     val isIncomeFlow = mode is CashflowBottomSheetMode.AddIncome || mode is CashflowBottomSheetMode.EditIncome
+    // Income categories are only the INCOME ones the user saved (Room)
     val effectiveCategories = remember(categories, allCategories, isIncomeFlow) {
         if (isIncomeFlow) {
-            val incomeCats = (categories + allCategories)
+            (categories + allCategories)
                 .filter { it.type.equals("INCOME", ignoreCase = true) }
-                .distinctBy { it.name.lowercase() }
-            if (incomeCats.isNotEmpty()) {
-                incomeCats
-            } else {
-                listOf(
-                    CategoryResponseDto(id = "local-salary", name = "Salary", type = "INCOME"),
-                    CategoryResponseDto(id = "local-freelance", name = "Freelance", type = "INCOME"),
-                    CategoryResponseDto(id = "local-investments", name = "Investments", type = "INCOME"),
-                    CategoryResponseDto(id = "local-gifts", name = "Gifts", type = "INCOME"),
-                    CategoryResponseDto(id = "local-business", name = "Business Profits", type = "INCOME"),
-                    CategoryResponseDto(id = "local-other-income", name = "Other Income", type = "INCOME")
-                )
-            }
+                .distinctBy { it.id }
         } else {
             categories
         }
@@ -476,15 +465,11 @@ fun CashflowBottomSheet(
         is CashflowBottomSheetMode.EditEmi -> mode.emi.amount
         else -> ""
     }
-    val initialStartDate = when (mode) {
-        is CashflowBottomSheetMode.EditIncome -> mode.income.billingDate
-        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.billingDate
-        is CashflowBottomSheetMode.EditEmi -> mode.emi.startDate
-        else -> ""
-    }
-    val initialEndDate = when (mode) {
-        is CashflowBottomSheetMode.EditEmi -> mode.emi.endDate ?: ""
-        else -> ""
+    val initialDate: Int? = when (mode) {
+        is CashflowBottomSheetMode.EditIncome -> mode.income.date
+        is CashflowBottomSheetMode.EditSubscription -> mode.subscription.date
+        is CashflowBottomSheetMode.EditEmi -> mode.emi.date
+        else -> null
     }
     val initialCategoryName = when (mode) {
         is CashflowBottomSheetMode.EditIncome -> {
@@ -517,13 +502,11 @@ fun CashflowBottomSheet(
     var amountText by remember(mode) { mutableStateOf(initialAmount) }
     var selectedCategoryId by remember(mode) { mutableStateOf(initialCategoryId) }
     var selectedCategoryName by remember(mode) { mutableStateOf(initialCategoryName) }
-    var dateText by remember(mode) { mutableStateOf(initialStartDate) }
-    var endDateText by remember(mode) { mutableStateOf(initialEndDate) }
+    var selectedDay by remember(mode) { mutableStateOf(initialDate) }
     var tenureText by remember(mode) { mutableStateOf(initialTenure) }
     var monthsPaidText by remember(mode) { mutableStateOf(initialMonthsPaid) }
 
     var showDatePicker by remember { mutableStateOf(false) }
-    var showEndDatePicker by remember { mutableStateOf(false) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
     val title = when (mode) {
@@ -724,11 +707,19 @@ fun CashflowBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 4. Start Date Field
+            // 4. Day of month
             OutlinedTextField(
-                value = AppUtils().formatIsoDate(dateText),
+                value = dayOfMonthLabel(selectedDay),
                 onValueChange = { },
-                label = { Text(if (isEmi) "Start Date" else "Billing Date / Start Date") },
+                label = {
+                    Text(
+                        when {
+                            isEmi -> "Due on"
+                            isSubscription -> "Billing on"
+                            else -> "Credited on"
+                        }
+                    )
+                },
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -760,14 +751,34 @@ fun CashflowBottomSheet(
                 }
             }
 
-            ExpentDatePicker(
+            DayOfMonthPicker(
                 showDialog = showDatePicker,
+                selectedDay = selectedDay,
+                accentColor = themeColor,
                 onDismiss = { showDatePicker = false },
-                onDateSelected = {
-                    dateText = it
+                onDaySelected = {
+                    selectedDay = it
                     showDatePicker = false
                 }
             )
+
+            val amount = amountText.toDoubleOrNull()
+            val day = selectedDay
+            val tenure = tenureText.toIntOrNull()?.takeIf { it > 0 }
+            val paid = monthsPaidText.toIntOrNull() ?: 0
+            // An EMI must have a tenure; anything without one is a subscription
+            val canSave = amount != null && day != null &&
+                (!isEmi || tenure != null) &&
+                ((!isEmi && !isSubscription) || nameText.isNotBlank())
+
+            fun save(id: String?) {
+                if (amount == null || day == null) return
+                when {
+                    isEmi -> onSaveEmi(id, nameText.trim(), amount, day, tenure, paid)
+                    isSubscription -> onSaveEmi(id, nameText.trim(), amount, day, null, 0)
+                    else -> onSaveBudget(id, selectedCategoryId, amount, day)
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -782,15 +793,10 @@ fun CashflowBottomSheet(
             if (isEdit) {
                 Button(
                     onClick = {
-                        if (mode is CashflowBottomSheetMode.EditIncome) {
-                            onSaveBudget(id, selectedCategoryId, amountText.toDoubleOrNull() ?: 0.0, dateText, null)
-                        } else if (mode is CashflowBottomSheetMode.EditSubscription) {
-                            onSaveEmi(id, "subscription", nameText, amountText, dateText, null, null)
-                        } else if (mode is CashflowBottomSheetMode.EditEmi) {
-                            onSaveEmi(id, "expense", nameText, amountText, dateText, tenureText, monthsPaidText)
-                        }
+                        save(id)
                         onDismiss()
                     },
+                    enabled = canSave,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -823,15 +829,10 @@ fun CashflowBottomSheet(
             } else {
                 Button(
                     onClick = {
-                        if (mode is CashflowBottomSheetMode.AddIncome) {
-                            onSaveBudget(null, selectedCategoryId, amountText.toDoubleOrNull() ?: 0.0, dateText, null)
-                        } else if (mode is CashflowBottomSheetMode.AddSubscription) {
-                            onSaveEmi(null, "subscription", nameText, amountText, dateText, null, null)
-                        } else if (mode is CashflowBottomSheetMode.AddEmi) {
-                            onSaveEmi(null, "expense", nameText, amountText, dateText, tenureText, monthsPaidText)
-                        }
+                        save(null)
                         onDismiss()
                     },
+                    enabled = canSave,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -1077,7 +1078,7 @@ fun EnhancedEmiCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = AppUtils().getDayWithSuffix(emi.startDate),
+                        text = emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty(),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
@@ -1193,7 +1194,7 @@ fun EnhancedSubscriptionCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (isIncome) "Credited on ${AppUtils().getDayWithSuffix(subscription.billingDate)}" else "Billing on ${AppUtils().getDayWithSuffix(subscription.billingDate)}",
+                    text = (if (isIncome) "Credited on " else "Billing on ") + dayOfMonthLabel(subscription.date),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
@@ -1293,32 +1294,8 @@ fun EmptyStateCard(
 }
 
 private val previewBudgets = listOf(
-    BudgetResponseDto(
-        id = "1",
-        userId = "1278t301",
-        limitAmount = 5000.0,
-        startDate = "2026-01-05T00:00:00.000Z",
-        periodType = "MONTHLY",
-        categoryId = "943287908312",
-        category = CategoryResponseDto(
-            id = "101",
-            name = "Salary",
-            type = "INCOME"
-        )
-    ),
-    BudgetResponseDto(
-        id = "2",
-        userId = "12390-121",
-        limitAmount = 1200.0,
-        startDate = "2026-01-15T00:00:00.000Z",
-        periodType = "MONTHLY",
-        categoryId = "943287908312",
-        category = CategoryResponseDto(
-            id = "102",
-            name = "Freelancing",
-            type = "INCOME"
-        )
-    )
+    Budget(id = "1", categoryId = "101", categoryName = "Salary", amount = 5000.0, date = 5),
+    Budget(id = "2", categoryId = "102", categoryName = "Freelancing", amount = 1200.0, date = 15)
 )
 
 private val previewCategories = listOf(
@@ -1335,65 +1312,9 @@ private val previewCategories = listOf(
 )
 
 private val previewExpense = listOf(
-    ExpenseIncomeResponseDto(
-        id = "6c5441a4-20eb-4f5e-b9df-b82ccdf12365",
-        userId = "bcbe170f-801b-4092-93d0-348c27d32aef",
-        accountId = null,
-        transactionId = null,
-        name = "Parents Support",
-        principal = "0",
-        tenure = 0,
-        monthlyEmi = "40000",
-        startDate = "2026-01-05T00:00:00.000Z",
-        endDate = null,
-        nextDueDate = "2026-02-05T00:00:00.000Z",
-        remainingBalance = "0",
-        monthsPaid = 0,
-        active = true,
-        createdAt = "2026-05-17T07:31:12.281Z",
-        updatedAt = "2026-05-17T07:31:12.281Z",
-        account = null
-    ),
-
-    ExpenseIncomeResponseDto(
-        id = "0bcb8bee-261c-4a8d-9bbc-71c24811915a",
-        userId = "bcbe170f-801b-4092-93d0-348c27d32aef",
-        accountId = null,
-        transactionId = null,
-        name = "Rent",
-        principal = "0",
-        tenure = 0,
-        monthlyEmi = "15000",
-        startDate = "2026-01-05T00:00:00.000Z",
-        endDate = null,
-        nextDueDate = "2026-02-05T00:00:00.000Z",
-        remainingBalance = "0",
-        monthsPaid = 0,
-        active = true,
-        createdAt = "2026-05-17T07:31:12.495Z",
-        updatedAt = "2026-05-17T07:31:12.495Z",
-        account = null
-    ),
-
-    ExpenseIncomeResponseDto(
-        id = "0bcb8bee-261c-4a8d-9bbc-71c24811915a",
-        userId = "bcbe170f-801b-4092-93d0-348c27d32aef",
-        accountId = null,
-        transactionId = null,
-        name = "Rent",
-        principal = "0",
-        tenure = 8,
-        monthlyEmi = "15000",
-        startDate = "2026-01-05T00:00:00.000Z",
-        endDate = "2026-09-05T00:00:00.000Z",
-        nextDueDate = "2026-02-05T00:00:00.000Z",
-        remainingBalance = "0",
-        monthsPaid = 3,
-        active = true,
-        createdAt = "2026-05-17T07:31:12.495Z",
-        updatedAt = "2026-05-17T07:31:12.495Z",
-        account = null
-    )
+    Expense(id = "e1", name = "Parents Support", amount = 40000.0, date = 5, categoryId = null, accountId = null, tenure = null, paid = 0),
+    Expense(id = "e2", name = "Rent", amount = 15000.0, date = 5, categoryId = null, accountId = null, tenure = null, paid = 0),
+    Expense(id = "e3", name = "Car Loan", amount = 15000.0, date = 5, categoryId = null, accountId = null, tenure = 8, paid = 3)
 )
 
 @Preview(
@@ -1469,3 +1390,6 @@ fun OutgoingFlowPreview() {
         }
     }
 }
+// 1500.0 → "1500", 12.5 → "12.5"
+private fun Double.toPlainAmount(): String =
+    java.math.BigDecimal(toString()).stripTrailingZeros().toPlainString()

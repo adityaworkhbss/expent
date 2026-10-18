@@ -7,11 +7,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExpenseDao {
 
-    @Query("SELECT * FROM expenses WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY startDate DESC")
+    @Query("SELECT * FROM expenses WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY date")
     fun getExpenses(): Flow<List<ExpenseEntity>>
 
-    @Query("SELECT * FROM expenses WHERE active = 1 AND (isDeleted = 0 OR isDeleted IS NULL) ORDER BY nextDueDate")
-    fun getActiveExpenses(): Flow<List<ExpenseEntity>>
 
     @Query("SELECT * FROM expenses WHERE id = :id")
     suspend fun getExpense(id: String): ExpenseEntity?
@@ -33,6 +31,10 @@ interface ExpenseDao {
 
     @Query("DELETE FROM expenses")
     suspend fun clear()
+
+    // Used when a local-* category is swapped for its server row
+    @Query("UPDATE expenses SET categoryId = :newId WHERE categoryId = :oldId")
+    suspend fun updateCategoryId(oldId: String, newId: String)
 
     @Query("DELETE FROM expenses WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
     suspend fun clearSynced()

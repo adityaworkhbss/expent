@@ -1,36 +1,24 @@
 package com.aditya.expent.domain.repository
 
-import com.aditya.expent.data.remote.dto.BudgetRequestDto
-import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.domain.model.Budget
 import com.aditya.expent.presentation.onboard.RecurringIncome
 import kotlinx.coroutines.flow.Flow
 
 interface IncomeBudgetRepository {
-    fun getBudgets(): Flow<List<BudgetResponseDto>>
+
+    fun getBudgets(): Flow<List<Budget>>
 
     suspend fun saveIncomeBudget(
         salary: RecurringIncome,
         additionalIncome: List<RecurringIncome>
     )
 
-    suspend fun saveBudget(
-        categoryId: String?,
-        periodType: String,
-        amount: Double,
-        startDate: String,
-        endDate: String?
-    )
+    /** [date] is the day of the month (1-31) the income arrives. */
+    suspend fun saveBudget(categoryId: String?, amount: Double, date: Int)
 
     suspend fun deleteBudget(id: String)
 
-    suspend fun updateBudget(
-        id: String,
-        categoryId: String?,
-        periodType: String,
-        amount: Double,
-        startDate: String,
-        endDate: String?
-    )
+    suspend fun updateBudget(id: String, categoryId: String?, amount: Double, date: Int)
 
     suspend fun refreshBudgets()
 }

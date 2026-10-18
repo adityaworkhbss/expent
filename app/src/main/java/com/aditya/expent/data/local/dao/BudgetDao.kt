@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BudgetDao {
 
-    @Query("SELECT * FROM budgets WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY startDate DESC")
+    @Query("SELECT * FROM budgets WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY date")
     fun getBudgets(): Flow<List<BudgetEntity>>
 
     @Query("SELECT * FROM budgets WHERE id = :id")
@@ -30,6 +30,10 @@ interface BudgetDao {
 
     @Query("DELETE FROM budgets")
     suspend fun clear()
+
+    // Used when a local-* category is swapped for its server row
+    @Query("UPDATE budgets SET categoryId = :newId WHERE categoryId = :oldId")
+    suspend fun updateCategoryId(oldId: String, newId: String)
 
     @Query("DELETE FROM budgets WHERE syncStatus = 'SYNCED' AND id NOT LIKE 'local-%'")
     suspend fun clearSynced()

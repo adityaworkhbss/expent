@@ -1,4 +1,4 @@
-﻿package com.aditya.expent.domain.usecase
+package com.aditya.expent.domain.usecase
 
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
 import javax.inject.Inject
@@ -7,11 +7,10 @@ class SaveEmiUseCase @Inject constructor(
     private val repository: ExpenseAndSubscriptionRepository
 ) {
     suspend operator fun invoke(
-        type: String,
         name: String,
-        amount: String,
-        startDate: String,
-        tenure: String? = null,
-        monthsPaid: String? = null
-    ) = repository.saveEmi(type, name, amount, startDate, tenure, monthsPaid)
+        amount: Double,
+        date: Int,
+        tenure: Int?,
+        paid: Int
+    ) = repository.saveEmi(name, amount, date, tenure, paid)
 }

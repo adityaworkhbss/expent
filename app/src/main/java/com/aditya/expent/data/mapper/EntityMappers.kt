@@ -14,8 +14,12 @@ import com.aditya.expent.data.remote.dto.TransactionCategoryDto
 import com.aditya.expent.data.remote.dto.TransactionAccountDto
 import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
-import com.aditya.expent.data.remote.dto.AccountDto
+import com.aditya.expent.data.remote.dto.BudgetRequestDto
+import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
 import com.aditya.expent.data.local.entity.SyncStatus
+import com.aditya.expent.domain.model.Budget
+import com.aditya.expent.domain.model.Expense
+import com.aditya.expent.utils.DayOfMonth
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.domain.model.Transaction
@@ -100,15 +104,33 @@ fun BudgetResponseDto.toEntity(
         id = id,
         userId = userId ?: "",
         categoryId = categoryId,
-        periodType = periodType,
-        limitAmount = limitAmount.toString(),
-        startDate = startDate ?: "",
-        endDate = endDate,
+        // Backend still calls the monthly income "limitAmount" and keeps a full start date
+        amount = limitAmount,
+        date = DayOfMonth.from(startDate) ?: DayOfMonth.MIN,
+        categoryName = category?.name,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        categoryName = category?.name,
         syncStatus = syncStatus,
         isDeleted = isDeleted
+    )
+
+fun BudgetEntity.toDomain(): Budget =
+    Budget(
+        id = id,
+        categoryId = categoryId,
+        categoryName = categoryName,
+        amount = amount,
+        date = date
+    )
+
+// Current API contract: always MONTHLY, a full date in this month, no end date
+fun BudgetEntity.toRequest(): BudgetRequestDto =
+    BudgetRequestDto(
+        categoryId = categoryId,
+        periodType = "MONTHLY",
+        limitAmount = amount,
+        startDate = DayOfMonth.toIsoDateThisMonth(date),
+        endDate = null
     )
 
 fun ExpenseIncomeResponseDto.toEntity(
@@ -118,25 +140,49 @@ fun ExpenseIncomeResponseDto.toEntity(
     ExpenseEntity(
         id = id,
         userId = userId ?: "",
-        accountId = accountId,
-        transactionId = transactionId,
         name = resolvedName,
-        principal = principal ?: "",
-        tenure = tenure ?: 0,
-        // The amount entered in the app is the monthly EMI; the server may echo it back as "amount"
-        monthlyEmi = monthlyEmiAmount,
-        startDate = resolvedStartDate,
-        endDate = endDate,
-        nextDueDate = nextDueDate ?: "",
-        remainingBalance = remainingBalance ?: "",
-        monthsPaid = monthsPaid ?: 0,
-        active = active ?: true,
-        createdAt = createdAt ?: "",
-        updatedAt = updatedAt ?: "",
+        // The amount entered in the app is the monthly payment; the server may echo it back as "amount"
+        amount = monthlyEmiAmount.toDoubleOrNull() ?: 0.0,
+        date = DayOfMonth.from(resolvedStartDate) ?: DayOfMonth.MIN,
+        categoryId = categoryId,
+        accountId = accountId,
+        // Backend sends 0 for "every month"; the app keeps that as null
+        tenure = tenure?.takeIf { it > 0 },
+        paid = monthsPaid ?: 0,
         accountName = account?.name,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
         syncStatus = syncStatus,
         isDeleted = isDeleted
     )
+
+fun ExpenseEntity.toDomain(): Expense =
+    Expense(
+        id = id,
+        name = name,
+        amount = amount,
+        date = date,
+        categoryId = categoryId,
+        accountId = accountId,
+        tenure = tenure,
+        paid = paid
+    )
+
+// Current API contract: "subscription" vs "expense" is decided by tenure, the day becomes a full date
+fun ExpenseEntity.toRequest(): ExpenseIncomeRequestDto =
+    ExpenseIncomeRequestDto(
+        type = if (tenure == null) "subscription" else "expense",
+        name = name,
+        amount = amount.toPlainAmount(),
+        startDate = DayOfMonth.toIsoDateThisMonth(date),
+        categoryId = categoryId,
+        accountId = accountId,
+        tenure = tenure?.toString(),
+        monthsPaid = if (tenure == null) null else paid.toString()
+    )
+
+private fun Double.toPlainAmount(): String =
+    java.math.BigDecimal(toString()).stripTrailingZeros().toPlainString()
 
 fun TransactionResponseDto.toEntity(
     syncStatus: SyncStatus = SyncStatus.SYNCED
@@ -201,47 +247,6 @@ fun AccountEntity.toDto(): PaymentModeResponseDto =
         id = id,
         name = name,
         type = type
-    )
-
-fun BudgetEntity.toDto(): BudgetResponseDto =
-    BudgetResponseDto(
-        id = id,
-        userId = userId,
-        categoryId = categoryId,
-        periodType = periodType,
-        limitAmount = limitAmount.toDoubleOrNull() ?: 0.0,
-        startDate = startDate,
-        endDate = endDate,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-        category = categoryName?.let {
-            CategoryResponseDto(
-                id = categoryId.orEmpty(),
-                name = it,
-                type = "INCOME"
-            )
-        }
-    )
-
-fun ExpenseEntity.toDto(): ExpenseIncomeResponseDto =
-    ExpenseIncomeResponseDto(
-        id = id,
-        userId = userId,
-        accountId = accountId,
-        transactionId = transactionId,
-        name = name,
-        principal = principal,
-        tenure = tenure,
-        monthlyEmi = monthlyEmi,
-        startDate = startDate,
-        endDate = endDate,
-        nextDueDate = nextDueDate,
-        remainingBalance = remainingBalance,
-        monthsPaid = monthsPaid,
-        active = active,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-        account = accountName?.let { AccountDto(id = accountId.orEmpty(), name = it) }
     )
 
 fun TransactionEntity.toDto(): TransactionResponseDto =

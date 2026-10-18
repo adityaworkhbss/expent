@@ -11,7 +11,7 @@ import com.aditya.expent.domain.usecase.GetTransactionUseCase
 import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.GetAccountsUseCase
 import com.aditya.expent.domain.usecase.AddTransactionsUseCase
-import com.aditya.expent.data.remote.dto.BudgetResponseDto
+import com.aditya.expent.domain.model.Budget
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.usecase.GetBudgetUseCase
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
@@ -41,7 +41,7 @@ data class DashboardState(
     val recentTransactions: List<Transaction> = emptyList(),
     val categories: List<CategoryResponseDto> = emptyList(),
     val accounts: List<PaymentModeResponseDto> = emptyList(),
-    val incomeSources: List<BudgetResponseDto> = emptyList(),
+    val incomeSources: List<Budget> = emptyList(),
     val userName: String = "User",
     val aiTransaction: Boolean = false,
     val reminder: Boolean = false,
@@ -54,9 +54,9 @@ data class DashboardState(
     val incomeAmountByCategory: Map<String, Double>
         get() = incomeSources
             .mapNotNull { source ->
-                val name = source.category?.name?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+                val name = source.categoryName?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
                     ?: categories.firstOrNull { it.id == source.categoryId }?.name
-                name?.let { it to source.limitAmount }
+                name?.let { it to source.amount }
             }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, amounts) -> amounts.sum() }
