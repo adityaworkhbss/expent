@@ -91,14 +91,14 @@ class TransactionViewModel @Inject constructor(
 
                         Transaction(
                             id = dto.id,
-                            title = dto.note ?: dto.merchant ?: "Transaction",
+                            title = dto.category?.name ?: "Transaction",
                             amount = amount,
-                            date = dto.transactionDate,
+                            date = dto.date.orEmpty(),
                             category = dto.category?.name ?: "Other",
                             type = typeEnum,
                             accountId = dto.accountId,
                             categoryId = dto.categoryId,
-                            paymentMethod = dto.paymentMethod ?: dto.account?.name
+                            accountName = dto.account?.name
                         )
                     }
                     _state.value = state.value.copy(

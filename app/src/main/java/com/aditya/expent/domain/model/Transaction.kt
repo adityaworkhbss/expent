@@ -2,6 +2,7 @@ package com.aditya.expent.domain.model
 
 data class Transaction(
     val id: String,
+    // Display label; transactions are named by their category
     val title: String,
     val amount: Double,
     val date: String,
@@ -9,9 +10,7 @@ data class Transaction(
     val type: TransactionType,
     val accountId: String? = null,
     val categoryId: String? = null,
-    val transferToAccountId: String? = null,
-    val paymentMethod: String? = null,
-    val merchant: String? = null
+    val accountName: String? = null
 )
 
 enum class TransactionType {

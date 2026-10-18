@@ -60,55 +60,25 @@ data class TransactionResponseDto(
     val accountId: String,
     @SerializedName("categoryId")
     val categoryId: String? = null,
-    @SerializedName("transferToAccountId")
-    val transferToAccountId: String? = null,
     @SerializedName("type")
     val type: String,
     @SerializedName("amount")
     val amountRaw: Any? = null,
-    @SerializedName("timestamp")
-    val timestamp: String? = null,
+    // RFC 3339 timestamp of when the transaction happened
     @SerializedName("date")
     val date: String? = null,
-    @SerializedName("transactionDate")
-    val transactionDateRaw: String? = null,
-    @SerializedName("description")
-    val description: String? = null,
-    @SerializedName("notes")
-    val notes: String? = null,
-    @SerializedName("note")
-    val note: String? = null,
-    @SerializedName("merchant")
-    val merchant: String? = null,
-    @SerializedName("paymentMethod")
-    val paymentMethod: String? = null,
-    @SerializedName("tags")
-    val tags: List<String>? = null,
-    @SerializedName("status")
-    val status: String? = null,
-    @SerializedName("isSalary")
-    val isSalary: Boolean? = null,
-    @SerializedName("isDeleted")
-    val isDeleted: Boolean? = null,
     @SerializedName("createdAt")
     val createdAt: String? = null,
     @SerializedName("updatedAt")
     val updatedAt: String? = null,
+    // Not sent by the API; filled from Room for display
     @SerializedName("category")
     val category: TransactionCategoryDto? = null,
     @SerializedName("account")
-    val account: TransactionAccountDto? = null,
-    @SerializedName("transferToAccount")
-    val transferToAccount: TransactionAccountDto? = null
+    val account: TransactionAccountDto? = null
 ) {
     val amount: String
         get() = amountRaw?.toString() ?: "0.0"
-
-    val transactionDate: String
-        get() = transactionDateRaw ?: date ?: timestamp ?: ""
-
-    val resolvedNote: String?
-        get() = note ?: notes ?: description ?: merchant
 }
 
 data class TransactionListDataDto(
@@ -160,28 +130,11 @@ data class CreateTransactionRequestDto(
     val type: String,
     @SerializedName("amount")
     val amount: Double,
+    // RFC 3339 timestamp; the backend also accepts yyyy-MM-dd
     @SerializedName("date")
-    val date: String? = null,
-    @SerializedName("transactionDate")
-    val transactionDate: String? = null,
+    val date: String,
     @SerializedName("accountId")
     val accountId: String,
     @SerializedName("categoryId")
-    val categoryId: String? = null,
-    @SerializedName("transferToAccountId")
-    val transferToAccountId: String? = null,
-    @SerializedName("notes")
-    val notes: String? = null,
-    @SerializedName("note")
-    val note: String? = null,
-    @SerializedName("merchant")
-    val merchant: String? = null,
-    @SerializedName("paymentMethod")
-    val paymentMethod: String? = null,
-    @SerializedName("tags")
-    val tags: List<String>? = null,
-    @SerializedName("status")
-    val status: String? = null,
-    @SerializedName("isSalary")
-    val isSalary: Boolean? = null
+    val categoryId: String? = null
 )

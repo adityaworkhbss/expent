@@ -11,7 +11,8 @@ class UpdateEmiUseCase @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
-    ) = repository.updateEmi(id, name, amount, date, tenure, paid)
+    ) = repository.updateEmi(id, name, amount, date, categoryId, tenure, paid)
 }

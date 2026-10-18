@@ -10,7 +10,8 @@ class SaveEmiUseCase @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
-    ) = repository.saveEmi(name, amount, date, tenure, paid)
+    ) = repository.saveEmi(name, amount, date, categoryId, tenure, paid)
 }

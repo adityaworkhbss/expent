@@ -23,23 +23,14 @@ data class ParseTransactionResponseDto(
     val data: ParseTransactionDataDto? = null
 )
 
+// Only what a transaction stores: type, amount, date, category and account
 data class ParseTransactionDataDto(
-    @SerializedName("category")
-    val category: String? = null,
-    @SerializedName("amount")
-    val amount: Double = 0.0,
     @SerializedName("type")
     val type: String? = null,
-    @SerializedName("description")
-    val description: String? = null,
+    @SerializedName("amount")
+    val amount: Double = 0.0,
     @SerializedName("date")
     val date: String = "",
-    @SerializedName("currency")
-    val currency: String? = null,
-    @SerializedName("confidence")
-    val confidence: Double? = null,
-    @SerializedName("merchant")
-    val merchant: String? = null,
     @SerializedName("category_id")
     val categoryId: String? = null,
     @SerializedName("category_name")
@@ -47,20 +38,8 @@ data class ParseTransactionDataDto(
     @SerializedName("account_id")
     val accountId: String? = null,
     @SerializedName("account_name")
-    val accountName: String? = null,
-    @SerializedName("payment_method")
-    val paymentMethod: String? = null,
-    @SerializedName("transaction_type")
-    val transactionType: String? = null,
-    @SerializedName("note")
-    val note: String? = null
+    val accountName: String? = null
 ) {
     val resolvedCategoryName: String
-        get() = categoryName ?: category ?: "Others"
-
-    val resolvedTransactionType: String
-        get() = transactionType ?: type ?: "EXPENSE"
-
-    val resolvedNote: String
-        get() = note ?: description ?: merchant ?: ""
+        get() = categoryName?.takeIf { it.isNotBlank() } ?: "Others"
 }

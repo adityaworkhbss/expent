@@ -37,6 +37,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -381,11 +382,15 @@ class SyncWorker(
                     val dto = gson.fromJson(item.payload, CreateTransactionRequestDto::class.java)
                     val created = apiService.addTransaction(dto)
                     afterRemoteSuccess(item) {
+                        // The API doesn't return names; keep the display names from the local row
+                        val local = item.entityId.takeIf { it.isNotBlank() }
+                            ?.let { entryPoint.transactionDao().getTransaction(it) }
                         if (item.entityId.isNotBlank()) {
                             entryPoint.transactionDao().deleteById(item.entityId)
                             AppLogger.room("DELETE", "transactions", payload = "ID: ${item.entityId}", result = "Removed local temp transaction")
                         }
                         val entity = created.data?.toEntity(SyncStatus.SYNCED)
+                            ?.let { it.copy(categoryName = local?.categoryName, accountName = local?.accountName) }
                         if (entity != null) {
                             entryPoint.transactionDao().insert(entity)
                             AppLogger.room("CREATE", "transactions", payload = entity, result = "Inserted server transaction ${entity.id}")
@@ -401,10 +406,19 @@ class SyncWorker(
                     val updated = apiService.updateUserCustomization(dto)
                     val data = updated.data
                     if (data != null) {
-                        val entity = data.toEntity()
-                        entryPoint.customizationDao().insert(entity)
-                        entryPoint.sessionManager().saveCustomization(data)
-                        AppLogger.room("UPDATE", "customizations", payload = entity, result = "Success")
+                        afterRemoteSuccess(item) {
+                            // The backend doesn't store aiTransaction / reminder yet; keep the latest local
+                            // choice (the user may have toggled again since this item was queued)
+                            val local = entryPoint.customizationDao().getCustomization().first()
+                            val merged = data.copy(
+                                aiTransaction = local?.aiTransaction ?: dto.aiTransaction,
+                                reminder = local?.reminder ?: dto.reminder
+                            )
+                            val entity = merged.toEntity()
+                            entryPoint.customizationDao().replace(entity)
+                            entryPoint.sessionManager().saveCustomization(merged)
+                            AppLogger.room("UPDATE", "customizations", payload = entity, result = "Success")
+                        }
                     }
                 }
                 true

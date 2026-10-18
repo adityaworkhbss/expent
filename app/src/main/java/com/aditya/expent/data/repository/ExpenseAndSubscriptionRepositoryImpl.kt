@@ -50,6 +50,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
                 name = expense.name,
                 amount = expense.amount.toDoubleOrNull() ?: 0.0,
                 date = expense.date ?: DayOfMonth.today(),
+                categoryId = expense.categoryId,
                 tenure = expense.totalMonths.toIntOrNull()?.takeIf { it > 0 },
                 paid = expense.monthsPaid.toIntOrNull() ?: 0
             )
@@ -58,6 +59,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
                 name = subscription.name,
                 amount = subscription.amount.toDoubleOrNull() ?: 0.0,
                 date = subscription.date ?: DayOfMonth.today(),
+                categoryId = subscription.categoryId,
                 tenure = null,
                 paid = 0
             )
@@ -92,6 +94,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
     ) {
@@ -100,6 +103,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             name = name,
             amount = amount,
             date = date.coerceIn(DayOfMonth.MIN, DayOfMonth.MAX),
+            categoryId = categoryId,
             tenure = tenure?.takeIf { it > 0 },
             paid = if (tenure == null) 0 else paid,
             updatedAt = nowIso(),
@@ -116,10 +120,11 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
     ) {
-        val entity = newEntity(name, amount, date, tenure?.takeIf { it > 0 }, paid)
+        val entity = newEntity(name, amount, date, categoryId, tenure?.takeIf { it > 0 }, paid)
         expenseDao.insert(entity)
         AppLogger.room("CREATE", "expenses", entity, "Inserted EMI/expense ${entity.id}")
 
@@ -142,6 +147,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
     ): ExpenseEntity {
@@ -152,6 +158,7 @@ class ExpenseAndSubscriptionRepositoryImpl @Inject constructor(
             name = name,
             amount = amount,
             date = date.coerceIn(DayOfMonth.MIN, DayOfMonth.MAX),
+            categoryId = categoryId,
             tenure = tenure,
             paid = if (tenure == null) 0 else paid,
             createdAt = now,

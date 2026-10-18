@@ -21,4 +21,12 @@ interface CustomizationDao {
 
     @Query("DELETE FROM customizations")
     suspend fun clear()
+
+    // One row per signed-in user: a second row (e.g. local id "" vs server id) would make
+    // getCustomization() return a stale value
+    @androidx.room.Transaction
+    suspend fun replace(customization: CustomizationEntity) {
+        clear()
+        insert(customization)
+    }
 }

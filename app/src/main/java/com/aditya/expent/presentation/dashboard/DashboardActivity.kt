@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.domain.model.Reminder
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
@@ -124,7 +125,11 @@ class DashboardActivity : ComponentActivity() {
                         },
                         requestedAddType = widgetAddType,
                         onAddRequestHandled = { widgetAddType = null },
-                        onAiMessageShown = { viewModel.clearAiMessage() }
+                        onAiMessageShown = { viewModel.clearAiMessage() },
+                        onCompleteReminder = { reminder, amount, accountId, accountName ->
+                            viewModel.completeReminder(reminder, amount, accountId, accountName)
+                        },
+                        onCompletedEmiShown = { viewModel.clearCompletedEmi() }
                     )
                 }
             }
@@ -150,16 +155,6 @@ class DashboardActivity : ComponentActivity() {
     }
 }
 
-data class Reminder(
-    val id: String,
-    val title: String,
-    val description: String,
-    val amount: Double,
-    val dueDate: String,
-    val category: String,
-    val type: TransactionType
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -169,7 +164,10 @@ fun DashboardScreen(
     onAddAiTransaction: (String) -> Unit,
     requestedAddType: TransactionType? = null,
     onAddRequestHandled: () -> Unit = {},
-    onAiMessageShown: () -> Unit = {}
+    onAiMessageShown: () -> Unit = {},
+    // (reminder, amount, accountId, accountName)
+    onCompleteReminder: (Reminder, Double, String, String) -> Unit = { _, _, _, _ -> },
+    onCompletedEmiShown: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -195,44 +193,12 @@ fun DashboardScreen(
         }
     }
 
-    var showConfirmDialog by remember { mutableStateOf(false) }
-    var selectedReminderForDialog by remember { mutableStateOf<Reminder?>(null) }
-    var showEditReminderSheet by remember { mutableStateOf(false) }
-    var selectedReminderForEdit by remember { mutableStateOf<Reminder?>(null) }
-    
+    // Reminder whose tick (or card) was tapped; its pay sheet is open while set
+    var reminderToPay by remember { mutableStateOf<Reminder?>(null) }
     val dismissingReminderIds = remember { mutableStateListOf<String>() }
-    val reminders = remember {
-        mutableStateListOf(
-            Reminder(
-                id = "1",
-                title = "Electricity Bill",
-                description = "Electricity bill due in 3 days",
-                amount = 45.50,
-                dueDate = "Sep 30, 2026",
-                category = "Bills",
-                type = TransactionType.EXPENSE
-            ),
-            Reminder(
-                id = "2",
-                title = "Netflix Subscription",
-                description = "Standard plan renewal",
-                amount = 15.99,
-                dueDate = "Oct 05, 2026",
-                category = "Subscription",
-                type = TransactionType.EXPENSE
-            ),
-            Reminder(
-                id = "3",
-                title = "Salary / Paycheck",
-                description = "Monthly direct deposit",
-                amount = 2500.00,
-                dueDate = "Oct 01, 2026",
-                category = "Job",
-                type = TransactionType.INCOME
-            )
-        )
-    }
-    
+    // Built in the ViewModel from budgets and expenses due in the next 7 days
+    val reminders = state.reminders
+
     val pagerState = rememberPagerState(pageCount = { reminders.size })
     
     val visibleTransactions = if (isExpanded) state.recentTransactions else state.recentTransactions.take(3)
@@ -404,14 +370,8 @@ fun DashboardScreen(
                                 ) {
                                     ReminderCard(
                                         reminder = reminder,
-                                        onTick = {
-                                            selectedReminderForDialog = reminder
-                                            showConfirmDialog = true
-                                        },
-                                        onEdit = {
-                                            selectedReminderForEdit = reminder
-                                            showEditReminderSheet = true
-                                        }
+                                        onTick = { reminderToPay = reminder },
+                                        onEdit = { reminderToPay = reminder }
                                     )
                                 }
                             }
@@ -559,178 +519,61 @@ fun DashboardScreen(
                 )
             }
 
-            // REMINDER CONFIRMATION DIALOG
-            if (showConfirmDialog && selectedReminderForDialog != null) {
-                val reminder = selectedReminderForDialog!!
-                AlertDialog(
-                    onDismissRequest = { 
-                        showConfirmDialog = false
-                        selectedReminderForDialog = null
-                    },
-                    shape = RoundedCornerShape(28.dp),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    title = {
-                        Text(
-                            text = "Add to Transactions?",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    },
-                    text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Do you want to add this reminder into your transactions?",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (reminder.type == TransactionType.INCOME) ColorIncome.copy(alpha = 0.15f)
-                                                else ColorExpense.copy(alpha = 0.15f)
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        val icon = when (reminder.category.lowercase()) {
-                                            "food" -> Icons.Default.Restaurant
-                                            "subscription" -> Icons.Default.Subscriptions
-                                            "work" -> Icons.Default.Work
-                                            "job" -> Icons.Default.BusinessCenter
-                                            "shopping" -> Icons.Default.ShoppingCart
-                                            "travel" -> Icons.Default.Flight
-                                            "entertainment", "leisure" -> Icons.Default.LocalPlay
-                                            else -> Icons.Default.Category
-                                        }
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = reminder.category,
-                                            tint = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                    
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = reminder.title,
-                                            fontWeight = FontWeight.Bold,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = reminder.category,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    
-                                    Text(
-                                        text = if (reminder.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", reminder.amount)}" else "- $ ${String.format("%.2f", reminder.amount)}",
-                                        fontWeight = FontWeight.Black,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                val firstAccount = state.accounts.firstOrNull()
-                                val accountName = firstAccount?.name ?: "Cash"
-                                val accountId = firstAccount?.id ?: ""
-                                
-                                onAddTransaction(
-                                    reminder.title,
-                                    reminder.amount,
-                                    reminder.category,
-                                    reminder.type,
-                                    getTodayDateString(),
-                                    accountName,
-                                    accountId
-                                )
-                                
-                                coroutineScope.launch {
-                                    dismissingReminderIds.add(reminder.id)
-                                    delay(350)
-                                    reminders.remove(reminder)
-                                    dismissingReminderIds.remove(reminder.id)
-                                }
-                                
-                                showConfirmDialog = false
-                                selectedReminderForDialog = null
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
-                            ),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text("Yes, Add", color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                showConfirmDialog = false
-                                selectedReminderForDialog = null
-                            }
-                        ) {
-                            Text(
-                                "Cancel",
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+            // Pay / receive a reminder: records the transaction (and EMI month) from the sheet
+            reminderToPay?.let { reminder ->
+                ReminderPaySheet(
+                    reminder = reminder,
+                    accounts = state.accounts,
+                    onDismiss = { reminderToPay = null },
+                    onSave = { amount, accountId, accountName ->
+                        reminderToPay = null
+                        coroutineScope.launch {
+                            dismissingReminderIds.add(reminder.id)
+                            delay(350)
+                            onCompleteReminder(reminder, amount, accountId, accountName)
+                            dismissingReminderIds.remove(reminder.id)
                         }
                     }
                 )
             }
 
-            // EDIT REMINDER BOTTOM SHEET
-            if (showEditReminderSheet && selectedReminderForEdit != null) {
-                EditReminderBottomSheet(
-                    reminder = selectedReminderForEdit!!,
-                    categories = state.categories,
-                    onDismiss = {
-                        showEditReminderSheet = false
-                        selectedReminderForEdit = null
+            // Last EMI of a loan paid
+            state.completedEmiName?.let { emiName ->
+                AlertDialog(
+                    onDismissRequest = onCompletedEmiShown,
+                    shape = RoundedCornerShape(28.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Celebration,
+                            contentDescription = null,
+                            tint = EmeraldPrimary,
+                            modifier = Modifier.size(36.dp)
+                        )
                     },
-                    onSave = { updatedReminder ->
-                        val index = reminders.indexOfFirst { it.id == updatedReminder.id }
-                        if (index != -1) {
-                            reminders[index] = updatedReminder
-                        }
-                        showEditReminderSheet = false
-                        selectedReminderForEdit = null
+                    title = {
+                        Text(
+                            text = "Congratulations!",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge
+                        )
                     },
-                    onDelete = {
-                        val reminderToDelete = selectedReminderForEdit
-                        if (reminderToDelete != null) {
-                            coroutineScope.launch {
-                                dismissingReminderIds.add(reminderToDelete.id)
-                                delay(350)
-                                reminders.remove(reminderToDelete)
-                                dismissingReminderIds.remove(reminderToDelete.id)
-                            }
+                    text = {
+                        Text(
+                            text = "You paid all monthly EMIs of \"$emiName\".",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = onCompletedEmiShown,
+                            colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
                         }
-                        showEditReminderSheet = false
-                        selectedReminderForEdit = null
                     }
                 )
             }
@@ -987,355 +830,6 @@ fun ReminderDot(
                 shape = CircleShape
             )
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditReminderBottomSheet(
-    reminder: Reminder,
-    categories: List<CategoryResponseDto>,
-    onDismiss: () -> Unit,
-    onSave: (Reminder) -> Unit,
-    onDelete: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    
-    var title by remember { mutableStateOf(reminder.title) }
-    var description by remember { mutableStateOf(reminder.description) }
-    var amountText by remember { mutableStateOf(reminder.amount.toString()) }
-    var dueDate by remember { mutableStateOf(reminder.dueDate) }
-    var selectedCategory by remember { mutableStateOf(reminder.category) }
-    var selectedType by remember { mutableStateOf(reminder.type) }
-
-    val activeColor = if (selectedType == TransactionType.INCOME) ColorIncome else ColorExpense
-
-    val filteredCategories = remember(categories, selectedType) {
-        categories.filter { cat ->
-            if (selectedType == TransactionType.INCOME) {
-                cat.type.equals("income", ignoreCase = true)
-            } else {
-                cat.type.equals("expense", ignoreCase = true)
-            }
-        }.map { it.name }
-    }
-
-    LaunchedEffect(filteredCategories) {
-        if (selectedCategory !in filteredCategories && filteredCategories.isNotEmpty()) {
-            selectedCategory = filteredCategories.first()
-        }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        tonalElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Edit Reminder",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButton(
-                    onClick = onDismiss,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                listOf(TransactionType.EXPENSE, TransactionType.INCOME).forEach { type ->
-                    val isSelected = selectedType == type
-                    val typeColor = if (type == TransactionType.INCOME) ColorIncome else ColorExpense
-                    Surface(
-                        onClick = { selectedType = type },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) typeColor else Color.Transparent,
-                                shape = RoundedCornerShape(14.dp)
-                            ),
-                        color = if (isSelected) typeColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = if (type == TransactionType.INCOME) "Income" else "Expense",
-                                color = if (isSelected) typeColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }
-            }
-
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                placeholder = { Text("e.g. Rent, Electricity...") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = activeColor,
-                    focusedLabelColor = activeColor
-                )
-            )
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Description") },
-                placeholder = { Text("Short reminder details") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = activeColor,
-                    focusedLabelColor = activeColor
-                )
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text("Amount ($)") },
-                    placeholder = { Text("0.00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = activeColor,
-                        focusedLabelColor = activeColor
-                    )
-                )
-
-                OutlinedTextField(
-                    value = dueDate,
-                    onValueChange = { dueDate = it },
-                    label = { Text("Due Date") },
-                    placeholder = { Text("e.g. Sep 30, 2026") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = activeColor,
-                        focusedLabelColor = activeColor
-                    )
-                )
-            }
-
-            if (filteredCategories.isNotEmpty()) {
-                var expandedCategoryDropdown by remember { mutableStateOf(false) }
-                val arrowRotation by animateFloatAsState(
-                    targetValue = if (expandedCategoryDropdown) 180f else 0f,
-                    label = "AiArrowRotation"
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategoryDropdown,
-                    onExpandedChange = { expandedCategoryDropdown = it }
-                ) {
-                    OutlinedTextField(
-                        value = if (selectedCategory.isBlank()) "Select Category" else selectedCategory,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category") },
-                        leadingIcon = {
-                            if (selectedCategory.isNotBlank()) {
-                                val iconAndColor = getCategoryIconAndColor(selectedCategory)
-                                Icon(
-                                    imageVector = iconAndColor.first,
-                                    contentDescription = null,
-                                    tint = iconAndColor.second,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select Category",
-                                tint = activeColor,
-                                modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
-                            )
-                        },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = activeColor,
-                            focusedLabelColor = activeColor
-                        )
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategoryDropdown,
-                        onDismissRequest = { expandedCategoryDropdown = false },
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-                    ) {
-                        filteredCategories.forEach { catName ->
-                            val isSelected = selectedCategory == catName
-                            val iconAndColor = getCategoryIconAndColor(catName)
-                            DropdownMenuItem(
-                                text = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(CircleShape)
-                                                    .background(iconAndColor.second.copy(alpha = 0.15f)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = iconAndColor.first,
-                                                    contentDescription = catName,
-                                                    modifier = Modifier.size(16.dp),
-                                                    tint = iconAndColor.second
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Text(
-                                                text = catName,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                ),
-                                                color = if (isSelected) activeColor else MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = "Selected",
-                                                tint = activeColor,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                },
-                                onClick = {
-                                    selectedCategory = catName
-                                    expandedCategoryDropdown = false
-                                },
-                                modifier = Modifier
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(
-                                        if (isSelected) activeColor.copy(alpha = 0.1f) else Color.Transparent
-                                    )
-                            )
-                        }
-                    }
-                }
-            } else {
-                Text(
-                    text = "No Categories Found",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .weight(1.5f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Delete", fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = {
-                        val amountVal = amountText.toDoubleOrNull() ?: reminder.amount
-                        onSave(
-                            reminder.copy(
-                                title = title.trim(),
-                                description = description.trim(),
-                                amount = amountVal,
-                                dueDate = dueDate.trim(),
-                                category = selectedCategory,
-                                type = selectedType
-                            )
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = activeColor),
-                    modifier = Modifier
-                        .weight(2f)
-                        .height(48.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Save,
-                        contentDescription = "Save Changes",
-                        modifier = Modifier.size(18.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -1596,7 +1090,7 @@ fun TransactionItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             
-            val paymentMode = transaction.paymentMethod ?: "Cash"
+            val paymentMode = transaction.accountName ?: "Cash"
             Text(
                 text = "via $paymentMode",
                 style = MaterialTheme.typography.bodyMedium,
@@ -1812,7 +1306,7 @@ fun GlowFloatingActionButton(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AddTransactionBottomSheet(
     categories: List<CategoryResponseDto>,
@@ -1831,23 +1325,21 @@ fun AddTransactionBottomSheet(
     var selectedType by remember(initialType) { mutableStateOf(initialType) }
     val isIncome = selectedType == TransactionType.INCOME
 
-    // Income only offers categories that have an income source set up in Cashflow
-    val typeCategories = remember(categories, incomeAmounts, selectedType) {
-        if (selectedType == TransactionType.INCOME) {
-            categories.filter { it.type.equals("income", ignoreCase = true) && incomeAmounts.containsKey(it.name) }
-        } else {
-            categories.filter { it.type.equals("expense", ignoreCase = true) }
-        }
+    // Every saved category of the selected type
+    val typeCategories = remember(categories, selectedType) {
+        val type = if (selectedType == TransactionType.INCOME) "income" else "expense"
+        categories.filter { it.type.equals(type, ignoreCase = true) }
     }
 
     var selectedCategory by remember(typeCategories) {
         mutableStateOf(typeCategories.firstOrNull()?.name ?: if (isIncome) "" else "Others")
     }
 
-    // Income amount is pre-filled from the selected category's income source and stays editable
+    // Income amount is pre-filled when the category has an income source in Cashflow, and stays editable
+    val incomePrefill = if (isIncome) incomeAmounts[selectedCategory] else null
     LaunchedEffect(selectedType, selectedCategory, incomeAmounts) {
         if (isIncome) {
-            amountText = incomeAmounts[selectedCategory]
+            amountText = incomePrefill
                 ?.toBigDecimal()?.stripTrailingZeros()?.toPlainString()
                 .orEmpty()
         }
@@ -2125,7 +1617,7 @@ fun AddTransactionBottomSheet(
                             .defaultMinSize(minWidth = 100.dp)
                     )
                 }
-                if (isIncome) {
+                if (incomePrefill != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Pre-filled from the selected income category, tap to edit",
@@ -2152,17 +1644,19 @@ fun AddTransactionBottomSheet(
 
                 if (filteredCategory.isEmpty()) {
                     Text(
-                        text = if (isIncome) "No income sources yet. Add them in Cashflow → Incoming." else "No Categories Found",
+                        text = if (isIncome) "No income categories found" else "No expense categories found",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 } else {
-                    LazyRow(
+                    // Wrap onto several lines so every category is visible without sideways scrolling
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(horizontal = 2.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(filteredCategory) { (catName, icon, catColor) ->
+                        filteredCategory.forEach { (catName, icon, catColor) ->
                             val isSelected = selectedCategory == catName
                             val containerColor by animateColorAsState(
                                 targetValue = if (isSelected) catColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),

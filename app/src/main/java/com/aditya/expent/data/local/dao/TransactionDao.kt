@@ -7,25 +7,25 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TransactionDao {
 
-    @Query("SELECT * FROM transactions WHERE isDeleted = 0 OR isDeleted IS NULL ORDER BY transactionDate DESC")
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0 ORDER BY date DESC")
     fun getTransactions(): Flow<List<TransactionEntity>>
 
     @Query("""
         SELECT * FROM transactions
-        WHERE (isDeleted = 0 OR isDeleted IS NULL)
+        WHERE isDeleted = 0
         AND (
-            substr(transactionDate, 1, 10) >= substr(:from, 1, 10)
-            AND substr(transactionDate, 1, 10) <= substr(:to, 1, 10)
+            substr(date, 1, 10) >= substr(:from, 1, 10)
+            AND substr(date, 1, 10) <= substr(:to, 1, 10)
         )
-        ORDER BY transactionDate DESC
+        ORDER BY date DESC
     """)
     fun getTransactions(from: String, to: String): Flow<List<TransactionEntity>>
 
     @Query("""
         SELECT * FROM transactions
-        WHERE (isDeleted = 0 OR isDeleted IS NULL)
+        WHERE isDeleted = 0
         AND type = :type
-        ORDER BY transactionDate DESC
+        ORDER BY date DESC
     """)
     fun getTransactionsByType(type: String): Flow<List<TransactionEntity>>
 

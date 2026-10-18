@@ -603,7 +603,7 @@ fun HistoryTransactionItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             
-            val paymentMode = transaction.paymentMethod ?: "Cash"
+            val paymentMode = transaction.accountName ?: "Cash"
             Text(
                 text = "via $paymentMode",
                 style = MaterialTheme.typography.bodyMedium,
@@ -735,7 +735,7 @@ fun TransactionScreenPreview() {
                             date = "2024-06-30T10:00:00.000Z",
                             category = "Job",
                             type = TransactionType.INCOME,
-                            paymentMethod = "Bank Transfer"
+                            accountName = "Bank Transfer"
                         ),
                         Transaction(
                             id = "2",
@@ -744,7 +744,7 @@ fun TransactionScreenPreview() {
                             date = "2024-06-29T15:30:00.000Z",
                             category = "Food",
                             type = TransactionType.EXPENSE,
-                            paymentMethod = "Credit Card"
+                            accountName = "Credit Card"
                         ),
                         Transaction(
                             id = "3",
@@ -753,7 +753,7 @@ fun TransactionScreenPreview() {
                             date = "2024-06-28T20:00:00.000Z",
                             category = "Subscription",
                             type = TransactionType.EXPENSE,
-                            paymentMethod = "Debit Card"
+                            accountName = "Debit Card"
                         ),
                         Transaction(
                             id = "4",
@@ -762,7 +762,7 @@ fun TransactionScreenPreview() {
                             date = "2024-06-27T09:00:00.000Z",
                             category = "Work",
                             type = TransactionType.INCOME,
-                            paymentMethod = "PayPal"
+                            accountName = "PayPal"
                         )
                     )
                 )

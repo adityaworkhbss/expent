@@ -12,6 +12,12 @@ import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.GetAccountsUseCase
 import com.aditya.expent.domain.usecase.AddTransactionsUseCase
 import com.aditya.expent.domain.model.Budget
+import com.aditya.expent.domain.model.Expense
+import com.aditya.expent.domain.model.Reminder
+import com.aditya.expent.domain.usecase.DeleteEmiUseCase
+import com.aditya.expent.domain.usecase.GetExpensesAndSubscriptionUseCase
+import com.aditya.expent.domain.usecase.ReminderCalculator
+import com.aditya.expent.domain.usecase.UpdateEmiUseCase
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.usecase.GetBudgetUseCase
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
@@ -48,7 +54,11 @@ data class DashboardState(
     val greetingMessage: String = "Welcome",
     val isLoading: Boolean = false,
     // One-off feedback from AI ("Smart") add, shown as a toast then cleared
-    val aiMessage: String? = null
+    val aiMessage: String? = null,
+    // Incomes / outgoings due in the next 7 days, built from budgets and expenses in Room
+    val reminders: List<Reminder> = emptyList(),
+    // Set when the last EMI of a loan is paid, to show the congratulations popup
+    val completedEmiName: String? = null
 ) {
     // Income amount per category name, taken from the income sources set up in Cashflow
     val incomeAmountByCategory: Map<String, Double>
@@ -72,6 +82,9 @@ class DashboardViewModel @Inject constructor(
     private val getCustomizationUseCase: GetCustomizationUseCase,
     private val parseTransactionUseCase: ParseTransactionUseCase,
     private val updateCustomizationUseCase: UpdateCustomizationUseCase,
+    private val getExpensesAndSubscriptionUseCase: GetExpensesAndSubscriptionUseCase,
+    private val updateEmiUseCase: UpdateEmiUseCase,
+    private val deleteEmiUseCase: DeleteEmiUseCase,
     private val sessionManager: SessionManager,
     private val syncScheduler: SyncScheduler
 ) : ViewModel() {
@@ -84,6 +97,7 @@ class DashboardViewModel @Inject constructor(
         loadCategories()
         loadAccounts()
         loadIncomeSources()
+        loadExpenses()
         loadCustomization()
         loadInfos()
     }
@@ -138,14 +152,14 @@ class DashboardViewModel @Inject constructor(
 
                         Transaction(
                             id = dto.id,
-                            title = dto.note ?: dto.merchant ?: "Transaction",
+                            title = dto.category?.name ?: "Transaction",
                             amount = amount,
-                            date = dto.transactionDate,
+                            date = dto.date.orEmpty(),
                             category = dto.category?.name ?: "Other",
                             type = typeEnum,
                             accountId = dto.accountId,
                             categoryId = dto.categoryId,
-                            paymentMethod = dto.paymentMethod ?: dto.account?.name
+                            accountName = dto.account?.name
                         )
                     }
                     updateStateWithList(transactions)
@@ -169,6 +183,7 @@ class DashboardViewModel @Inject constructor(
                         )
                     }
                     _state.value = _state.value.copy(categories = dtoList)
+                    refreshReminders()
                 }
         }
     }
@@ -189,14 +204,79 @@ class DashboardViewModel @Inject constructor(
                 .catch { /* Keep default empty on error */ }
                 .collect { budgets ->
                     _state.value = _state.value.copy(incomeSources = budgets)
+                    refreshReminders()
                 }
         }
     }
 
-    fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String, accountName: String, accountId: String) {
+    // Latest recurring outgoings from Room; only used to build reminders
+    private var expenses: List<Expense> = emptyList()
+
+    private fun loadExpenses() {
+        viewModelScope.launch {
+            getExpensesAndSubscriptionUseCase()
+                .catch { /* Keep default empty on error */ }
+                .collect {
+                    expenses = it
+                    refreshReminders()
+                }
+        }
+    }
+
+    private fun refreshReminders() {
+        val categoryNames = _state.value.categories.associate { it.id to it.name }
+        val reminders = ReminderCalculator.upcoming(
+            budgets = _state.value.incomeSources,
+            expenses = expenses,
+            categoryNames = categoryNames,
+            isDone = sessionManager::isReminderDone
+        )
+        _state.value = _state.value.copy(reminders = reminders)
+    }
+
+    /**
+     * Records the reminder as a transaction and hides it for this cycle.
+     * For an EMI this also counts the month as paid; paying the last month removes the EMI.
+     */
+    fun completeReminder(reminder: Reminder, amount: Double, accountId: String, accountName: String) {
+        addTransaction(
+            title = reminder.category,
+            amount = amount,
+            category = reminder.category,
+            type = reminder.type,
+            date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date()),
+            accountName = accountName,
+            accountId = accountId,
+            categoryId = reminder.categoryId
+        )
+        sessionManager.markReminderDone(reminder.sourceId, reminder.cycle)
+
+        val emi = expenses.firstOrNull { it.id == reminder.sourceId }
+        if (reminder.kind == Reminder.Kind.EMI && emi?.tenure != null) {
+            viewModelScope.launch {
+                val newPaid = emi.paid + 1
+                runCatching {
+                    if (newPaid >= emi.tenure) {
+                        deleteEmiUseCase(emi.id)
+                        _state.value = _state.value.copy(completedEmiName = emi.name)
+                    } else {
+                        updateEmiUseCase(emi.id, emi.name, emi.amount, emi.date, emi.categoryId, emi.tenure, newPaid)
+                    }
+                }.onFailure { AppLogger.error("DashboardViewModel", "Failed to update EMI after payment", it) }
+            }
+        }
+        refreshReminders()
+    }
+
+    fun clearCompletedEmi() {
+        _state.value = _state.value.copy(completedEmiName = null)
+    }
+
+    fun addTransaction(title: String, amount: Double, category: String, type: TransactionType, date: String, accountName: String, accountId: String, categoryId: String? = null) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            val categoryId = _state.value.categories.firstOrNull { it.name.equals(category, ignoreCase = true) }?.id
+            val resolvedCategoryId = categoryId
+                ?: _state.value.categories.firstOrNull { it.name.equals(category, ignoreCase = true) }?.id
 
             val newTransaction = Transaction(
                 id = "local-${java.util.UUID.randomUUID()}",
@@ -206,8 +286,8 @@ class DashboardViewModel @Inject constructor(
                 category = category,
                 type = type,
                 accountId = accountId,
-                categoryId = categoryId,
-                paymentMethod = accountName
+                categoryId = resolvedCategoryId,
+                accountName = accountName
             )
 
             // Optimistic local update
@@ -224,13 +304,7 @@ class DashboardViewModel @Inject constructor(
     fun addAiTransaction(rawText: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            if (!_state.value.aiTransaction) {
-                Log.d("DashboardViewModel", "AI transaction parsing is disabled. Enabling it.")
-                runCatching {
-                    updateCustomizationUseCase(aiTransaction = true, reminder = _state.value.reminder)
-                    _state.value = _state.value.copy(aiTransaction = true)
-                }.onFailure { AppLogger.error("DashboardViewModel", "Failed to enable AI transactions", it) }
-            }
+            // Never switch the user's AI setting back on from here; Profile owns it
 
             runCatching {
                 val response = parseTransactionUseCase(rawText)
@@ -252,7 +326,7 @@ class DashboardViewModel @Inject constructor(
                     return@runCatching
                 }
 
-                val type = if (data.resolvedTransactionType.equals("INCOME", ignoreCase = true)) TransactionType.INCOME else TransactionType.EXPENSE
+                val type = if ((data.type ?: "EXPENSE").equals("INCOME", ignoreCase = true)) TransactionType.INCOME else TransactionType.EXPENSE
 
                 // Backend returns the user's real category/account IDs; local lookups are only fallbacks
                 val localCategory = data.categoryId?.let { id -> _state.value.categories.firstOrNull { it.id == id } }
@@ -282,15 +356,14 @@ class DashboardViewModel @Inject constructor(
 
                 val newTransaction = Transaction(
                     id = "local-${java.util.UUID.randomUUID()}",
-                    title = data.resolvedNote.ifBlank { rawText },
+                    title = categoryName,
                     amount = if (type == TransactionType.EXPENSE) -Math.abs(data.amount) else Math.abs(data.amount),
                     date = resolveParsedDate(data.date),
                     category = categoryName,
                     type = type,
                     accountId = accountId,
                     categoryId = categoryId,
-                    paymentMethod = data.paymentMethod ?: accountName,
-                    merchant = data.merchant
+                    accountName = accountName
                 )
 
                 // Saved to Room first (PENDING_CREATE), then the sync worker posts it to /transactions

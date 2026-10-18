@@ -123,14 +123,13 @@ fun BudgetEntity.toDomain(): Budget =
         date = date
     )
 
-// Current API contract: always MONTHLY, a full date in this month, no end date
+// Current API contract: always MONTHLY, a full date in this month
 fun BudgetEntity.toRequest(): BudgetRequestDto =
     BudgetRequestDto(
         categoryId = categoryId,
         periodType = "MONTHLY",
         limitAmount = amount,
-        startDate = DayOfMonth.toIsoDateThisMonth(date),
-        endDate = null
+        startDate = DayOfMonth.toIsoDateThisMonth(date)
     )
 
 fun ExpenseIncomeResponseDto.toEntity(
@@ -145,11 +144,9 @@ fun ExpenseIncomeResponseDto.toEntity(
         amount = monthlyEmiAmount.toDoubleOrNull() ?: 0.0,
         date = DayOfMonth.from(resolvedStartDate) ?: DayOfMonth.MIN,
         categoryId = categoryId,
-        accountId = accountId,
         // Backend sends 0 for "every month"; the app keeps that as null
         tenure = tenure?.takeIf { it > 0 },
         paid = monthsPaid ?: 0,
-        accountName = account?.name,
         createdAt = createdAt,
         updatedAt = updatedAt,
         syncStatus = syncStatus,
@@ -163,7 +160,6 @@ fun ExpenseEntity.toDomain(): Expense =
         amount = amount,
         date = date,
         categoryId = categoryId,
-        accountId = accountId,
         tenure = tenure,
         paid = paid
     )
@@ -176,7 +172,6 @@ fun ExpenseEntity.toRequest(): ExpenseIncomeRequestDto =
         amount = amount.toPlainAmount(),
         startDate = DayOfMonth.toIsoDateThisMonth(date),
         categoryId = categoryId,
-        accountId = accountId,
         tenure = tenure?.toString(),
         monthsPaid = if (tenure == null) null else paid.toString()
     )
@@ -192,37 +187,27 @@ fun TransactionResponseDto.toEntity(
         userId = userId ?: "",
         accountId = accountId,
         categoryId = categoryId,
-        transferToAccountId = transferToAccountId,
         type = type,
-        amount = amount,
-        transactionDate = AppUtils.convertDateToIso(transactionDate),
-        note = note,
-        merchant = merchant,
-        paymentMethod = paymentMethod,
-        tags = tags,
-        status = status,
-        isSalary = isSalary,
-        isDeleted = isDeleted,
-        createdAt = createdAt ?: "",
-        updatedAt = updatedAt ?: "",
+        amount = amount.toDoubleOrNull() ?: 0.0,
+        date = AppUtils.convertDateToIso(date),
         categoryName = category?.name,
         accountName = account?.name,
-        transferToAccountName = transferToAccount?.name,
+        createdAt = createdAt ?: "",
+        updatedAt = updatedAt ?: "",
         syncStatus = syncStatus
     )
 
 fun TransactionEntity.toDomain(): Transaction =
     Transaction(
         id = id,
-        title = note ?: merchant ?: "",
-        amount = amount.toDoubleOrNull() ?: 0.0,
-        date = transactionDate,
+        title = categoryName ?: "Transaction",
+        amount = amount,
+        date = date,
         category = categoryName ?: "",
         type = runCatching { TransactionType.valueOf(type) }.getOrDefault(TransactionType.EXPENSE),
         accountId = accountId,
         categoryId = categoryId,
-        transferToAccountId = transferToAccountId,
-        paymentMethod = paymentMethod
+        accountName = accountName
     )
 
 
@@ -255,17 +240,9 @@ fun TransactionEntity.toDto(): TransactionResponseDto =
         userId = userId,
         accountId = accountId,
         categoryId = categoryId,
-        transferToAccountId = transferToAccountId,
         type = type,
         amountRaw = amount,
-        transactionDateRaw = transactionDate,
-        note = note,
-        merchant = merchant,
-        paymentMethod = paymentMethod,
-        tags = tags,
-        status = status,
-        isSalary = isSalary,
-        isDeleted = isDeleted,
+        date = date,
         createdAt = createdAt,
         updatedAt = updatedAt,
         category = categoryName?.let { TransactionCategoryDto(id = categoryId.orEmpty(), name = it) },

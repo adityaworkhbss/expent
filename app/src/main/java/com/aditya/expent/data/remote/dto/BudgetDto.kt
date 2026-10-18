@@ -10,9 +10,7 @@ data class BudgetRequestDto(
     @SerializedName("limitAmount")
     val limitAmount: Double,
     @SerializedName("startDate")
-    val startDate: String? = null,
-    @SerializedName("endDate")
-    val endDate: String? = null
+    val startDate: String? = null
 )
 
 data class BudgetResponseDto(
@@ -28,8 +26,6 @@ data class BudgetResponseDto(
     val limitAmount: Double,
     @SerializedName("startDate")
     val startDate: String? = null,
-    @SerializedName("endDate")
-    val endDate: String? = null,
     @SerializedName("createdAt")
     val createdAt: String? = null,
     @SerializedName("updatedAt")

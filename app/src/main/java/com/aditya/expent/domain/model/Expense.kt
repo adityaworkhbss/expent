@@ -12,7 +12,6 @@ data class Expense(
     val amount: Double,
     val date: Int,
     val categoryId: String?,
-    val accountId: String?,
     val tenure: Int?,
     val paid: Int
 ) {

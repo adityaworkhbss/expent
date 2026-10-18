@@ -28,7 +28,7 @@ import com.aditya.expent.data.local.entity.TransactionEntity
         CustomizationEntity::class,
         PendingSyncEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

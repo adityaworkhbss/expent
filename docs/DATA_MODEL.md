@@ -9,8 +9,9 @@
   (`syncStatus`, `isDeleted`) and the `pending_sync` table stay on every mutable entity.
 - `User` is done and not covered here.
 
-Backend note: the backend source is not in this repo. Its column list below is derived from the
-Retrofit DTOs (`data/remote/dto`), i.e. what the API sends and accepts today.
+Backend note: the backend is `C:\Users\Aditya Sharma\GolandProjects\expent-backend` (Go + Prisma,
+`prisma/schema.prisma`). The column lists below were first derived from the app's Retrofit DTOs
+(`data/remote/dto`); the Prisma schema is the source of truth for what the server stores.
 
 ---
 
@@ -132,15 +133,16 @@ For a month `M`:
    (a transaction is a real event and the month matters for prev / this month figures).
 2. **Backend changes later.** The app converts at the API boundary (`data/mapper/EntityMappers.kt`).
 3. **Transaction `type` stays** (type exists on Category, Account and Transaction).
-4. **Expense keeps `accountId`.**
+4. **Expense has no account** (`accountId` / `accountName` removed); it has a category (EXPENSE type).
 5. **Budget has no end date.** An income that stops is deleted.
 
-## 8. Implemented on the app side (Room v4)
+## 8. Implemented on the app side (Room v6)
 
 | Entity | Room columns now |
 |---|---|
 | `budgets` | id, userId, categoryId, **amount** (Double), **date** (day 1-31), categoryName*, createdAt, updatedAt, syncStatus, isDeleted |
-| `expenses` | id, userId, name, **amount** (Double), **date** (day 1-31), **categoryId**, accountId, **tenure** (Int?, null = every month), **paid**, accountName*, createdAt, updatedAt, syncStatus, isDeleted |
+| `expenses` | id, userId, name, **amount** (Double), **date** (day 1-31), **categoryId**, **tenure** (Int?, null = every month), **paid**, createdAt, updatedAt, syncStatus, isDeleted |
+| `transactions` | id, userId, accountId, categoryId, type, **amount** (Double), **date** (ISO timestamp), categoryName*, accountName*, createdAt, updatedAt, syncStatus, isDeleted |
 
 \* display cache only. `createdAt` / `updatedAt` stay as sync metadata (also the reference month
 for `paid` later).
@@ -156,14 +158,23 @@ for `paid` later).
 | App | Sent to API | Read from API |
 |---|---|---|
 | Budget.amount | `limitAmount` | `limitAmount` |
-| Budget.date | `startDate` = that day in the current month; `periodType = "MONTHLY"`; `endDate = null` | day of `startDate` |
+| Budget.date | `startDate` = that day in the current month; `periodType = "MONTHLY"` | day of `startDate` |
 | Expense.amount | `amount` | `monthlyEmi`, else `amount` |
 | Expense.date | `startDate` = that day in the current month | day of `startDate` / `date` |
 | Expense.tenure | `tenure`; `type` = `subscription` when null, else `expense` | `tenure` (0 → null) |
 | Expense.paid | `monthsPaid` | `monthsPaid` |
 
 ### Backend to-do (later)
-- Budget: `amount`, `date` (int day), drop `periodType` / `endDate` / `limitAmount`.
-- Expense: `amount`, `date` (int day), nullable `tenure`, `paid`, keep `categoryId` / `accountId`;
-  drop `principal`, `monthlyEmi`, `remainingBalance`, `nextDueDate`, `endDate`, `active`, `type`.
+- Budget: `amount`, `date` (int day), drop `periodType` / `limitAmount`. (`endDate` already removed from schema and API.)
+- Expense: `amount`, `date` (int day), nullable `tenure`, `paid`, keep `categoryId`, drop `accountId`;
+  drop `type`. The Prisma `Emi` model never had `principal`, `monthlyEmi`, `remainingBalance`, `nextDueDate`, `endDate` or `active`; the app DTO lists fields the server does not send.
 - Then delete the mapping table above from `EntityMappers.kt`.
+
+### Transaction API (app and backend changed together)
+- `POST/PUT /transactions` body: `{ type, amount, date, accountId, categoryId }`; `date` is RFC 3339 (or yyyy-MM-dd).
+  Before this, the app sent `transactionDate`, which the backend ignored, so every transaction was saved with today's date.
+- Response: `{ id, userId, accountId, categoryId, amount, type, date, createdAt, updatedAt }`; `timestamp`, `notes`,
+  `description` removed. Prisma `Transaction.notes` dropped.
+- `POST /parse-transaction` data: `{ type, amount, date, category_id, category_name, account_id, account_name }`;
+  the Gemini prompt asks only for these.
+- Transactions show their category name as the title (no note / merchant).

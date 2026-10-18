@@ -134,6 +134,8 @@ fun OnboardRoute(
                             nextMonthPendingPayment = state.nextMonthPendingPayment,
                             recurringExpenses = state.recurringExpenses,
                             subscriptions = state.subscriptions,
+                            // Only categories the user saved (Room) with type EXPENSE
+                            expenseCategories = state.savedCategories.filter { it.type.equals("EXPENSE", ignoreCase = true) },
                             onCreditCardBillChange = { viewModel.onCreditCardBillChanged(it) },
                             onNextMonthPendingPaymentChange = { viewModel.onNextMonthPendingPaymentChanged(it) },
                             onRecurringExpensesChange = { viewModel.onRecurringExpensesChanged(it) },
@@ -1127,12 +1129,16 @@ fun OutgoingStep(
     nextMonthPendingPayment: String,
     recurringExpenses: List<RecurringExpense>,
     subscriptions: List<Subscription>,
+    expenseCategories: List<OnboardCategory>,
     onCreditCardBillChange: (String) -> Unit,
     onNextMonthPendingPaymentChange: (String) -> Unit,
     onRecurringExpensesChange: (List<RecurringExpense>) -> Unit,
     onSubscriptionsChange: (List<Subscription>) -> Unit,
     onNext: () -> Unit
 ) {
+    var emiCategory by remember { mutableStateOf<String?>(null) }
+    var subCategory by remember { mutableStateOf<String?>(null) }
+
     // Local states for forms
     var emiName by remember { mutableStateOf("") }
     var emiAmount by remember { mutableStateOf("") }
@@ -1230,7 +1236,10 @@ fun OutgoingStep(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Due: ${emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty()}",
+                            text = listOfNotNull(
+                                "Due: ${emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty()}",
+                                expenseCategories.firstOrNull { it.id == emi.categoryId }?.name
+                            ).joinToString(" • "),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1368,20 +1377,39 @@ fun OutgoingStep(
                     }
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                ExpenseCategoryChips(
+                    categories = expenseCategories,
+                    selectedId = emiCategory,
+                    onSelect = { emiCategory = it }
+                )
+
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // An EMI needs a tenure; something that never ends belongs under subscriptions
                 val canAddEmi = emiName.isNotBlank() && emiAmount.isNotBlank() &&
-                    (emiTotalMonths.toIntOrNull() ?: 0) > 0 && emiMonthsPaid.isNotBlank() && emiDate != null
+                    (emiTotalMonths.toIntOrNull() ?: 0) > 0 && emiMonthsPaid.isNotBlank() && emiDate != null &&
+                    (expenseCategories.isEmpty() || emiCategory != null)
                 Button(
                     onClick = {
                         if (canAddEmi) {
-                            onRecurringExpensesChange(recurringExpenses + RecurringExpense(emiName.trim(), emiAmount.trim(), emiTotalMonths.trim(), emiMonthsPaid.trim(), emiDate))
+                            onRecurringExpensesChange(
+                                recurringExpenses + RecurringExpense(
+                                    name = emiName.trim(),
+                                    amount = emiAmount.trim(),
+                                    totalMonths = emiTotalMonths.trim(),
+                                    monthsPaid = emiMonthsPaid.trim(),
+                                    date = emiDate,
+                                    categoryId = emiCategory
+                                )
+                            )
                             emiName = ""
                             emiAmount = ""
                             emiTotalMonths = ""
                             emiMonthsPaid = ""
                             emiDate = null
+                            emiCategory = null
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -1435,7 +1463,10 @@ fun OutgoingStep(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(sub.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            text = "Billing on ${dayOfMonthLabel(sub.date)}",
+                            text = listOfNotNull(
+                                "Billing on ${dayOfMonthLabel(sub.date)}",
+                                expenseCategories.firstOrNull { it.id == sub.categoryId }?.name
+                            ).joinToString(" • "),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1529,16 +1560,33 @@ fun OutgoingStep(
                     }
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                ExpenseCategoryChips(
+                    categories = expenseCategories,
+                    selectedId = subCategory,
+                    onSelect = { subCategory = it }
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val canAddSubscription = subName.isNotBlank() && subAmount.isNotBlank() && subDate != null
+                val canAddSubscription = subName.isNotBlank() && subAmount.isNotBlank() && subDate != null &&
+                    (expenseCategories.isEmpty() || subCategory != null)
                 Button(
                     onClick = {
                         if (canAddSubscription) {
-                            onSubscriptionsChange(subscriptions + Subscription(subName.trim(), subAmount.trim(), subDate))
+                            onSubscriptionsChange(
+                                subscriptions + Subscription(
+                                    name = subName.trim(),
+                                    amount = subAmount.trim(),
+                                    date = subDate,
+                                    categoryId = subCategory
+                                )
+                            )
                             subName = ""
                             subAmount = ""
                             subDate = null
+                            subCategory = null
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -1565,6 +1613,48 @@ fun OutgoingStep(
             colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
         ) {
             Text("Complete Setup", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
+        }
+    }
+}
+
+// Category chips for EMIs / subscriptions; only EXPENSE categories the user saved are passed in
+@Composable
+private fun ExpenseCategoryChips(
+    categories: List<OnboardCategory>,
+    selectedId: String?,
+    onSelect: (String) -> Unit
+) {
+    if (categories.isEmpty()) return
+
+    Text("Category:", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+    Spacer(modifier = Modifier.height(6.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        categories.forEach { category ->
+            val isSel = selectedId == category.id
+            Surface(
+                onClick = { onSelect(category.id) },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        width = 1.dp,
+                        color = if (isSel) EmeraldPrimary else Color.Transparent,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+                color = if (isSel) EmeraldPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            ) {
+                Text(
+                    text = category.name,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                    fontWeight = FontWeight.Bold,
+                    color = if (isSel) EmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }
@@ -1748,6 +1838,7 @@ fun OutgoingStepPreview() {
                 nextMonthPendingPayment = "150",
                 recurringExpenses = listOf(RecurringExpense("Car Loan", "300", "48", "12", 5)),
                 subscriptions = listOf(Subscription("Netflix", "15", 12)),
+                expenseCategories = listOf(OnboardCategory("Bills & Utilities", "EXPENSE", "c1"), OnboardCategory("Entertainment", "EXPENSE", "c2")),
                 onCreditCardBillChange = {},
                 onNextMonthPendingPaymentChange = {},
                 onRecurringExpensesChange = {},

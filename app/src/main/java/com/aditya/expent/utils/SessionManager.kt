@@ -212,6 +212,14 @@ class SessionManager @Inject constructor(
         prefs.edit { putLong(KEY_LAST_SYNC_TIME, time) }
     }
 
+    // A reminder handled for a cycle (yyyy-MM) stays hidden until the next month's due date
+    fun markReminderDone(sourceId: String, cycle: String) {
+        prefs.edit { putBoolean("reminder_done_${sourceId}_$cycle", true) }
+    }
+
+    fun isReminderDone(sourceId: String, cycle: String): Boolean =
+        prefs.getBoolean("reminder_done_${sourceId}_$cycle", false)
+
     private fun createEncryptedPrefs(): SharedPreferences {
         return try {
             val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)

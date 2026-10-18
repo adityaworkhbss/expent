@@ -68,9 +68,6 @@ data class ExpenseIncomeResponseDto(
     @SerializedName("startDate")
     val startDate: String? = null,
 
-    @SerializedName("endDate")
-    val endDate: String? = null,
-
     @SerializedName("nextDueDate")
     val nextDueDate: String? = null,
 

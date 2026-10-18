@@ -74,16 +74,9 @@ class TransactionRepositoryImpl @Inject constructor(
         val request = CreateTransactionRequestDto(
             type = transaction.type.name,
             amount = abs(transaction.amount),
-            transactionDate = convertDateToIso(transaction.date),
+            date = convertDateToIso(transaction.date),
             accountId = transaction.accountId ?: "",
-            categoryId = transaction.categoryId,
-            transferToAccountId = transaction.transferToAccountId,
-            note = transaction.title,
-            merchant = transaction.merchant,
-            paymentMethod = transaction.paymentMethod,
-            tags = null,
-            status = "CLEARED",
-            isSalary = transaction.title.lowercase().contains("salary")
+            categoryId = transaction.categoryId
         )
 
         val entity = transaction.toPendingEntity(request).copy(
@@ -213,20 +206,13 @@ class TransactionRepositoryImpl @Inject constructor(
             userId = "",
             accountId = request.accountId,
             categoryId = request.categoryId,
-            transferToAccountId = request.transferToAccountId,
             type = request.type,
-            amount = request.amount.toString(),
-            transactionDate = request.transactionDate ?: request.date ?: now,
-            note = request.note,
-            merchant = request.merchant,
-            paymentMethod = request.paymentMethod,
-            tags = request.tags,
-            status = request.status,
-            isSalary = request.isSalary,
-            isDeleted = false,
+            amount = request.amount,
+            date = request.date,
+            categoryName = category,
+            accountName = accountName,
             createdAt = now,
             updatedAt = now,
-            categoryName = category,
             syncStatus = SyncStatus.PENDING_CREATE
         )
     }

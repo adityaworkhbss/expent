@@ -186,12 +186,13 @@ class CashflowViewModel @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            runCatching { updateEmiUseCase(id, name, amount, date, tenure, paid) }
+            runCatching { updateEmiUseCase(id, name, amount, date, categoryId, tenure, paid) }
                 .onSuccess {
                     _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
@@ -209,12 +210,13 @@ class CashflowViewModel @Inject constructor(
         name: String,
         amount: Double,
         date: Int,
+        categoryId: String?,
         tenure: Int?,
         paid: Int
     ) {
         viewModelScope.launch {
             _budgetState.value = _budgetState.value.copy(isLoading = true)
-            runCatching { saveEmiUseCase(name, amount, date, tenure, paid) }
+            runCatching { saveEmiUseCase(name, amount, date, categoryId, tenure, paid) }
                 .onSuccess {
                     _budgetState.value = _budgetState.value.copy(isLoading = false)
                 }
