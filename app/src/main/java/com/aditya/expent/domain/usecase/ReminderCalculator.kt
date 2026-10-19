@@ -10,10 +10,6 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-/**
- * Builds reminders from the monthly incomes (budgets) and outgoings (expenses) already in Room:
- * anything whose next due day falls within [WINDOW_DAYS] days from today.
- */
 object ReminderCalculator {
 
     const val WINDOW_DAYS = 7
@@ -76,7 +72,6 @@ object ReminderCalculator {
             .sortedBy { it.dueDate.parse()?.time ?: Long.MAX_VALUE }
     }
 
-    /** The next date on [day] (clamped to the month's length) on or after [start], if within the window. */
     internal fun nextDue(day: Int, start: Calendar): Calendar? {
         val thisMonth = start.onDay(day, monthOffset = 0)
         val due = if (thisMonth.before(start)) start.onDay(day, monthOffset = 1) else thisMonth

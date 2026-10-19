@@ -1,9 +1,6 @@
 package com.aditya.expent.domain.model
 
-/**
- * An income (Budget) or outgoing (Expense) due within the next few days, built from Room data.
- * [cycle] is the yyyy-MM month of [dueDate]; marking a reminder done hides it for that cycle only.
- */
+
 data class Reminder(
     val sourceId: String,
     val kind: Kind,

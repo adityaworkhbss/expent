@@ -44,6 +44,8 @@ import com.aditya.expent.domain.model.Expense
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
 import com.aditya.expent.presentation.theme.ColorExpense
+import com.aditya.expent.presentation.theme.ColorIncome
+import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.component.DayOfMonthPicker
 import com.aditya.expent.presentation.component.dayOfMonthLabel
@@ -51,12 +53,17 @@ import com.aditya.expent.utils.DayOfMonth
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Subscriptions
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import com.aditya.expent.utils.CategoryUtils
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import java.text.NumberFormat
+import java.util.Locale
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.OffsetDateTime
 import kotlin.getValue
@@ -156,52 +163,72 @@ fun CashflowScreen(
         mutableStateOf(CashflowTab.INCOMING)
     }
 
-    val themeColor = when (selectedTab) {
-        CashflowTab.INCOMING -> Color(0xFF00ACC1)
-        CashflowTab.OUTGOING -> ColorExpense
-    }
-
     val categoriesType = when (selectedTab) {
         CashflowTab.INCOMING -> "INCOME"
         CashflowTab.OUTGOING -> "EXPENSE"
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-
-            NavigationBar {
-
-                NavigationBarItem(
-                    selected = selectedTab == CashflowTab.INCOMING,
-                    onClick = {
-                        selectedTab = CashflowTab.INCOMING
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDownward,
-                            contentDescription = "Incoming"
+            Surface(
+                color = Color.White,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+            ) {
+                NavigationBar(
+                    containerColor = Color.White,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.navigationBarsPadding()
+                ) {
+                    NavigationBarItem(
+                        selected = selectedTab == CashflowTab.INCOMING,
+                        onClick = { selectedTab = CashflowTab.INCOMING },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDownward,
+                                contentDescription = "Incoming"
+                            )
+                        },
+                        label = {
+                            Text(
+                                "Incoming",
+                                fontWeight = if (selectedTab == CashflowTab.INCOMING) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = EmeraldPrimary,
+                            selectedTextColor = EmeraldPrimary,
+                            indicatorColor = EmeraldPrimary.copy(alpha = 0.12f),
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
-                    },
-                    label = {
-                        Text("Incoming")
-                    }
-                )
+                    )
 
-                NavigationBarItem(
-                    selected = selectedTab == CashflowTab.OUTGOING,
-                    onClick = {
-                        selectedTab = CashflowTab.OUTGOING
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.ArrowUpward,
-                            contentDescription = "Outgoing"
+                    NavigationBarItem(
+                        selected = selectedTab == CashflowTab.OUTGOING,
+                        onClick = { selectedTab = CashflowTab.OUTGOING },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowUpward,
+                                contentDescription = "Outgoing"
+                            )
+                        },
+                        label = {
+                            Text(
+                                "Outgoing",
+                                fontWeight = if (selectedTab == CashflowTab.OUTGOING) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = EmeraldPrimary,
+                            selectedTextColor = EmeraldPrimary,
+                            indicatorColor = EmeraldPrimary.copy(alpha = 0.12f),
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
-                    },
-                    label = {
-                        Text("Outgoing")
-                    }
-                )
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -209,11 +236,12 @@ fun CashflowScreen(
         CashflowContentScreen(
             modifier = Modifier.padding(paddingValues),
             title = title,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
             income = income,
             expense = expense,
             categories = categories.filter { it.type.equals(categoriesType, ignoreCase = true) },
             allCategories = categories,
-            themeColor = themeColor,
             onBack = onBack,
             onDeleteBudget = onDeleteBudget,
             onUpdateBudget = onUpdateBudget,
@@ -231,11 +259,13 @@ fun CashflowScreen(
 fun CashflowContentScreen(
     modifier: Modifier = Modifier,
     title: String,
+    selectedTab: CashflowTab = if (title == "Incoming") CashflowTab.INCOMING else CashflowTab.OUTGOING,
+    onTabSelected: (CashflowTab) -> Unit = {},
     income: List<Budget>,
     expense: List<Expense>,
     categories: List<CategoryResponseDto> = emptyList(),
     allCategories: List<CategoryResponseDto> = emptyList(),
-    themeColor: Color,
+    themeColor: Color = EmeraldPrimary,
     onBack: () -> Unit,
     onDeleteBudget: (String) -> Unit = {},
     onUpdateBudget: UpdateBudget = { _, _, _, _ -> },
@@ -244,7 +274,6 @@ fun CashflowContentScreen(
     onUpdateEmi: UpdateEmi = { _, _, _, _, _, _, _ -> },
     onAddEmi: AddEmi = { _, _, _, _, _, _ -> }
 ) {
-
     // tenure == null → every month (subscription); otherwise an EMI
     val recurringExpenses: List<RecurringExpense> = expense
         .filterNot { it.isEveryMonth }
@@ -285,7 +314,13 @@ fun CashflowContentScreen(
         )
     }
 
-    val activeList = if (title.contentEquals("Incoming")) incomes else subscriptions
+    val isIncoming = selectedTab == CashflowTab.INCOMING
+    val activeList = if (isIncoming) incomes else subscriptions
+
+    val totalIncome = income.sumOf { it.amount }
+    val totalEmi = recurringExpenses.sumOf { it.amount.toDoubleOrNull() ?: 0.0 }
+    val totalSub = subscriptions.sumOf { it.amount.toDoubleOrNull() ?: 0.0 }
+    val totalOutgoing = totalEmi + totalSub
 
     var sheetMode by remember {
         mutableStateOf<CashflowBottomSheetMode?>(null)
@@ -295,31 +330,43 @@ fun CashflowContentScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.background,
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.98f)
-                        )
-                    )
-                ),
+                .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(
                 horizontal = 16.dp,
-                vertical = 8.dp
+                vertical = 10.dp
             )
         ) {
-
             item {
-                HeaderSection(title, onBack)
+                HeaderSection(
+                    selectedTab = selectedTab,
+                    onTabSelected = onTabSelected,
+                    onBack = onBack
+                )
             }
 
-            if (title.contentEquals("Outgoing")) {
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                val activeCount = if (isIncoming) incomes.size else (recurringExpenses.size + subscriptions.size)
+                CashflowSummaryCard(
+                    isIncoming = isIncoming,
+                    totalAmount = if (isIncoming) totalIncome else totalOutgoing,
+                    itemCount = activeCount,
+                    secondaryInfo = if (isIncoming) {
+                        "$activeCount active incoming flow${if (activeCount == 1) "" else "s"}"
+                    } else {
+                        "$activeCount active outgoing flow${if (activeCount == 1) "" else "s"}"
+                    }
+                )
+            }
+
+            if (!isIncoming) {
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     SectionHeader(
                         title = "Recurring EMIs & Loans",
-                        themeColor = themeColor,
+                        count = recurringExpenses.size,
+                        themeColor = Color(0xFFE53935),
                         onAddClick = {
                             sheetMode = CashflowBottomSheetMode.AddEmi
                         }
@@ -332,8 +379,12 @@ fun CashflowContentScreen(
                     item {
                         EmptyStateCard(
                             title = "No EMIs or Loans",
-                            subtitle = "You haven't added any recurring EMIs or loans yet. Tap '+' above to add one.",
-                            icon = Icons.Default.CreditCard
+                            subtitle = "You haven't added any recurring EMIs or loans yet.",
+                            icon = Icons.Default.CreditCard,
+                            buttonText = "Add EMI / Loan",
+                            onButtonClick = {
+                                sheetMode = CashflowBottomSheetMode.AddEmi
+                            }
                         )
                     }
                 } else {
@@ -346,7 +397,6 @@ fun CashflowContentScreen(
                         EnhancedEmiCard(
                             emi = emi,
                             progress = progress,
-                            themeColor = themeColor,
                             onEditClick = {
                                 sheetMode = CashflowBottomSheetMode.EditEmi(emi)
                             }
@@ -356,13 +406,14 @@ fun CashflowContentScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 SectionHeader(
-                    title = if (title.contentEquals("Incoming")) "Active Incomes" else "Active Subscriptions",
-                    themeColor = themeColor,
+                    title = if (isIncoming) "Active Incomes" else "Active Subscriptions",
+                    count = activeList.size,
+                    themeColor = if (isIncoming) ColorIncome else Color(0xFFE53935),
                     onAddClick = {
-                        sheetMode = if (title == "Incoming") CashflowBottomSheetMode.AddIncome else CashflowBottomSheetMode.AddSubscription
+                        sheetMode = if (isIncoming) CashflowBottomSheetMode.AddIncome else CashflowBottomSheetMode.AddSubscription
                     }
                 )
 
@@ -372,9 +423,13 @@ fun CashflowContentScreen(
             if (activeList.isEmpty()) {
                 item {
                     EmptyStateCard(
-                        title = if (title.contentEquals("Incoming")) "No Active Incomes" else "No Active Subscriptions",
-                        subtitle = if (title.contentEquals("Incoming")) "You haven't added any income sources yet. Tap '+' above to add one." else "You haven't added any recurring subscriptions yet. Tap '+' above to add one.",
-                        icon = if (title.contentEquals("Incoming")) Icons.AutoMirrored.Filled.TrendingUp else Icons.Default.Subscriptions
+                        title = if (isIncoming) "No Active Incomes" else "No Active Subscriptions",
+                        subtitle = if (isIncoming) "You haven't added any recurring income sources yet." else "You haven't added any recurring subscriptions yet.",
+                        icon = if (isIncoming) Icons.AutoMirrored.Filled.TrendingUp else Icons.Default.Subscriptions,
+                        buttonText = if (isIncoming) "Add Income" else "Add Subscription",
+                        onButtonClick = {
+                            sheetMode = if (isIncoming) CashflowBottomSheetMode.AddIncome else CashflowBottomSheetMode.AddSubscription
+                        }
                     )
                 }
             } else {
@@ -382,10 +437,9 @@ fun CashflowContentScreen(
                     val sub = activeList[index]
                     EnhancedSubscriptionCard(
                         subscription = sub,
-                        themeColor = themeColor,
-                        isIncome = title.contentEquals("Incoming"),
+                        isIncome = isIncoming,
                         onEditClick = {
-                            sheetMode = if (title == "Incoming") {
+                            sheetMode = if (isIncoming) {
                                 CashflowBottomSheetMode.EditIncome(sub)
                             } else {
                                 CashflowBottomSheetMode.EditSubscription(sub)
@@ -396,7 +450,7 @@ fun CashflowContentScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(28.dp))
             }
         }
 
@@ -406,7 +460,6 @@ fun CashflowContentScreen(
                 categories = categories,
                 allCategories = allCategories,
                 incomeList = income,
-                themeColor = themeColor,
                 onDismiss = { sheetMode = null },
                 onSaveBudget = { id, categoryId, amount, date ->
                     if (id != null) {
@@ -436,17 +489,15 @@ fun CashflowBottomSheet(
     categories: List<CategoryResponseDto>,
     allCategories: List<CategoryResponseDto> = categories,
     incomeList: List<Budget>,
-    themeColor: Color,
     onDismiss: () -> Unit,
     onSaveBudget: (id: String?, categoryId: String?, amount: Double, date: Int) -> Unit,
     onDeleteBudget: (id: String) -> Unit,
     onSaveEmi: (id: String?, name: String, amount: Double, date: Int, categoryId: String?, tenure: Int?, paid: Int) -> Unit,
     onDeleteEmi: (id: String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val isIncomeFlow = mode is CashflowBottomSheetMode.AddIncome || mode is CashflowBottomSheetMode.EditIncome
-    // Only categories the user saved (Room): INCOME for incomes, EXPENSE for EMIs / subscriptions
     val effectiveCategories = remember(categories, allCategories, isIncomeFlow) {
         val type = if (isIncomeFlow) "INCOME" else "EXPENSE"
         (categories + allCategories)
@@ -501,8 +552,8 @@ fun CashflowBottomSheet(
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
     val title = when (mode) {
-        is CashflowBottomSheetMode.AddIncome -> "Add new incoming flow"
-        is CashflowBottomSheetMode.EditIncome -> "Edit Active Flow"
+        is CashflowBottomSheetMode.AddIncome -> "Add Recurring Income"
+        is CashflowBottomSheetMode.EditIncome -> "Edit Recurring Income"
         is CashflowBottomSheetMode.AddSubscription -> "Add Active Subscription"
         is CashflowBottomSheetMode.EditSubscription -> "Edit Subscription"
         is CashflowBottomSheetMode.AddEmi -> "Add Recurring EMI / Loan"
@@ -516,15 +567,27 @@ fun CashflowBottomSheet(
     val isEmi = mode is CashflowBottomSheetMode.AddEmi || mode is CashflowBottomSheetMode.EditEmi
     val isSubscription = mode is CashflowBottomSheetMode.AddSubscription || mode is CashflowBottomSheetMode.EditSubscription
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = EmeraldPrimary,
+        focusedLabelColor = EmeraldPrimary,
+        cursorColor = EmeraldPrimary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White
+    )
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp)
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp)
                 .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -537,7 +600,7 @@ fun CashflowBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // 1. Name Field (for EMI and Subscription)
             if (isEmi || isSubscription) {
@@ -546,12 +609,13 @@ fun CashflowBottomSheet(
                     onValueChange = { nameText = it },
                     label = { Text(if (isEmi) "Name the EMI / Loan" else "Subscription Name (e.g. Netflix)") },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = textFieldColors
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // 2. Category Dropdown (INCOME categories for incomes, EXPENSE for EMIs / subscriptions)
+            // 2. Category Dropdown
             Column(modifier = Modifier.fillMaxWidth()) {
                 val arrowRotation by animateFloatAsState(
                     targetValue = if (categoryDropdownExpanded) 180f else 0f,
@@ -570,11 +634,8 @@ fun CashflowBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = themeColor,
-                            focusedLabelColor = themeColor
-                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = textFieldColors,
                         leadingIcon = {
                             if (selectedCategoryName.isNotBlank() && effectiveCategories.isNotEmpty()) {
                                 val iconAndColor = CategoryUtils.getCategoryIconAndColor(selectedCategoryName)
@@ -590,7 +651,7 @@ fun CashflowBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = "Select Category",
-                                tint = themeColor,
+                                tint = EmeraldPrimary,
                                 modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
                             )
                         }
@@ -600,8 +661,8 @@ fun CashflowBottomSheet(
                         expanded = categoryDropdownExpanded,
                         onDismissRequest = { categoryDropdownExpanded = false },
                         modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+                            .background(Color.White)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                     ) {
                         if (effectiveCategories.isEmpty()) {
                             DropdownMenuItem(
@@ -639,7 +700,7 @@ fun CashflowBottomSheet(
                                                     modifier = Modifier
                                                         .size(32.dp)
                                                         .clip(CircleShape)
-                                                        .background(iconAndColor.second.copy(alpha = 0.15f)),
+                                                        .background(iconAndColor.second.copy(alpha = 0.12f)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(
@@ -655,14 +716,14 @@ fun CashflowBottomSheet(
                                                     style = MaterialTheme.typography.bodyMedium.copy(
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                                     ),
-                                                    color = if (isSelected) themeColor else MaterialTheme.colorScheme.onSurface
+                                                    color = if (isSelected) EmeraldPrimary else MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
                                             if (isSelected) {
                                                 Icon(
                                                     imageVector = Icons.Default.Check,
                                                     contentDescription = "Selected",
-                                                    tint = themeColor,
+                                                    tint = EmeraldPrimary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                             }
@@ -677,7 +738,7 @@ fun CashflowBottomSheet(
                                         .padding(horizontal = 4.dp, vertical = 2.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
-                                            if (isSelected) themeColor.copy(alpha = 0.1f) else Color.Transparent
+                                            if (isSelected) EmeraldPrimary.copy(alpha = 0.1f) else Color.Transparent
                                         )
                                 )
                             }
@@ -693,7 +754,8 @@ fun CashflowBottomSheet(
                 onValueChange = { amountText = it },
                 label = { Text("Amount ($)") },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(14.dp),
+                colors = textFieldColors
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -713,10 +775,11 @@ fun CashflowBottomSheet(
                 },
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = textFieldColors,
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = themeColor)
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
                     }
                 }
             )
@@ -724,20 +787,47 @@ fun CashflowBottomSheet(
             // 5. Tenure and Months Paid Fields (only for EMI)
             if (isEmi) {
                 Spacer(modifier = Modifier.height(12.dp))
+                val tenureVal = tenureText.toIntOrNull()?.takeIf { it > 0 }
+                val paidVal = monthsPaidText.toIntOrNull()
+                val isPaidInvalid = tenureVal != null && paidVal != null && paidVal >= tenureVal
+
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = tenureText,
-                        onValueChange = { tenureText = it },
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() }) tenureText = input
+                        },
                         label = { Text("Tenure (Months)") },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        colors = textFieldColors,
+                        singleLine = true
                     )
                     OutlinedTextField(
                         value = monthsPaidText,
-                        onValueChange = { monthsPaidText = it },
+                        onValueChange = { input ->
+                            if (input.all { it.isDigit() }) monthsPaidText = input
+                        },
                         label = { Text("Months Paid") },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        colors = if (isPaidInvalid) {
+                            OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = ColorExpense,
+                                unfocusedBorderColor = ColorExpense,
+                                errorBorderColor = ColorExpense,
+                                cursorColor = ColorExpense,
+                                focusedLabelColor = ColorExpense,
+                                unfocusedLabelColor = ColorExpense,
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White
+                            )
+                        } else textFieldColors,
+                        isError = isPaidInvalid,
+                        supportingText = if (isPaidInvalid) {
+                            { Text("Must be < $tenureVal", color = ColorExpense) }
+                        } else null,
+                        singleLine = true
                     )
                 }
             }
@@ -745,7 +835,7 @@ fun CashflowBottomSheet(
             DayOfMonthPicker(
                 showDialog = showDatePicker,
                 selectedDay = selectedDay,
-                accentColor = themeColor,
+                accentColor = EmeraldPrimary,
                 onDismiss = { showDatePicker = false },
                 onDaySelected = {
                     selectedDay = it
@@ -757,10 +847,10 @@ fun CashflowBottomSheet(
             val day = selectedDay
             val tenure = tenureText.toIntOrNull()?.takeIf { it > 0 }
             val paid = monthsPaidText.toIntOrNull() ?: 0
-            // An EMI must have a tenure; anything without one is a subscription.
-            // A category is required whenever the user has categories of that type saved.
+            val isPaidExceeded = isEmi && tenure != null && paid >= tenure
+
             val canSave = amount != null && day != null &&
-                (!isEmi || tenure != null) &&
+                (!isEmi || (tenure != null && !isPaidExceeded)) &&
                 ((!isEmi && !isSubscription) || nameText.isNotBlank()) &&
                 (effectiveCategories.isEmpty() || selectedCategoryId != null)
 
@@ -775,7 +865,6 @@ fun CashflowBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Action buttons (Update / Delete / Add)
             val id = when (mode) {
                 is CashflowBottomSheetMode.EditIncome -> mode.income.id
                 is CashflowBottomSheetMode.EditSubscription -> mode.subscription.id
@@ -792,16 +881,19 @@ fun CashflowBottomSheet(
                     enabled = canSave,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = themeColor)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = EmeraldPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    )
                 ) {
-                    Text("Update", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Update Flow", color = Color.White, fontWeight = FontWeight.Bold)
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                TextButton(
+                OutlinedButton(
                     onClick = {
                         id?.let {
                             if (mode is CashflowBottomSheetMode.EditIncome) {
@@ -815,9 +907,18 @@ fun CashflowBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = ColorExpense)
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, ColorExpense.copy(alpha = 0.35f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorExpense)
                 ) {
-                    Text("Delete Flow", fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = ColorExpense
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete Flow", fontWeight = FontWeight.Bold, color = ColorExpense)
                 }
             } else {
                 Button(
@@ -828,9 +929,12 @@ fun CashflowBottomSheet(
                     enabled = canSave,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = themeColor)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = EmeraldPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    )
                 ) {
                     Text("Add Flow", color = Color.White, fontWeight = FontWeight.Bold)
                 }
@@ -840,87 +944,269 @@ fun CashflowBottomSheet(
 }
 
 @Composable
-fun HeaderSection(title: String, onBack: () -> Unit) {
-
-    Row(
+fun HeaderSection(
+    selectedTab: CashflowTab,
+    onTabSelected: (CashflowTab) -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(top = 8.dp, bottom = 4.dp)
     ) {
-
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
 
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp)
-            )
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column {
+                Text(
+                    text = "Cashflow",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Recurring incomes, loans & subscriptions",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = (-0.5).sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        // Modern Segmented Tab Switcher
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Incoming Tab
+                val isIncoming = selectedTab == CashflowTab.INCOMING
+                Surface(
+                    onClick = { onTabSelected(CashflowTab.INCOMING) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isIncoming) Color.White else Color.Transparent,
+                    shadowElevation = if (isIncoming) 2.dp else 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDownward,
+                            contentDescription = null,
+                            tint = if (isIncoming) ColorIncome else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Incoming",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isIncoming) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isIncoming) ColorIncome else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                // Outgoing Tab
+                val isOutgoing = selectedTab == CashflowTab.OUTGOING
+                Surface(
+                    onClick = { onTabSelected(CashflowTab.OUTGOING) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isOutgoing) Color.White else Color.Transparent,
+                    shadowElevation = if (isOutgoing) 2.dp else 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowUpward,
+                            contentDescription = null,
+                            tint = if (isOutgoing) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Outgoing",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (isOutgoing) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isOutgoing) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CashflowSummaryCard(
+    isIncoming: Boolean,
+    totalAmount: Double,
+    itemCount: Int,
+    secondaryInfo: String? = null
+) {
+    val flowColor = if (isIncoming) ColorIncome else Color(0xFFE53935)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isIncoming) "Total Monthly Inflow" else "Total Monthly Outflow",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                val formatted = try {
+                    NumberFormat.getNumberInstance(Locale.US).apply {
+                        minimumFractionDigits = 2
+                        maximumFractionDigits = 2
+                    }.format(totalAmount)
+                } catch (e: Exception) {
+                    String.format("%.2f", totalAmount)
+                }
+                Text(
+                    text = if (isIncoming) "+$$formatted / mo" else "-$$formatted / mo",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.ExtraBold),
+                    color = flowColor
+                )
+                if (secondaryInfo != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = secondaryInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(flowColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isIncoming) Icons.AutoMirrored.Filled.TrendingUp else Icons.Default.ArrowUpward,
+                    contentDescription = null,
+                    tint = flowColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun SectionHeader(
     title: String,
-    themeColor: Color,
+    count: Int? = null,
+    themeColor: Color = EmeraldPrimary,
     onAddClick: () -> Unit
 ) {
-
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.1.sp
-            ),
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        IconButton(
-            onClick = onAddClick,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            themeColor.copy(alpha = 0.15f),
-                            themeColor.copy(alpha = 0.05f)
-                        )
-                    )
-                )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add",
-                tint = themeColor,
-                modifier = Modifier.size(18.dp)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.1.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface
             )
+            if (count != null && count > 0) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = themeColor.copy(alpha = 0.1f)
+                ) {
+                    Text(
+                        text = "$count",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = themeColor,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = themeColor.copy(alpha = 0.1f),
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { onAddClick() }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add",
+                    tint = themeColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Add",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = themeColor
+                )
+            }
         }
     }
 }
@@ -929,10 +1215,9 @@ fun SectionHeader(
 fun EnhancedEmiCard(
     emi: RecurringExpense,
     progress: Float,
-    themeColor: Color,
-    onEditClick : () -> Unit
+    themeColor: Color = Color(0xFFE53935),
+    onEditClick: () -> Unit
 ) {
-
     var isPressed by remember {
         mutableStateOf(false)
     }
@@ -945,16 +1230,28 @@ fun EnhancedEmiCard(
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
         animationSpec = tween(
-            durationMillis = 1000,
+            durationMillis = 800,
             easing = LinearEasing
         ),
         label = "progress_animation"
     )
 
+    val formattedAmount = try {
+        val parsed = emi.amount.toDoubleOrNull() ?: 0.0
+        NumberFormat.getNumberInstance(Locale.US).apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }.format(parsed)
+    } catch (e: Exception) {
+        emi.amount
+    }
+
+    val emiColor = Color(0xFFE53935)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 5.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -968,24 +1265,42 @@ fun EnhancedEmiCard(
                     }
                 )
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color.White
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         )
     ) {
-
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-
+            // Row 1: Icon, Title & Badge, Amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(emiColor.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalance,
+                        contentDescription = "EMI",
+                        tint = emiColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Column(
                     modifier = Modifier.weight(1f)
@@ -996,102 +1311,140 @@ fun EnhancedEmiCard(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.1.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = emiColor.copy(alpha = 0.08f)
+                    ) {
+                        Text(
+                            text = "EMI / Loan",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = emiColor,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "-$$formattedAmount",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.1.sp
+                        ),
+                        color = emiColor
+                    )
+                    Text(
+                        text = "/ month",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                    )
+                }
+            }
+
+            // Divider separating header from description
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                thickness = 0.8.dp
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Row 2: Description on its own dedicated line + Edit action button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    val dueText = emi.date?.let { day ->
+                        "Due on ${DayOfMonth.withSuffix(day)} of every month"
+                    } ?: "Recurring monthly payment"
+
+                    Text(
+                        text = dueText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onEditClick() }
                 ) {
-                    Text(
-                        text = "$${emi.amount}/mo",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.1.sp
-                        ),
-                        color = themeColor
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(themeColor.copy(alpha = 0.1f))
-                            .clickable{
-                                onEditClick()
-                            },
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit",
-                            tint = themeColor,
-                            modifier = Modifier.size(16.dp)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Edit",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Row 3: Progress Section
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-
-                Column {
-                    Text(
-                        text = "Progress",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 0.3.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${emi.monthsPaid}/${emi.totalMonths} months",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text(
-                        text = "Day of Month",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 0.3.sp
-                        ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty(),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                Text(
+                    text = "Repayment Progress",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
+                Text(
+                    text = "${emi.monthsPaid} of ${emi.totalMonths} months paid (${(progress * 100).toInt()}%)",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = emiColor
+                )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(CircleShape)
-                    .background(
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
-                    )
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             ) {
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(animatedProgress)
@@ -1100,24 +1453,13 @@ fun EnhancedEmiCard(
                         .background(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
-                                    themeColor,
-                                    themeColor.copy(alpha = 0.7f)
+                                    emiColor,
+                                    Color(0xFFFF7043)
                                 )
                             )
                         )
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "${(animatedProgress * 100).toInt()}% Complete",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.2.sp
-                ),
-                color = themeColor
-            )
         }
     }
 }
@@ -1125,11 +1467,10 @@ fun EnhancedEmiCard(
 @Composable
 fun EnhancedSubscriptionCard(
     subscription: Subscription,
-    themeColor: Color,
+    themeColor: Color = EmeraldPrimary,
     isIncome: Boolean = false,
     onEditClick: () -> Unit
 ) {
-
     var isPressed by remember {
         mutableStateOf(false)
     }
@@ -1139,10 +1480,25 @@ fun EnhancedSubscriptionCard(
         label = "subscription_scale"
     )
 
+    val (categoryIcon, categoryColor) = CategoryUtils.getCategoryIconAndColor(subscription.name)
+
+    val formattedAmount = try {
+        val parsed = subscription.amount.toDoubleOrNull() ?: 0.0
+        NumberFormat.getNumberInstance(Locale.US).apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }.format(parsed)
+    } catch (e: Exception) {
+        subscription.amount
+    }
+
+    val itemColor = if (isIncome) ColorIncome else Color(0xFFE53935)
+    val iconColor = if (isIncome) ColorIncome else categoryColor
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 5.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -1156,76 +1512,154 @@ fun EnhancedSubscriptionCard(
                     }
                 )
             },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = Color.White
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         )
     ) {
-
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-
-                Text(
-                    text = subscription.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.1.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = (if (isIncome) "Credited on " else "Billing on ") + dayOfMonthLabel(subscription.date),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-            }
-
+            // Row 1: Icon, Title & Badge, Amount
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "$${subscription.amount}/mo",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.1.sp
-                    ),
-                    color = themeColor
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(iconColor.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = categoryIcon,
+                        contentDescription = subscription.name,
+                        tint = iconColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = subscription.name,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.1.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = iconColor.copy(alpha = 0.08f)
+                    ) {
+                        Text(
+                            text = if (isIncome) "Income" else "Subscription",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = iconColor,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(
-                            themeColor.copy(alpha = 0.1f)
-                        )
-                        .clickable{
-                            onEditClick()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit",
-                        tint = themeColor,
-                        modifier = Modifier.size(16.dp)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = if (isIncome) "+$$formattedAmount" else "-$$formattedAmount",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.1.sp
+                        ),
+                        color = itemColor
                     )
+                    Text(
+                        text = "/ month",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                    )
+                }
+            }
+
+            // Divider separating header from description
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                thickness = 0.8.dp
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Row 2: Description on its own dedicated line + Edit action button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    val scheduleText = subscription.date?.let { day ->
+                        (if (isIncome) "Credited on " else "Billing on ") + "${DayOfMonth.withSuffix(day)} of every month"
+                    } ?: if (isIncome) "Recurring monthly credit" else "Recurring monthly auto-pay"
+
+                    Text(
+                        text = scheduleText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onEditClick() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Edit",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -1236,37 +1670,40 @@ fun EnhancedSubscriptionCard(
 fun EmptyStateCard(
     title: String,
     subtitle: String,
-    icon: ImageVector = Icons.Default.Inbox
+    icon: ImageVector = Icons.Default.Inbox,
+    buttonText: String? = null,
+    onButtonClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            containerColor = Color.White
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(vertical = 24.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(52.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    .background(EmeraldPrimary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = EmeraldPrimary
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -1279,9 +1716,24 @@ fun EmptyStateCard(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center
             )
+            if (buttonText != null && onButtonClick != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                FilledTonalButton(
+                    onClick = onButtonClick,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = EmeraldPrimary.copy(alpha = 0.12f),
+                        contentColor = EmeraldPrimary
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(buttonText, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

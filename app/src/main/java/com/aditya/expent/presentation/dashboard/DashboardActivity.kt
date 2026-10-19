@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,11 +47,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.R
 import com.aditya.expent.domain.model.Reminder
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
@@ -311,25 +314,25 @@ fun DashboardScreen(
                                 }
 
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = EmeraldPrimary.copy(alpha = 0.1f)
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = EmeraldPrimary.copy(alpha = 0.12f)
                                 ) {
                                     Text(
                                         text = "${reminders.size}",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = EmeraldPrimary,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                                     )
                                 }
                             }
 
-                            // Animated snap-scrolling pager
+                            // Smooth snap-scrolling pager with optimized spacing
                             HorizontalPager(
                                 state = pagerState,
                                 modifier = Modifier.fillMaxWidth(),
-                                contentPadding = PaddingValues(horizontal = 28.dp),
-                                pageSpacing = 16.dp
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                pageSpacing = 12.dp
                             ) { page ->
                                 val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
                                 val absPageOffset = pageOffset.absoluteValue
@@ -354,18 +357,14 @@ fun DashboardScreen(
 
                                 Box(
                                     modifier = Modifier
+                                        .fillMaxWidth()
                                         .graphicsLayer {
-                                            cameraDistance = 12f * density
-                                            rotationY = pageOffset * -22f
-                                            rotationZ = pageOffset * -3f
-                                            
-                                            val scaleVal = (0.88f + (1f - absPageOffset.coerceIn(0f, 1f)) * 0.12f) * animatedScale
+                                            val scaleVal = (0.94f + (1f - absPageOffset.coerceIn(0f, 1f)) * 0.06f) * animatedScale
                                             scaleX = scaleVal
                                             scaleY = scaleVal
                                             
-                                            alpha = (0.5f + (1f - absPageOffset.coerceIn(0f, 1f)) * 0.5f) * animatedAlpha
+                                            alpha = (0.65f + (1f - absPageOffset.coerceIn(0f, 1f)) * 0.35f) * animatedAlpha
                                             translationY = animatedTranslationY
-                                            translationX = pageOffset * -12.dp.toPx()
                                         }
                                 ) {
                                     ReminderCard(
@@ -376,7 +375,7 @@ fun DashboardScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             ReminderDotsIndicator(
                                 count = reminders.size.coerceAtMost(5),
@@ -384,7 +383,7 @@ fun DashboardScreen(
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
                             )
                         }
-                        Spacer(modifier = Modifier.height(32.dp))
+                        Spacer(modifier = Modifier.height(28.dp))
                     }
 
                     // Transactions Section Header
@@ -591,51 +590,51 @@ fun ReminderCard(
     onTick: () -> Unit,
     onEdit: () -> Unit
 ) {
-    val categoryColor = when (reminder.category.lowercase()) {
-        "food" -> Color(0xFFFF7043)
-        "subscription" -> Color(0xFFAB47BC)
-        "work" -> Color(0xFF42A5F5)
-        "job" -> Color(0xFF009688)
-        "shopping" -> Color(0xFFEC407A)
-        "travel" -> Color(0xFF26A69A)
-        "entertainment", "leisure" -> Color(0xFFFFCA28)
-        else -> MaterialTheme.colorScheme.primary
+    val (matchedIcon, matchedColor) = getCategoryIconAndColor(reminder.category.ifBlank { reminder.title })
+    val categoryColor = matchedColor
+    val icon = when {
+        reminder.kind == Reminder.Kind.EMI -> Icons.Default.AccountBalance
+        reminder.kind == Reminder.Kind.INCOME && reminder.category.isBlank() -> Icons.AutoMirrored.Filled.TrendingUp
+        else -> matchedIcon
     }
 
     val accentColor = if (reminder.type == TransactionType.INCOME) ColorIncome else ColorExpense
     val (daysLeftText, badgeColor) = getDaysLeftInfo(reminder.dueDate)
 
-    val icon = when (reminder.category.lowercase()) {
-        "food" -> Icons.Default.Restaurant
-        "subscription" -> Icons.Default.Subscriptions
-        "work" -> Icons.Default.Work
-        "job" -> Icons.Default.BusinessCenter
-        "shopping" -> Icons.Default.ShoppingCart
-        "travel" -> Icons.Default.Flight
-        "entertainment", "leisure" -> Icons.Default.LocalPlay
-        else -> Icons.Default.Alarm
+    val formattedAmount = try {
+        java.text.NumberFormat.getNumberInstance(java.util.Locale.US).apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }.format(reminder.amount)
+    } catch (e: Exception) {
+        String.format("%.2f", reminder.amount)
     }
 
     Card(
         modifier = Modifier
-            .width(300.dp)
+            .fillMaxWidth()
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = accentColor.copy(alpha = 0.2f),
-                spotColor = accentColor.copy(alpha = 0.15f)
+                elevation = 4.dp,
+                shape = RoundedCornerShape(22.dp),
+                ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                spotColor = accentColor.copy(alpha = 0.12f)
             )
+            .clip(RoundedCornerShape(22.dp))
             .clickable { onEdit() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Top Row: Icon + Title/Description + Amount
+            // Top Row: Category Icon + Title & Type + Due Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -644,8 +643,8 @@ fun ReminderCard(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(categoryColor.copy(alpha = 0.12f)),
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(categoryColor.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -658,87 +657,136 @@ fun ReminderCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Title + Description (weighted to fill)
+                // Title + Category/Kind Chip
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = reminder.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = reminder.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = categoryColor.copy(alpha = 0.1f)
+                        ) {
+                            Text(
+                                text = reminder.category.ifBlank {
+                                    when (reminder.kind) {
+                                        Reminder.Kind.INCOME -> "Income"
+                                        Reminder.Kind.EMI -> "EMI"
+                                        Reminder.Kind.SUBSCRIPTION -> "Subscription"
+                                    }
+                                }.replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = categoryColor,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Amount
+                // Due status badge
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = badgeColor.copy(alpha = 0.12f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(badgeColor)
+                        )
+                        Text(
+                            text = daysLeftText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = badgeColor
+                        )
+                    }
+                }
+            }
+
+            // Description (Full width, readable, up to 2 lines)
+            if (reminder.description.isNotBlank()) {
                 Text(
-                    text = if (reminder.type == TransactionType.INCOME)
-                        "+$${String.format("%.2f", reminder.amount)}"
-                    else
-                        "-$${String.format("%.2f", reminder.amount)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
+                    text = reminder.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
             // Divider
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                thickness = 1.dp
             )
 
-            // Bottom Row: Due Badge + Done Button
+            // Bottom Row: Amount + Action Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Due date badge
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(badgeColor)
-                    )
+                Column {
                     Text(
-                        text = daysLeftText,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = badgeColor
+                        text = if (reminder.type == TransactionType.INCOME) "Expected Income" else "Amount Due",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (reminder.type == TransactionType.INCOME) "+$$formattedAmount" else "-$$formattedAmount",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = accentColor
                     )
                 }
 
-                // Done button
-                Box(
+                // Interactive Action Button
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = accentColor.copy(alpha = 0.12f),
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(accentColor.copy(alpha = 0.1f))
-                        .clickable { onTick() },
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onTick() }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Mark Done",
-                        tint = accentColor,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = if (reminder.type == TransactionType.INCOME) "Receive" else "Pay",
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (reminder.type == TransactionType.INCOME) "Receive" else "Pay",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = accentColor
+                        )
+                    }
                 }
             }
         }
@@ -1295,11 +1343,11 @@ fun GlowFloatingActionButton(
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = Icons.Default.AddTask,
-                contentDescription = "Add Transaction",
+                painter = painterResource(id = R.drawable.ic_add_expense),
+                contentDescription = "Add Expense",
                 tint = Color.White,
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(24.dp)
                     .scale(pulseScale)
             )
         }

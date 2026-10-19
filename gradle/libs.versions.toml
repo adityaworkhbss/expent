@@ -72,6 +72,7 @@ androidx-security-crypto = { module = "androidx.security:security-crypto", versi
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-config = { module = "com.google.firebase:firebase-config" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

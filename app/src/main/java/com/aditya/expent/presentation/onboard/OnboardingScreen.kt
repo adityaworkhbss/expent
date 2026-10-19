@@ -1316,6 +1316,10 @@ fun OutgoingStep(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
+                val totalMonthsVal = emiTotalMonths.toIntOrNull() ?: 0
+                val monthsPaidVal = emiMonthsPaid.toIntOrNull() ?: 0
+                val isPaidExceeded = totalMonthsVal > 0 && emiMonthsPaid.isNotBlank() && monthsPaidVal >= totalMonthsVal
+
                 Row(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = emiTotalMonths,
@@ -1331,6 +1335,7 @@ fun OutgoingStep(
                         )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+
                     OutlinedTextField(
                         value = emiMonthsPaid,
                         onValueChange = { emiMonthsPaid = it },
@@ -1339,10 +1344,25 @@ fun OutgoingStep(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = EmeraldPrimary,
-                            focusedLabelColor = EmeraldPrimary
-                        )
+                        isError = isPaidExceeded,
+                        supportingText = if (isPaidExceeded) {
+                            { Text("Must be < $totalMonthsVal", color = ColorExpense) }
+                        } else null,
+                        colors = if (isPaidExceeded) {
+                            OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = ColorExpense,
+                                unfocusedBorderColor = ColorExpense,
+                                errorBorderColor = ColorExpense,
+                                cursorColor = ColorExpense,
+                                focusedLabelColor = ColorExpense,
+                                unfocusedLabelColor = ColorExpense
+                            )
+                        } else {
+                            OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = EmeraldPrimary,
+                                focusedLabelColor = EmeraldPrimary
+                            )
+                        }
                     )
                 }
                 
@@ -1389,7 +1409,7 @@ fun OutgoingStep(
 
                 // An EMI needs a tenure; something that never ends belongs under subscriptions
                 val canAddEmi = emiName.isNotBlank() && emiAmount.isNotBlank() &&
-                    (emiTotalMonths.toIntOrNull() ?: 0) > 0 && emiMonthsPaid.isNotBlank() && emiDate != null &&
+                    totalMonthsVal > 0 && emiMonthsPaid.isNotBlank() && !isPaidExceeded && emiDate != null &&
                     (expenseCategories.isEmpty() || emiCategory != null)
                 Button(
                     onClick = {
