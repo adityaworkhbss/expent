@@ -15,7 +15,9 @@ import com.aditya.expent.domain.usecase.GetCategoriesUseCase
 import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
 import com.aditya.expent.domain.usecase.GetCustomizationUseCase
+import com.aditya.expent.domain.usecase.RemoveDeviceTokenUseCase
 import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
+import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +45,9 @@ class ProfileViewModel @Inject constructor(
     private val savePaymentModesUseCase: SavePaymentModesUseCase,
     private val deletePaymentModesUseCase: DeletePaymentModeUseCase,
     private val getCustomizationUseCase: GetCustomizationUseCase,
-    private val updateCustomizationUseCase: UpdateCustomizationUseCase
+    private val updateCustomizationUseCase: UpdateCustomizationUseCase,
+    private val removeDeviceTokenUseCase: RemoveDeviceTokenUseCase,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -144,6 +148,22 @@ class ProfileViewModel @Inject constructor(
                 AppLogger.error("ProfileViewModel", "updateCustomization FAILURE: reverting", it)
                 loadCustomization()
             }
+        }
+    }
+
+    fun logout(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            val token = sessionManager.getFcmToken()
+            if (!token.isNullOrBlank()) {
+                AppLogger.debug("ProfileViewModel", "Calling backend to remove FCM token on logout")
+                runCatching {
+                    removeDeviceTokenUseCase(token)
+                }.onFailure {
+                    AppLogger.error("ProfileViewModel", "Failed to remove FCM device token on backend", it)
+                }
+            }
+            sessionManager.logout()
+            onComplete()
         }
     }
 }

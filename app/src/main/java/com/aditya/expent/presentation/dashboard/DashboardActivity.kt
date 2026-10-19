@@ -77,10 +77,16 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.absoluteValue
 import javax.inject.Inject
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.graphicsLayer
 import com.aditya.expent.presentation.analysis.AnalysisActivity
 import com.aditya.expent.presentation.cashflow.CashflowActivity
 import com.aditya.expent.utils.AppUtils
+import com.aditya.expent.utils.AppLogger
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -95,6 +101,20 @@ class DashboardActivity : ComponentActivity() {
     // Set when launched from the add-transaction home screen widget
     private var widgetAddType by mutableStateOf<TransactionType?>(null)
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        AppLogger.debug("DashboardActivity", "POST_NOTIFICATIONS permission granted: $isGranted")
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -103,6 +123,8 @@ class DashboardActivity : ComponentActivity() {
             finish()
             return
         }
+
+        checkNotificationPermission()
 
         if (savedInstanceState == null) {
             widgetAddType = AddTransactionWidget.requestedType(intent)

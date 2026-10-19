@@ -76,12 +76,13 @@ class ProfileActivity : ComponentActivity() {
                         viewModel = viewModel,
                         onBack = { finish() },
                         onLogout = {
-                            sessionManager.logout()
-                            val intent = Intent(this, AuthActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            viewModel.logout {
+                                val intent = Intent(this, AuthActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                }
+                                startActivity(intent)
+                                finish()
                             }
-                            startActivity(intent)
-                            finish()
                         }
                     )
                 }

@@ -220,6 +220,22 @@ class SessionManager @Inject constructor(
     fun isReminderDone(sourceId: String, cycle: String): Boolean =
         prefs.getBoolean("reminder_done_${sourceId}_$cycle", false)
 
+    fun saveFcmToken(token: String) {
+        prefs.edit(commit = true) {
+            putString("fcm_token", token)
+        }
+    }
+
+    fun getFcmToken(): String? {
+        return prefs.getString("fcm_token", null)
+    }
+
+    fun clearFcmToken() {
+        prefs.edit(commit = true) {
+            remove("fcm_token")
+        }
+    }
+
     private fun createEncryptedPrefs(): SharedPreferences {
         return try {
             val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)

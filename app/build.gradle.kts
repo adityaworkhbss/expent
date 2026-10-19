@@ -52,7 +52,7 @@ android {
         }
         create("prod") {
             dimension = "mode"
-            buildConfigField("Boolean", "USE_TEST_LOGIN", "false")
+            buildConfigField("Boolean", "USE_TEST_LOGIN", "true")
         }
     }
 
@@ -133,4 +133,5 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.config)
+    implementation(libs.firebase.messaging)
 }

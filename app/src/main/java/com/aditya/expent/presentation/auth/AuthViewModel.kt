@@ -11,9 +11,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aditya.expent.domain.usecase.FetchUserDataUseCase
 import com.aditya.expent.domain.usecase.LoginWithGoogleUseCase
+import com.aditya.expent.domain.usecase.RegisterDeviceTokenUseCase
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.aditya.expent.utils.SessionManager
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +35,7 @@ data class AuthState(
 class AuthViewModel @Inject constructor(
     private val loginWithGoogleUseCase: LoginWithGoogleUseCase,
     private val fetchUserDataUseCase: FetchUserDataUseCase,
+    private val registerDeviceTokenUseCase: RegisterDeviceTokenUseCase,
     private val sessionManager: SessionManager,
     private val syncScheduler: SyncScheduler
 ) : ViewModel() {
@@ -74,6 +77,7 @@ class AuthViewModel @Inject constructor(
                         Log.d("SAVEUSER", "Saving user with onboarding step: $it")
                         sessionManager.saveUser(it)
                         sessionManager.setOnboardingStep(it.onboardingStep)
+                        registerFcmToken(it.id)
                     }
 
                     // fetchUserDataUseCase already pulled exactly what onboardingCount allows,
@@ -110,6 +114,7 @@ class AuthViewModel @Inject constructor(
                     user?.let {
                         sessionManager.saveUser(it)
                         sessionManager.setOnboardingStep(it.onboardingStep)
+                        registerFcmToken(it.id)
                     }
 
                     fetchUserDataUseCase()
@@ -125,6 +130,37 @@ class AuthViewModel @Inject constructor(
             } catch (e: Exception) {
                 AppLogger.error("AuthViewModel", "TEST LOGIN EXCEPTION", e)
                 _authState.value = AuthState(error = e.localizedMessage ?: "Test login failed")
+            }
+        }
+    }
+
+    private fun registerFcmToken(userId: String) {
+        val existingToken = sessionManager.getFcmToken()
+        if (!existingToken.isNullOrBlank()) {
+            viewModelScope.launch {
+                try {
+                    registerDeviceTokenUseCase(userId, existingToken)
+                    AppLogger.debug("AuthViewModel", "FCM token registered after login")
+                } catch (e: Exception) {
+                    AppLogger.error("AuthViewModel", "Failed to register FCM token after login", e)
+                }
+            }
+        } else {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    if (!token.isNullOrBlank()) {
+                        sessionManager.saveFcmToken(token)
+                        viewModelScope.launch {
+                            try {
+                                registerDeviceTokenUseCase(userId, token)
+                                AppLogger.debug("AuthViewModel", "FCM token fetched and registered after login")
+                            } catch (e: Exception) {
+                                AppLogger.error("AuthViewModel", "Failed to register fetched FCM token after login", e)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

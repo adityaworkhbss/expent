@@ -87,6 +87,20 @@ object AppLogger {
         report(message, throwable)
     }
 
+    fun debug(tag: String, message: String) {
+        logChunked(tag, Log.DEBUG, message)
+    }
+
+    fun info(tag: String, message: String) {
+        logChunked(tag, Log.INFO, message)
+        breadcrumb("[$tag] $message")
+    }
+
+    fun warn(tag: String, message: String, throwable: Throwable? = null) {
+        logChunked(tag, Log.WARN, message, throwable)
+        breadcrumb("[$tag] $message")
+    }
+
     fun error(tag: String, message: String, throwable: Throwable? = null, reportToCrashlytics: Boolean = true) {
         logChunked(tag, Log.ERROR, message, throwable)
         if (reportToCrashlytics) report("[$tag] $message", throwable) else breadcrumb("[$tag] $message")

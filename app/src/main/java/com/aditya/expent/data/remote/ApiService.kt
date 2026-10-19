@@ -21,9 +21,13 @@ import com.aditya.expent.data.remote.dto.TransactionResponseDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
 import com.aditya.expent.data.remote.dto.ParseTransactionRequestDto
 import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
+import com.aditya.expent.data.remote.dto.RegisterDeviceTokenRequestDto
+import com.aditya.expent.data.remote.dto.RemoveDeviceTokenRequestDto
+import com.aditya.expent.data.remote.dto.DeviceTokenResponseDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -107,6 +111,12 @@ interface ApiService {
 
     @POST("parse-transaction")
     suspend fun parseTransaction(@Body request: ParseTransactionRequestDto): ParseTransactionResponseDto
+
+    @POST("device-tokens")
+    suspend fun registerDeviceToken(@Body request: RegisterDeviceTokenRequestDto): ApiResponse<DeviceTokenResponseDto>
+
+    @HTTP(method = "DELETE", path = "device-tokens", hasBody = true)
+    suspend fun removeDeviceToken(@Body request: RemoveDeviceTokenRequestDto): ApiResponse<Any?>
 
 //    @GET("transactions")
 //    suspend fun getTransactions(
