@@ -5,10 +5,6 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-/**
- * Budgets and expenses repeat every month, so the app stores only the day of the month (1-31).
- * The backend still works with full dates, so these helpers convert in both directions.
- */
 object DayOfMonth {
 
     const val MIN = 1
@@ -23,7 +19,6 @@ object DayOfMonth {
         "d/M/yyyy"
     )
 
-    /** Day of month from a server / legacy date string, or null when it can't be read. */
     fun from(date: String?): Int? {
         val trimmed = date?.trim().orEmpty()
         if (trimmed.isEmpty()) return null
@@ -41,10 +36,6 @@ object DayOfMonth {
         return null
     }
 
-    /**
-     * ISO date in the current month on [day] (clamped to the month's length, e.g. 31 → 30 in April),
-     * for API fields that still expect a full date.
-     */
     fun toIsoDateThisMonth(day: Int): String {
         val calendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             set(Calendar.DAY_OF_MONTH, 1)
@@ -59,7 +50,6 @@ object DayOfMonth {
             .format(calendar.time)
     }
 
-    /** "1st", "2nd", "23rd", "11th"… */
     fun withSuffix(day: Int): String {
         val suffix = when {
             day in 11..13 -> "th"

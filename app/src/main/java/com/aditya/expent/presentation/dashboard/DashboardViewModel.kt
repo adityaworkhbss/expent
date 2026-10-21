@@ -53,14 +53,10 @@ data class DashboardState(
     val reminder: Boolean = false,
     val greetingMessage: String = "Welcome",
     val isLoading: Boolean = false,
-    // One-off feedback from AI ("Smart") add, shown as a toast then cleared
     val aiMessage: String? = null,
-    // Incomes / outgoings due in the next 7 days, built from budgets and expenses in Room
     val reminders: List<Reminder> = emptyList(),
-    // Set when the last EMI of a loan is paid, to show the congratulations popup
     val completedEmiName: String? = null
 ) {
-    // Income amount per category name, taken from the income sources set up in Cashflow
     val incomeAmountByCategory: Map<String, Double>
         get() = incomeSources
             .mapNotNull { source ->

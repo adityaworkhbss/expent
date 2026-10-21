@@ -40,10 +40,6 @@ import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.presentation.theme.ColorExpense
 import com.aditya.expent.presentation.theme.ColorIncome
 
-/**
- * Confirms a reminder as paid / received. Saving records a transaction for today with the
- * chosen account; for an EMI it also counts this month as paid.
- */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ReminderPaySheet(
@@ -54,7 +50,7 @@ fun ReminderPaySheet(
 ) {
     val isIncome = reminder.type == TransactionType.INCOME
     val accent = if (isIncome) ColorIncome else ColorExpense
-    // Income only lands in PAY_NOW accounts, same as the manual add sheet
+
     val usableAccounts = remember(accounts, isIncome) {
         if (isIncome) accounts.filter { it.type.equals("PAY_NOW", ignoreCase = true) } else accounts
     }

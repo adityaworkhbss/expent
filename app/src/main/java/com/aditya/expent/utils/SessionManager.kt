@@ -161,7 +161,7 @@ class SessionManager @Inject constructor(
 
     fun setOnboardingStep(step: Int) {
         Log.d(TAG, "setOnboardingStep() called with = $step")
-        // Keep the saved user's copy in step so both reads agree
+
         val updatedUserJson = getUser()?.let { gson.toJson(it.copy(onboardingStep = step)) }
         prefs.edit(commit = true) {
             putInt("onboarding_step", step)
@@ -212,7 +212,6 @@ class SessionManager @Inject constructor(
         prefs.edit { putLong(KEY_LAST_SYNC_TIME, time) }
     }
 
-    // A reminder handled for a cycle (yyyy-MM) stays hidden until the next month's due date
     fun markReminderDone(sourceId: String, cycle: String) {
         prefs.edit { putBoolean("reminder_done_${sourceId}_$cycle", true) }
     }
@@ -248,8 +247,7 @@ class SessionManager @Inject constructor(
             )
         } catch (e: Exception) {
             AppLogger.error(TAG, "Failed to create EncryptedSharedPreferences, clearing and retrying", e)
-            // If the encrypted prefs are corrupted (e.g. after backup restore),
-            // delete the file and create a fresh one.
+
             context.getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE).edit(commit = true) { clear() }
             try {
                 context.deleteSharedPreferences(PREFS_FILE_NAME)

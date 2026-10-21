@@ -37,7 +37,6 @@ class ExpentApplication : Application() {
                 syncScheduler.schedulePeriodicSync()
                 syncScheduler.scheduleInitialSync()
             } else {
-                // Mid-onboarding Room is the source of truth: only flush anything still queued, no GETs
                 syncScheduler.enqueuePendingSync()
             }
         }

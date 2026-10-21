@@ -37,7 +37,6 @@ fun ExpentDatePicker(
                 DatePickerDefaults.AllDates
             } else {
                 object : SelectableDates {
-                    // Picker millis are UTC midnight, so compare against the end of today in UTC
                     private val endOfTodayUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
                         val local = Calendar.getInstance()
                         clear()

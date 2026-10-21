@@ -19,6 +19,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -43,6 +47,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +74,9 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.presentation.theme.ColorExpense
+import com.aditya.expent.presentation.theme.DarkSoftColors
+import com.aditya.expent.presentation.theme.LocalSoftColors
+import com.aditya.expent.presentation.theme.softColors
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
@@ -98,7 +106,6 @@ class DashboardActivity : ComponentActivity() {
 
     private val viewModel: DashboardViewModel by viewModels()
 
-    // Set when launched from the add-transaction home screen widget
     private var widgetAddType by mutableStateOf<TransactionType?>(null)
 
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -190,7 +197,6 @@ fun DashboardScreen(
     requestedAddType: TransactionType? = null,
     onAddRequestHandled: () -> Unit = {},
     onAiMessageShown: () -> Unit = {},
-    // (reminder, amount, accountId, accountName)
     onCompleteReminder: (Reminder, Double, String, String) -> Unit = { _, _, _, _ -> },
     onCompletedEmiShown: () -> Unit = {}
 ) {
@@ -201,7 +207,6 @@ fun DashboardScreen(
     var showBottomSheet by remember { mutableStateOf(false) }
     var addSheetInitialType by remember { mutableStateOf(TransactionType.EXPENSE) }
 
-    // Feedback from AI ("Smart") add: saved, missing fields, or failure
     LaunchedEffect(state.aiMessage) {
         state.aiMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_LONG).show()
@@ -209,7 +214,6 @@ fun DashboardScreen(
         }
     }
 
-    // Open the add sheet when the home screen widget asks for it
     LaunchedEffect(requestedAddType) {
         if (requestedAddType != null) {
             addSheetInitialType = requestedAddType
@@ -218,10 +222,9 @@ fun DashboardScreen(
         }
     }
 
-    // Reminder whose tick (or card) was tapped; its pay sheet is open while set
     var reminderToPay by remember { mutableStateOf<Reminder?>(null) }
     val dismissingReminderIds = remember { mutableStateListOf<String>() }
-    // Built in the ViewModel from budgets and expenses due in the next 7 days
+
     val reminders = state.reminders
 
     val pagerState = rememberPagerState(pageCount = { reminders.size })
@@ -1446,514 +1449,354 @@ fun AddTransactionBottomSheet(
     var selectedDateText by remember { mutableStateOf(getTodayDateString()) }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    val activeColor = if (selectedType == TransactionType.INCOME) ColorIncome else ColorExpense
+    val colors = softColors()
+    val isDark = colors == DarkSoftColors
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        tonalElevation = 8.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp)
+    val finalInputMode = if (aiTransactionEnabled) "Smart" else "Manual"
+    Log.d("DashboardActivity", "AddTransactionBottomSheet: Rendering with finalInputMode = $finalInputMode, aiTransactionEnabled = $aiTransactionEnabled")
+
+    val activeColor by animateColorAsState(
+        targetValue = when {
+            finalInputMode == "Smart" -> colors.ai
+            isIncome -> colors.income
+            else -> colors.expense
+        },
+        animationSpec = tween(400),
+        label = "ActiveColor"
+    )
+    // Sheet background picks up a faint wash of the active colour
+    val sheetBackground = lerp(colors.background, activeColor, if (isDark) 0.06f else 0.05f)
+
+    CompositionLocalProvider(LocalSoftColors provides colors) {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = sheetBackground,
+            contentColor = colors.ink,
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            tonalElevation = 0.dp,
+            dragHandle = {
+                BottomSheetDefaults.DragHandle(color = activeColor.copy(alpha = 0.35f))
+            }
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Add Transaction",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButton(
-                    onClick = onDismiss,
-                    colors = IconButtonDefaults.iconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            val finalInputMode = if (aiTransactionEnabled) "Smart" else "Manual"
-            Log.d("DashboardActivity", "AddTransactionBottomSheet: Rendering with finalInputMode = $finalInputMode, aiTransactionEnabled = $aiTransactionEnabled")
-
-            AnimatedContent(
-                targetState = finalInputMode,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                },
-                label = "InputModeTransition"
-            ) { mode ->
-                if (mode == "Smart") {
-                    var aiText by remember { mutableStateOf("") }
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = aiText,
-                            onValueChange = { aiText = it },
-                            placeholder = { Text("e.g. Spent $25 on pizza yesterday using cash") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF6200EA),
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                                focusedContainerColor = Color(0xFF6200EA).copy(alpha = 0.03f),
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            ),
-                            textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
-                            maxLines = 6
-                        )
-
-                        Text(
-                            text = "AI will automatically extract amount, category, type, and date from your sentence.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        val interactionSource = remember { MutableInteractionSource() }
-                        val isPressed by interactionSource.collectIsPressedAsState()
-                        val btnScale by animateFloatAsState(targetValue = if (isPressed) 0.96f else 1f, label = "AiBtnScale")
-
-                        Button(
-                            onClick = { onAiSave(aiText) },
-                            enabled = aiText.isNotBlank(),
-                            interactionSource = interactionSource,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .scale(btnScale)
-                                .shadow(
-                                    elevation = if (aiText.isNotBlank()) 12.dp else 0.dp,
-                                    shape = RoundedCornerShape(28.dp),
-                                    ambientColor = Color(0xFF6200EA),
-                                    spotColor = Color(0xFF6200EA)
-                                ),
-                            shape = RoundedCornerShape(28.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF6200EA),
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-                            )
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription=null, tint = Color.White)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Parse & Save Transaction", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                        }
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(22.dp)
-                    ) {
-                        // Interactive Segment Switcher (Income vs Expense)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .clip(RoundedCornerShape(26.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-                                .padding(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                val isExpense = selectedType == TransactionType.EXPENSE
-                
-                // Income Option
-                val incomeBgColor by animateColorAsState(
-                    targetValue = if (!isExpense) ColorIncome else Color.Transparent,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                    label = "IncomeBg"
-                )
-                val incomeTextColor by animateColorAsState(
-                    targetValue = if (!isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "IncomeText"
-                )
-                
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(incomeBgColor)
-                        .clickable { selectedType = TransactionType.INCOME },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Income",
-                        color = incomeTextColor,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Expense Option
-                val expenseBgColor by animateColorAsState(
-                    targetValue = if (isExpense) ColorExpense else Color.Transparent,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                    label = "ExpenseBg"
-                )
-                val expenseTextColor by animateColorAsState(
-                    targetValue = if (isExpense) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "ExpenseText"
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(expenseBgColor)
-                        .clickable { selectedType = TransactionType.EXPENSE },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Expense",
-                        color = expenseTextColor,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            // Big interactive amount indicator
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(activeColor.copy(alpha = 0.04f))
-                    .border(1.dp, activeColor.copy(alpha = 0.1f), RoundedCornerShape(24.dp))
-                    .padding(vertical = 20.dp, horizontal = 16.dp)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Text(
-                    text = "Amount",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
+                // Header
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "$",
-                        style = MaterialTheme.typography.displayMedium.copy(fontSize = 44.sp),
-                        fontWeight = FontWeight.Black,
-                        color = activeColor
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    BasicTextField(
-                        value = amountText,
-                        onValueChange = {
-                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
-                                amountText = it
-                            }
-                        },
-                        textStyle = MaterialTheme.typography.displayMedium.copy(
-                            fontWeight = FontWeight.Black,
-                            fontSize = 44.sp,
-                            textAlign = TextAlign.Start,
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Decimal
-                        ),
-                        cursorBrush = SolidColor(activeColor),
-                        modifier = Modifier
-                            .width(IntrinsicSize.Min)
-                            .defaultMinSize(minWidth = 100.dp)
-                    )
-                }
-                if (incomePrefill != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Pre-filled from the selected income category, tap to edit",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
-            }
-
-            // Category Selection
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Select Category",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-
-                val filteredCategory = typeCategories.map { cat ->
-                    val iconAndColor = getCategoryIconAndColor(cat.name)
-                    Triple(cat.name, iconAndColor.first, iconAndColor.second)
-                }
-
-                if (filteredCategory.isEmpty()) {
-                    Text(
-                        text = if (isIncome) "No income categories found" else "No expense categories found",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                } else {
-                    // Wrap onto several lines so every category is visible without sideways scrolling
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        filteredCategory.forEach { (catName, icon, catColor) ->
-                            val isSelected = selectedCategory == catName
-                            val containerColor by animateColorAsState(
-                                targetValue = if (isSelected) catColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                label = "ChipBg"
-                            )
-                            val contentColor by animateColorAsState(
-                                targetValue = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                label = "ChipText"
-                            )
-                            val scale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.04f else 1f,
-                                label = "ChipScale"
-                            )
-                            
-                            Surface(
-                                modifier = Modifier
-                                    .scale(scale)
-                                    .clickable { selectedCategory = catName },
-                                shape = RoundedCornerShape(16.dp),
-                                color = containerColor,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isSelected) catColor.copy(alpha = 0.4f) else Color.Transparent
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = catName,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = if (isSelected) catColor else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = catName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = contentColor
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Select Account Selection (Filtered based on INCOME PAY_NOW / EXPENSE All)
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Select Account",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                if (filteredAccounts.isEmpty()) {
-                    Text(
-                        text = "No applicable accounts found.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                } else {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(horizontal = 2.dp)
-                    ) {
-                        items(filteredAccounts) { acc ->
-                            val isSelected = selectedAccountName == acc.name
-                            
-                            val accColor = when (acc.type.uppercase()) {
-                                "BANK" -> Color(0xFF2196F3)
-                                "CREDIT" -> Color(0xFFE91E63)
-                                "CASH" -> Color(0xFF4CAF50)
-                                else -> MaterialTheme.colorScheme.secondary
-                            }
-                            
-                            val containerColor by animateColorAsState(
-                                targetValue = if (isSelected) accColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                label = "AccChipBg"
-                            )
-                            val contentColor by animateColorAsState(
-                                targetValue = if (isSelected) accColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                                label = "AccChipText"
-                            )
-                            val scale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.04f else 1f,
-                                label = "AccChipScale"
-                            )
-                            
-                            Surface(
-                                modifier = Modifier
-                                    .scale(scale)
-                                    .clickable { 
-                                        selectedAccountName = acc.name
-                                        selectedAccountId = acc.id
-                                    },
-                                shape = RoundedCornerShape(16.dp),
-                                color = containerColor,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isSelected) accColor.copy(alpha = 0.4f) else Color.Transparent
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    val icon = when (acc.type.uppercase()) {
-                                        "BANK" -> Icons.Default.AccountBalance
-                                        "CREDIT" -> Icons.Default.CreditCard
-                                        else -> Icons.Default.AccountBalanceWallet
-                                    }
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = acc.name,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = if (isSelected) accColor else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = acc.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = contentColor
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Beautiful Interactive Date Card
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
-                    .clickable { showDatePicker = true }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = "Date",
-                        tint = activeColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Transaction Date",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = selectedDateText,
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = if (finalInputMode == "Smart") "Quick Add" else "Add Transaction",
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = colors.ink
+                        )
+                        Text(
+                            text = when {
+                                finalInputMode == "Smart" -> "Describe it, AI fills in the details"
+                                isIncome -> "Record money coming in"
+                                else -> "Record money going out"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.muted
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = colors.card,
+                            contentColor = colors.muted
+                        ),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .border(1.dp, colors.cardBorder, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
 
-            // Save Trigger Button
-            val isEnabled = resolvedAmount?.let { it > 0 } == true
-            
-            val interactionSource = remember { MutableInteractionSource() }
-            val isPressed by interactionSource.collectIsPressedAsState()
-            val buttonScale by animateFloatAsState(
-                targetValue = if (isPressed) 0.96f else 1f,
-                label = "ButtonPress"
-            )
+                AnimatedContent(
+                    targetState = finalInputMode,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    },
+                    label = "InputModeTransition"
+                ) { mode ->
+                    if (mode == "Smart") {
+                        SmartTransactionInput(onAiSave = onAiSave)
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                            TransactionTypeToggle(
+                                selectedType = selectedType,
+                                onTypeSelected = { selectedType = it }
+                            )
 
-                    Button(
-                        onClick = {
-                            val amt = resolvedAmount
-                            if (amt != null && amt > 0) {
-                                onSave(selectedCategory, amt, selectedCategory, selectedType, selectedDateText, selectedAccountName, selectedAccountId)
+                            // Amount card, tapping anywhere on it focuses the input
+                            val amountFocusRequester = remember { FocusRequester() }
+                            val amountTextStyle = MaterialTheme.typography.displayMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 44.sp,
+                                color = colors.ink
+                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .shadow(
+                                        elevation = 10.dp,
+                                        shape = RoundedCornerShape(24.dp),
+                                        ambientColor = activeColor.copy(alpha = 0.25f),
+                                        spotColor = activeColor.copy(alpha = 0.25f)
+                                    )
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(colors.card)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(activeColor.copy(alpha = 0.10f), Color.Transparent)
+                                        )
+                                    )
+                                    .border(1.dp, activeColor.copy(alpha = 0.18f), RoundedCornerShape(24.dp))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { amountFocusRequester.requestFocus() }
+                                    .padding(vertical = 22.dp, horizontal = 16.dp)
+                            ) {
+                                Text(
+                                    text = if (isIncome) "How much did you receive?" else "How much did you spend?",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = colors.muted,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "$",
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = activeColor
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    BasicTextField(
+                                        value = amountText,
+                                        onValueChange = {
+                                            if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) {
+                                                amountText = it
+                                            }
+                                        },
+                                        textStyle = amountTextStyle,
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                        cursorBrush = SolidColor(activeColor),
+                                        decorationBox = { innerTextField ->
+                                            Box(contentAlignment = Alignment.CenterStart) {
+                                                if (amountText.isEmpty()) {
+                                                    Text(
+                                                        text = "0.00",
+                                                        style = amountTextStyle,
+                                                        color = colors.muted.copy(alpha = 0.35f)
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .width(IntrinsicSize.Min)
+                                            .defaultMinSize(minWidth = 24.dp)
+                                            .focusRequester(amountFocusRequester)
+                                    )
+                                }
+                                AnimatedVisibility(visible = incomePrefill != null) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .padding(top = 10.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(activeColor.copy(alpha = 0.12f))
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AutoAwesome,
+                                            contentDescription = null,
+                                            tint = activeColor,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Pre-filled from $selectedCategory, tap to edit",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = activeColor
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        enabled = isEnabled,
-                        interactionSource = interactionSource,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .scale(buttonScale)
-                            .shadow(
-                                elevation = if (isEnabled) 12.dp else 0.dp,
-                                shape = RoundedCornerShape(28.dp),
-                                ambientColor = activeColor,
-                                spotColor = activeColor
-                            ),
-                        shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = activeColor,
-                            contentColor = Color.White,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        )
-                    ) {
-                        Text(
-                            text = "Save Transaction",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+
+                            // Category Selection
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SheetSectionLabel(text = "Category")
+                                if (typeCategories.isEmpty()) {
+                                    SheetEmptyHint(
+                                        text = if (isIncome) "No income categories yet" else "No expense categories yet"
+                                    )
+                                } else {
+                                    // Wrap onto several lines so every category is visible without sideways scrolling
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        typeCategories.forEach { cat ->
+                                            val (icon, catColor) = getCategoryIconAndColor(cat.name)
+                                            SheetSelectionChip(
+                                                label = cat.name,
+                                                icon = icon,
+                                                accent = catColor,
+                                                selected = selectedCategory == cat.name,
+                                                onClick = { selectedCategory = cat.name }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Account Selection (Filtered based on INCOME PAY_NOW / EXPENSE All)
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                SheetSectionLabel(text = if (isIncome) "Received in" else "Paid from")
+                                if (filteredAccounts.isEmpty()) {
+                                    SheetEmptyHint(text = "No applicable accounts found")
+                                } else {
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(filteredAccounts) { acc ->
+                                            val accColor = when (acc.type.uppercase()) {
+                                                "BANK" -> Color(0xFF5B8DEF)
+                                                "CREDIT" -> Color(0xFFF06292)
+                                                "CASH" -> Color(0xFF2EB67D)
+                                                else -> Color(0xFFF5A623)
+                                            }
+                                            val icon = when (acc.type.uppercase()) {
+                                                "BANK" -> Icons.Default.AccountBalance
+                                                "CREDIT" -> Icons.Default.CreditCard
+                                                else -> Icons.Default.AccountBalanceWallet
+                                            }
+                                            SheetSelectionChip(
+                                                label = acc.name,
+                                                icon = icon,
+                                                accent = accColor,
+                                                selected = selectedAccountName == acc.name,
+                                                onClick = {
+                                                    selectedAccountName = acc.name
+                                                    selectedAccountId = acc.id
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Date card
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(colors.card)
+                                    .border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp))
+                                    .clickable { showDatePicker = true }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(activeColor.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = "Date",
+                                        tint = activeColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Date",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = colors.muted
+                                    )
+                                    Text(
+                                        text = formatDisplayDate(selectedDateText),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.ink
+                                    )
+                                }
+                                Text(
+                                    text = "Change",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = activeColor
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = activeColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Save Trigger Button
+                            val isEnabled = resolvedAmount?.let { it > 0 } == true
+                            SheetPrimaryButton(
+                                text = if (isEnabled) {
+                                    "Add ${if (isIncome) "Income" else "Expense"} · $$amountText"
+                                } else {
+                                    "Enter an amount to continue"
+                                },
+                                icon = if (isEnabled) Icons.Default.Check else null,
+                                gradient = listOf(activeColor, lerp(activeColor, Color.White, 0.25f)),
+                                enabled = isEnabled,
+                                onClick = {
+                                    val amt = resolvedAmount
+                                    if (amt != null && amt > 0) {
+                                        onSave(selectedCategory, amt, selectedCategory, selectedType, selectedDateText, selectedAccountName, selectedAccountId)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
     }
-}
 
     ExpentDatePicker(
         showDialog = showDatePicker,
@@ -1964,6 +1807,360 @@ fun AddTransactionBottomSheet(
         },
         allowFutureDates = false
     )
+}
+
+private val AiExamples = listOf(
+    "Spent $25 on pizza yesterday using cash",
+    "Got $3000 salary today",
+    "Paid $60 for Uber with card"
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SmartTransactionInput(onAiSave: (String) -> Unit) {
+    val colors = LocalSoftColors.current
+    var aiText by remember { mutableStateOf("") }
+    val canSubmit = aiText.isNotBlank()
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        OutlinedTextField(
+            value = aiText,
+            onValueChange = { aiText = it },
+            placeholder = {
+                Text(
+                    text = "What did you spend or earn?",
+                    color = colors.muted.copy(alpha = 0.7f)
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 140.dp)
+                .shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(20.dp),
+                    ambientColor = colors.ai.copy(alpha = 0.2f),
+                    spotColor = colors.ai.copy(alpha = 0.2f)
+                ),
+            shape = RoundedCornerShape(20.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.ai,
+                unfocusedBorderColor = colors.cardBorder,
+                focusedContainerColor = colors.card,
+                unfocusedContainerColor = colors.card,
+                focusedTextColor = colors.ink,
+                unfocusedTextColor = colors.ink,
+                cursorColor = colors.ai
+            ),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+            maxLines = 6
+        )
+
+        // What the AI picks up from the sentence
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(colors.ai.copy(alpha = 0.08f))
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = colors.ai,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "AI detects the amount, category, type, account and date for you.",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.ink.copy(alpha = 0.75f)
+            )
+        }
+
+        // Tap an example to fill the input
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            SheetSectionLabel(text = "Try an example")
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AiExamples.forEach { example ->
+                    Surface(
+                        onClick = { aiText = example },
+                        shape = RoundedCornerShape(14.dp),
+                        color = colors.card,
+                        border = BorderStroke(1.dp, colors.cardBorder)
+                    ) {
+                        Text(
+                            text = example,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.ink.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        SheetPrimaryButton(
+            text = "Parse & Save",
+            icon = Icons.Default.AutoAwesome,
+            gradient = listOf(colors.ai, colors.aiEnd),
+            enabled = canSubmit,
+            onClick = { onAiSave(aiText) }
+        )
+    }
+}
+
+@Composable
+private fun SheetPrimaryButton(
+    text: String,
+    icon: ImageVector?,
+    gradient: List<Color>,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = LocalSoftColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        label = "ButtonPress"
+    )
+
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interactionSource,
+        contentPadding = PaddingValues(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .scale(buttonScale)
+            .shadow(
+                elevation = if (enabled) 12.dp else 0.dp,
+                shape = RoundedCornerShape(28.dp),
+                ambientColor = gradient.first(),
+                spotColor = gradient.first()
+            ),
+        shape = RoundedCornerShape(28.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+            disabledContainerColor = colors.cardBorder,
+            disabledContentColor = colors.muted
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (enabled) Modifier.background(Brush.horizontalGradient(gradient)) else Modifier
+                ),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun TransactionTypeToggle(
+    selectedType: TransactionType,
+    onTypeSelected: (TransactionType) -> Unit
+) {
+    val colors = LocalSoftColors.current
+    val isExpense = selectedType == TransactionType.EXPENSE
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(colors.card)
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(26.dp))
+            .padding(4.dp)
+    ) {
+        // 0 = Income half, 1 = Expense half
+        val indicatorPosition by animateFloatAsState(
+            targetValue = if (isExpense) 1f else 0f,
+            animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+            label = "ToggleOffset"
+        )
+        val indicatorColor by animateColorAsState(
+            targetValue = if (isExpense) colors.expense else colors.income,
+            label = "ToggleColor"
+        )
+
+        // Sliding pill behind the selected option
+        Box(
+            modifier = Modifier
+                .graphicsLayer { translationX = size.width * indicatorPosition }
+                .fillMaxWidth(0.5f)
+                .fillMaxHeight()
+                .shadow(6.dp, RoundedCornerShape(22.dp), spotColor = indicatorColor)
+                .clip(RoundedCornerShape(22.dp))
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(indicatorColor, lerp(indicatorColor, Color.White, 0.25f))
+                    )
+                )
+        )
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            TypeToggleOption(
+                label = "Income",
+                icon = Icons.Default.ArrowDownward,
+                selected = !isExpense,
+                onClick = { onTypeSelected(TransactionType.INCOME) }
+            )
+            TypeToggleOption(
+                label = "Expense",
+                icon = Icons.Default.ArrowUpward,
+                selected = isExpense,
+                onClick = { onTypeSelected(TransactionType.EXPENSE) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.TypeToggleOption(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) Color.White else LocalSoftColors.current.muted,
+        label = "ToggleText"
+    )
+    Row(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(22.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(16.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun SheetSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = LocalSoftColors.current.muted
+    )
+}
+
+@Composable
+private fun SheetEmptyHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = LocalSoftColors.current.muted,
+        modifier = Modifier.padding(vertical = 4.dp)
+    )
+}
+
+@Composable
+private fun SheetSelectionChip(
+    label: String,
+    icon: ImageVector,
+    accent: Color,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = LocalSoftColors.current
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) lerp(colors.card, accent, 0.12f) else colors.card,
+        label = "ChipBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) accent else colors.ink,
+        label = "ChipText"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected) accent.copy(alpha = 0.55f) else colors.cardBorder,
+        label = "ChipBorder"
+    )
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) accent else accent.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) Color.White else accent,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = contentColor
+            )
+            AnimatedVisibility(visible = selected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier
+                        .padding(start = 6.dp)
+                        .size(16.dp)
+                )
+            }
+        }
+    }
 }
 
 

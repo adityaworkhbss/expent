@@ -27,8 +27,6 @@ class AddTransactionWidget : AppWidgetProvider() {
         val intent = Intent(context, DashboardActivity::class.java).apply {
             action = ACTION_ADD_TRANSACTION
             putExtra(EXTRA_TRANSACTION_TYPE, type.name)
-            // Start a fresh dashboard task so the intent always reaches onCreate; reusing an existing
-            // task could just bring it to front without delivering the add request
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         return PendingIntent.getActivity(
@@ -43,7 +41,6 @@ class AddTransactionWidget : AppWidgetProvider() {
         const val ACTION_ADD_TRANSACTION = "com.aditya.expent.action.ADD_TRANSACTION"
         const val EXTRA_TRANSACTION_TYPE = "extra_transaction_type"
 
-        // Re-binds button intents; needed after a force-stop (e.g. reinstall) cancels the old PendingIntents
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, AddTransactionWidget::class.java))

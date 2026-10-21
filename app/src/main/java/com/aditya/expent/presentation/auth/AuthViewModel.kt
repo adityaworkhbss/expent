@@ -80,8 +80,6 @@ class AuthViewModel @Inject constructor(
                         registerFcmToken(it.id)
                     }
 
-                    // fetchUserDataUseCase already pulled exactly what onboardingCount allows,
-                    // so no extra full-refresh sync here; periodic sync starts once onboarding is done
                     fetchUserDataUseCase()
                     if (sessionManager.isOnboardingComplete()) {
                         syncScheduler.schedulePeriodicSync()
@@ -89,7 +87,7 @@ class AuthViewModel @Inject constructor(
                     _authState.value = AuthState(isSuccess = true)
                 } else {
                     val errorMsg = loginResult.exceptionOrNull()?.message ?: "Backend verification failed"
-                    // Already reported to Crashlytics by AuthRepositoryImpl
+
                     AppLogger.error("AuthViewModel", "BACKEND AUTH FAILED", loginResult.exceptionOrNull(), reportToCrashlytics = false)
                     _authState.value = AuthState(error = errorMsg)
                 }

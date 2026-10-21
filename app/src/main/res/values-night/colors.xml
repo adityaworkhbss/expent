@@ -4,8 +4,11 @@
     <color name="widget_surface">#FF1E1E1E</color>
     <color name="widget_outline">#26FFFFFF</color>
     <color name="widget_text">#FFE6E1E5</color>
-    <color name="widget_expense_bg">#33F44336</color>
-    <color name="widget_expense_text">#FFEF9A9A</color>
-    <color name="widget_income_bg">#334CAF50</color>
-    <color name="widget_income_text">#FFA5D6A7</color>
+    <color name="widget_subtext">#FFA19DAD</color>
+    <color name="widget_icon_bg">#FF1F3A2A</color>
+    <color name="widget_icon_tint">#FF81C995</color>
+    <color name="widget_expense_bg">#FF3A2224</color>
+    <color name="widget_expense_text">#FFFF9E9A</color>
+    <color name="widget_income_bg">#FF1F3326</color>
+    <color name="widget_income_text">#FF8FD6A3</color>
 </resources>

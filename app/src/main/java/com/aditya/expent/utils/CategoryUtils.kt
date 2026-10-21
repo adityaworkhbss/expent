@@ -8,7 +8,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 object CategoryUtils {
 
-    // Massive dictionary of keywords structured for maximum performance O(1) keyword detection
     private val foodKeywords = setOf(
         "food", "dining", "restaurant", "cafe", "grocery", "groceries", "dinner", "lunch", 
         "coffee", "snack", "tea", "swiggy", "zomato", "sweet", "bakery", "drink", "bar", 

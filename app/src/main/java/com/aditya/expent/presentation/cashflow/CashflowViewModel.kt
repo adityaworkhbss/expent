@@ -205,7 +205,6 @@ class CashflowViewModel @Inject constructor(
         }
     }
 
-    /** [tenure] null = every month (subscription). */
     fun saveEmi(
         name: String,
         amount: Double,

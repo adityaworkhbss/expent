@@ -24,10 +24,6 @@ import androidx.compose.ui.unit.dp
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.DayOfMonth
 
-/**
- * Budgets and expenses repeat every month, so only the day of the month (1-31) is picked.
- * Days past the end of a short month fall on its last day.
- */
 @Composable
 fun DayOfMonthPicker(
     showDialog: Boolean,
@@ -67,7 +63,7 @@ fun DayOfMonthPicker(
                                 }
                             }
                         }
-                        // Keep the last row's cells the same width as the others
+
                         repeat(7 - week.size) { Spacer(modifier = Modifier.weight(1f)) }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
@@ -81,7 +77,6 @@ fun DayOfMonthPicker(
     )
 }
 
-/** Field text for a picked day, e.g. "5th of every month". */
 fun dayOfMonthLabel(day: Int?): String =
     day?.let { "${DayOfMonth.withSuffix(it)} of every month" }.orEmpty()
 

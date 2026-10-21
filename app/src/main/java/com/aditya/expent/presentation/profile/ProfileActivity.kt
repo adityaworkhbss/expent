@@ -101,7 +101,7 @@ fun ProfileScreen(
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
-    // Current user state loaded directly from sessionManager or passed preview user
+
     var currentUserState by remember { mutableStateOf(currentUser ?: sessionManager?.getUser()) }
     val displayUser = currentUserState ?: User("0", "aditya@expent.com", "Aditya Sharma", "tok", "ref", 1)
     Log.d("ProfileActivity", "ProfileScreen Composing: state.reminder = ${state.reminder}, state.aiTransaction = ${state.aiTransaction}")
