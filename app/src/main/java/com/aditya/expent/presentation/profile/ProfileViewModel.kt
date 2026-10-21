@@ -16,6 +16,7 @@ import com.aditya.expent.domain.usecase.SaveCategoriesUseCase
 import com.aditya.expent.domain.usecase.SavePaymentModesUseCase
 import com.aditya.expent.domain.usecase.GetCustomizationUseCase
 import com.aditya.expent.domain.usecase.RemoveDeviceTokenUseCase
+import com.aditya.expent.domain.usecase.SubmitFeedbackUseCase
 import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,6 +48,7 @@ class ProfileViewModel @Inject constructor(
     private val getCustomizationUseCase: GetCustomizationUseCase,
     private val updateCustomizationUseCase: UpdateCustomizationUseCase,
     private val removeDeviceTokenUseCase: RemoveDeviceTokenUseCase,
+    private val submitFeedbackUseCase: SubmitFeedbackUseCase,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
@@ -113,6 +115,13 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { deletePaymentModesUseCase(id) }
                 .onFailure { /* Handle error if needed */ }
+        }
+    }
+
+    fun submitFeedback(rating: Int, message: String) {
+        viewModelScope.launch {
+            runCatching { submitFeedbackUseCase(rating, message) }
+                .onFailure { AppLogger.syncError("FEEDBACK", "Failed to queue feedback: ${it.message}", it) }
         }
     }
 

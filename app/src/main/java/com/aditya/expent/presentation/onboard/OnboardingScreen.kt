@@ -178,37 +178,19 @@ fun OnboardRoute(
     }
 }
 
-// Soft colour blobs behind every step
+// Faint emerald glow behind every step
 @Composable
 private fun OnboardBackground() {
     val colors = LocalSoftColors.current
     Canvas(modifier = Modifier.fillMaxSize()) {
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(colors.primary.copy(alpha = 0.16f), Color.Transparent),
+                colors = listOf(colors.primary.copy(alpha = 0.06f), Color.Transparent),
                 center = Offset(size.width, 0f),
-                radius = 340.dp.toPx()
+                radius = 350.dp.toPx()
             ),
             center = Offset(size.width, 0f),
-            radius = 340.dp.toPx()
-        )
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(colors.peach.copy(alpha = 0.18f), Color.Transparent),
-                center = Offset(0f, size.height),
-                radius = 320.dp.toPx()
-            ),
-            center = Offset(0f, size.height),
-            radius = 320.dp.toPx()
-        )
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(colors.ai.copy(alpha = 0.07f), Color.Transparent),
-                center = Offset(0f, size.height * 0.35f),
-                radius = 240.dp.toPx()
-            ),
-            center = Offset(0f, size.height * 0.35f),
-            radius = 240.dp.toPx()
+            radius = 350.dp.toPx()
         )
     }
 }
@@ -667,9 +649,9 @@ fun PaymentModesStep(
 private fun PaymentModeCard(mode: OnboardPaymentMode, onDelete: () -> Unit) {
     val isCredit = mode.type == "PAY_LATER"
     val gradient = if (isCredit) {
-        listOf(Color(0xFF8B7CFF), Color(0xFFF07FB5))
+        listOf(Color(0xFF3F51B5), Color(0xFFE91E63))
     } else {
-        listOf(Color(0xFF34C3A0), Color(0xFF1E9EA8))
+        listOf(LocalSoftColors.current.primary, LocalSoftColors.current.primaryEnd)
     }
 
     Box(
@@ -1468,12 +1450,6 @@ private fun SoftCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(24.dp),
-                ambientColor = colors.ink.copy(alpha = 0.08f),
-                spotColor = colors.ink.copy(alpha = 0.10f)
-            )
             .clip(RoundedCornerShape(24.dp))
             .background(colors.card)
             .border(1.dp, colors.cardBorder, RoundedCornerShape(24.dp))
@@ -1874,48 +1850,36 @@ private fun OnboardPrimaryButton(
         label = "ButtonPress"
     )
 
+    // Same solid, 16dp-rounded primary button as the Auth screen
     Button(
         onClick = onClick,
         enabled = enabled,
         interactionSource = interactionSource,
-        contentPadding = PaddingValues(),
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .scale(buttonScale)
-            .shadow(
-                elevation = if (enabled) 12.dp else 0.dp,
-                shape = RoundedCornerShape(28.dp),
-                ambientColor = colors.primary,
-                spotColor = colors.primary
-            ),
-        shape = RoundedCornerShape(28.dp),
+            .scale(buttonScale),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent,
+            containerColor = colors.primary,
             contentColor = Color.White,
-            disabledContainerColor = colors.cardBorder,
-            disabledContentColor = colors.muted
+            disabledContainerColor = colors.primary.copy(alpha = 0.3f),
+            disabledContentColor = Color.White
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 6.dp,
+            pressedElevation = 2.dp,
+            disabledElevation = 0.dp
         )
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (enabled) Modifier.background(Brush.horizontalGradient(listOf(colors.primary, colors.primaryEnd)))
-                    else Modifier
-                ),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            if (trailingIcon != null && enabled) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(trailingIcon, contentDescription = null, modifier = Modifier.size(20.dp))
-            }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        if (trailingIcon != null && enabled) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(trailingIcon, contentDescription = null, modifier = Modifier.size(20.dp))
         }
     }
 }

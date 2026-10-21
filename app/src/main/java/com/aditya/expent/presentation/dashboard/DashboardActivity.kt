@@ -74,7 +74,6 @@ import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.presentation.theme.EmeraldPrimary
 import com.aditya.expent.presentation.theme.ColorIncome
 import com.aditya.expent.presentation.theme.ColorExpense
-import com.aditya.expent.presentation.theme.DarkSoftColors
 import com.aditya.expent.presentation.theme.LocalSoftColors
 import com.aditya.expent.presentation.theme.softColors
 import com.aditya.expent.utils.SessionManager
@@ -1450,7 +1449,6 @@ fun AddTransactionBottomSheet(
     var showDatePicker by remember { mutableStateOf(false) }
 
     val colors = softColors()
-    val isDark = colors == DarkSoftColors
 
     val finalInputMode = if (aiTransactionEnabled) "Smart" else "Manual"
     Log.d("DashboardActivity", "AddTransactionBottomSheet: Rendering with finalInputMode = $finalInputMode, aiTransactionEnabled = $aiTransactionEnabled")
@@ -1464,8 +1462,8 @@ fun AddTransactionBottomSheet(
         animationSpec = tween(400),
         label = "ActiveColor"
     )
-    // Sheet background picks up a faint wash of the active colour
-    val sheetBackground = lerp(colors.background, activeColor, if (isDark) 0.06f else 0.05f)
+    // Theme surface with a faint wash of the active colour
+    val sheetBackground = lerp(colors.card, activeColor, 0.03f)
 
     CompositionLocalProvider(LocalSoftColors provides colors) {
         ModalBottomSheet(

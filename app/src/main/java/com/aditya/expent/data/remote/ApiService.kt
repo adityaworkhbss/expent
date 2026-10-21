@@ -24,6 +24,7 @@ import com.aditya.expent.data.remote.dto.ParseTransactionResponseDto
 import com.aditya.expent.data.remote.dto.RegisterDeviceTokenRequestDto
 import com.aditya.expent.data.remote.dto.RemoveDeviceTokenRequestDto
 import com.aditya.expent.data.remote.dto.DeviceTokenResponseDto
+import com.aditya.expent.data.remote.dto.FeedbackRequestDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -117,6 +118,9 @@ interface ApiService {
 
     @HTTP(method = "DELETE", path = "device-tokens", hasBody = true)
     suspend fun removeDeviceToken(@Body request: RemoveDeviceTokenRequestDto): ApiResponse<Any?>
+
+    @POST("feedback")
+    suspend fun submitFeedback(@Body request: FeedbackRequestDto): ApiResponse<Any?>
 
 //    @GET("transactions")
 //    suspend fun getTransactions(

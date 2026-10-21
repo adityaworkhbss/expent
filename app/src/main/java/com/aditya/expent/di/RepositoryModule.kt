@@ -5,6 +5,7 @@ import com.aditya.expent.data.repository.CategoryRepositoryImpl
 import com.aditya.expent.data.repository.CustomizationRepositoryImpl
 import com.aditya.expent.data.repository.DeviceTokenRepositoryImpl
 import com.aditya.expent.data.repository.ExpenseAndSubscriptionRepositoryImpl
+import com.aditya.expent.data.repository.FeedbackRepositoryImpl
 import com.aditya.expent.data.repository.IncomeBudgetRepositoryImpl
 import com.aditya.expent.data.repository.OnboardingRepositoryImpl
 import com.aditya.expent.data.repository.PaymentModeRepositoryImpl
@@ -14,6 +15,7 @@ import com.aditya.expent.domain.repository.CategoryRepository
 import com.aditya.expent.domain.repository.CustomizationRepository
 import com.aditya.expent.domain.repository.DeviceTokenRepository
 import com.aditya.expent.domain.repository.ExpenseAndSubscriptionRepository
+import com.aditya.expent.domain.repository.FeedbackRepository
 import com.aditya.expent.domain.repository.IncomeBudgetRepository
 import com.aditya.expent.domain.repository.OnboardingRepository
 import com.aditya.expent.domain.repository.PaymentModeRepository
@@ -81,5 +83,11 @@ abstract class RepositoryModule {
     abstract fun bindDeviceTokenRepository(
         deviceTokenRepositoryImpl: DeviceTokenRepositoryImpl
     ): DeviceTokenRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFeedbackRepository(
+        feedbackRepositoryImpl: FeedbackRepositoryImpl
+    ): FeedbackRepository
 
 }

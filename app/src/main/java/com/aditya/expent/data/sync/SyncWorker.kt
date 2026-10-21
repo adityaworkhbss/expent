@@ -20,6 +20,7 @@ import com.aditya.expent.data.remote.dto.BudgetRequestDto
 import com.aditya.expent.data.remote.dto.CategoryRequestDto
 import com.aditya.expent.data.remote.dto.CreateTransactionRequestDto
 import com.aditya.expent.data.remote.dto.ExpenseIncomeRequestDto
+import com.aditya.expent.data.remote.dto.FeedbackRequestDto
 import com.aditya.expent.data.remote.dto.OnboardingStepRequestDto
 import com.aditya.expent.data.remote.dto.PaymentModeRequestDto
 import com.aditya.expent.data.remote.dto.UserCustomizationResponseDto
@@ -430,6 +431,13 @@ class SyncWorker(
                     apiService.updateOnboardingCount(OnboardingStepRequestDto(step))
                     AppLogger.sync("ONBOARDING_INCREMENT", "Synced onboarding step increment to $step")
                 }
+                true
+            }
+
+            // Best effort: feedback has no local row, a failed send just retries like any other item
+            "feedback" -> {
+                apiService.submitFeedback(gson.fromJson(item.payload, FeedbackRequestDto::class.java))
+                AppLogger.sync("FEEDBACK", "Submitted feedback ID=${item.id}")
                 true
             }
 
