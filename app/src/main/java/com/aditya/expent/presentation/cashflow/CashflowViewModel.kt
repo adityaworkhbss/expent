@@ -2,6 +2,7 @@ package com.aditya.expent.presentation.cashflow
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aditya.expent.config.AppText
 import com.aditya.expent.domain.model.Budget
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.model.Expense
@@ -59,7 +60,7 @@ class CashflowViewModel @Inject constructor(
                 .catch { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Unknown error"
+                        error = error.message ?: AppText.get("cashflow.errors.unknownError", "Unknown error")
                     )
                 }
                 .collect { expense ->
@@ -75,7 +76,7 @@ class CashflowViewModel @Inject constructor(
                 .catch { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Unknown error"
+                        error = error.message ?: AppText.get("cashflow.errors.unknownError", "Unknown error")
                     )
                 }
                 .collect { categoryList ->
@@ -98,7 +99,7 @@ class CashflowViewModel @Inject constructor(
                 .catch { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Unknown error"
+                        error = error.message ?: AppText.get("cashflow.errors.unknownError", "Unknown error")
                     )
                 }
                 .collect { budgets ->
@@ -117,7 +118,7 @@ class CashflowViewModel @Inject constructor(
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to delete budget"
+                        error = error.message ?: AppText.get("cashflow.errors.failedToDeleteBudget", "Failed to delete budget")
                     )
                 }
         }
@@ -138,7 +139,7 @@ class CashflowViewModel @Inject constructor(
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to update budget"
+                        error = error.message ?: AppText.get("cashflow.errors.failedToUpdateBudget", "Failed to update budget")
                     )
                 }
         }
@@ -158,7 +159,7 @@ class CashflowViewModel @Inject constructor(
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to save budget"
+                        error = error.message ?: AppText.get("cashflow.errors.failedToSaveBudget", "Failed to save budget")
                     )
                 }
         }
@@ -174,7 +175,7 @@ class CashflowViewModel @Inject constructor(
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to delete EMI/Subscription"
+                        error = error.message ?: AppText.get("cashflow.errors.failedToDeleteEmiSubscription", "Failed to delete EMI/Subscription")
                     )
                 }
         }
@@ -199,7 +200,7 @@ class CashflowViewModel @Inject constructor(
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to update EMI/Subscription"
+                        error = error.message ?: AppText.get("cashflow.errors.failedToUpdateEmiSubscription", "Failed to update EMI/Subscription")
                     )
                 }
         }
@@ -222,7 +223,7 @@ class CashflowViewModel @Inject constructor(
                 .onFailure { error ->
                     _budgetState.value = _budgetState.value.copy(
                         isLoading = false,
-                        error = error.message ?: "Failed to save EMI/Subscription"
+                        error = error.message ?: AppText.get("cashflow.errors.failedToSaveEmiSubscription", "Failed to save EMI/Subscription")
                     )
                 }
         }

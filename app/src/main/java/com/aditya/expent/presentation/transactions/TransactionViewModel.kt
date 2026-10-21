@@ -2,6 +2,7 @@ package com.aditya.expent.presentation.transactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aditya.expent.config.AppText
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
@@ -79,7 +80,7 @@ class TransactionViewModel @Inject constructor(
             )
                 .catch { exception ->
                     _state.value = state.value.copy(
-                        error = exception.message ?: "An error occurred",
+                        error = exception.message ?: AppText.get("transactions.errors.genericError", "An error occurred"),
                         isLoading = false
                     )
                 }
@@ -91,10 +92,10 @@ class TransactionViewModel @Inject constructor(
 
                         Transaction(
                             id = dto.id,
-                            title = dto.category?.name ?: "Transaction",
+                            title = dto.category?.name ?: AppText.get("transactions.defaults.transactionTitle", "Transaction"),
                             amount = amount,
                             date = dto.date.orEmpty(),
-                            category = dto.category?.name ?: "Other",
+                            category = dto.category?.name ?: AppText.get("transactions.defaults.category", "Other"),
                             type = typeEnum,
                             accountId = dto.accountId,
                             categoryId = dto.categoryId,
@@ -112,7 +113,7 @@ class TransactionViewModel @Inject constructor(
     fun onExpandClick() {
         if (state.value.transactions.size < state.value.pageSize) {
             _state.value = state.value.copy(
-                error = "No more transactions to load",
+                error = AppText.get("transactions.errors.noMoreTransactions", "No more transactions to load"),
                 isExpanded = true
             )
             return

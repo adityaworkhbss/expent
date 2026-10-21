@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.aditya.expent.config.AppText
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.aditya.expent.utils.DayOfMonth
 
@@ -36,7 +37,7 @@ fun DayOfMonthPicker(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Day of every month", fontWeight = FontWeight.Bold) },
+        title = { Text(AppText.get("components.dayOfMonthPicker.title", "Day of every month"), fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 (DayOfMonth.MIN..DayOfMonth.MAX).chunked(7).forEach { week ->
@@ -72,13 +73,13 @@ fun DayOfMonthPicker(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(AppText.get("components.dayOfMonthPicker.cancelButton", "Cancel")) }
         }
     )
 }
 
 fun dayOfMonthLabel(day: Int?): String =
-    day?.let { "${DayOfMonth.withSuffix(it)} of every month" }.orEmpty()
+    day?.let { AppText.get("components.dayOfMonthPicker.dayLabelFormat", "{dayWithSuffix} of every month", "dayWithSuffix" to DayOfMonth.withSuffix(it)) }.orEmpty()
 
 @Preview(showBackground = true)
 @Composable

@@ -59,6 +59,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aditya.expent.R
+import com.aditya.expent.config.AppText
 import com.aditya.expent.domain.model.Reminder
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
@@ -287,7 +288,7 @@ fun DashboardScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
+                                contentDescription = AppText.get("dashboard.header.profileContentDescription", "Profile"),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
@@ -330,7 +331,7 @@ fun DashboardScreen(
                                         modifier = Modifier.size(22.dp)
                                     )
                                     Text(
-                                        text = "Upcoming Reminders",
+                                        text = AppText.get("dashboard.reminders.sectionTitle", "Upcoming Reminders"),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
@@ -342,7 +343,7 @@ fun DashboardScreen(
                                     color = EmeraldPrimary.copy(alpha = 0.12f)
                                 ) {
                                     Text(
-                                        text = "${reminders.size}",
+                                        text = AppText.get("dashboard.reminders.countBadge", "{count}", "count" to reminders.size),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = EmeraldPrimary,
@@ -417,7 +418,7 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Recent Transactions",
+                            text = AppText.get("dashboard.recentTransactions.sectionTitle", "Recent Transactions"),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -432,7 +433,7 @@ fun DashboardScreen(
                             ),
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Default.History, contentDescription = "Transaction History", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.History, contentDescription = AppText.get("dashboard.recentTransactions.historyContentDescription", "Transaction History"), modifier = Modifier.size(20.dp))
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -455,14 +456,14 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "No transactions yet!",
+                                text = AppText.get("dashboard.recentTransactions.emptyState.title", "No transactions yet!"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Tap the 'Add New' button to add your first record.",
+                                text = AppText.get("dashboard.recentTransactions.emptyState.subtitle", "Tap the 'Add New' button to add your first record."),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 textAlign = TextAlign.Center
@@ -489,10 +490,14 @@ fun DashboardScreen(
                                 
                                 val isPositive = netTotal >= 0
                                 val totalColor = if (isPositive) ColorIncome else ColorExpense
-                                val sign = if (isPositive) "+" else "-"
-                                
+                                val formattedNetTotal = String.format("%.2f", Math.abs(netTotal))
+
                                 Text(
-                                    text = "$sign $ ${String.format("%.2f", Math.abs(netTotal))}",
+                                    text = if (isPositive) {
+                                        AppText.get("dashboard.recentTransactions.amountFormats.positiveDailyTotal", "+ $ {amount}", "amount" to formattedNetTotal)
+                                    } else {
+                                        AppText.get("dashboard.recentTransactions.amountFormats.negativeDailyTotal", "- $ {amount}", "amount" to formattedNetTotal)
+                                    },
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                     color = totalColor,
                                     modifier = Modifier
@@ -576,14 +581,14 @@ fun DashboardScreen(
                     },
                     title = {
                         Text(
-                            text = "Congratulations!",
+                            text = AppText.get("dashboard.reminders.completionDialog.title", "Congratulations!"),
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleLarge
                         )
                     },
                     text = {
                         Text(
-                            text = "You paid all monthly EMIs of \"$emiName\".",
+                            text = AppText.get("dashboard.reminders.completionDialog.message", "You paid all monthly EMIs of \"{emiName}\".", "emiName" to emiName),
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -595,7 +600,7 @@ fun DashboardScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(AppText.get("dashboard.reminders.completionDialog.doneButton", "Done"), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -703,9 +708,9 @@ fun ReminderCard(
                             Text(
                                 text = reminder.category.ifBlank {
                                     when (reminder.kind) {
-                                        Reminder.Kind.INCOME -> "Income"
-                                        Reminder.Kind.EMI -> "EMI"
-                                        Reminder.Kind.SUBSCRIPTION -> "Subscription"
+                                        Reminder.Kind.INCOME -> AppText.get("dashboard.reminders.types.income", "Income")
+                                        Reminder.Kind.EMI -> AppText.get("dashboard.reminders.types.emi", "EMI")
+                                        Reminder.Kind.SUBSCRIPTION -> AppText.get("dashboard.reminders.types.subscription", "Subscription")
                                     }
                                 }.replaceFirstChar { it.uppercase() },
                                 style = MaterialTheme.typography.labelSmall,
@@ -772,13 +777,17 @@ fun ReminderCard(
             ) {
                 Column {
                     Text(
-                        text = if (reminder.type == TransactionType.INCOME) "Expected Income" else "Amount Due",
+                        text = if (reminder.type == TransactionType.INCOME) AppText.get("dashboard.reminders.amountLabels.expectedIncome", "Expected Income") else AppText.get("dashboard.reminders.amountLabels.amountDue", "Amount Due"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = if (reminder.type == TransactionType.INCOME) "+$$formattedAmount" else "-$$formattedAmount",
+                        text = if (reminder.type == TransactionType.INCOME) {
+                            AppText.get("dashboard.reminders.amountFormats.income", "+\${amount}", "amount" to formattedAmount)
+                        } else {
+                            AppText.get("dashboard.reminders.amountFormats.expense", "-\${amount}", "amount" to formattedAmount)
+                        },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = accentColor
@@ -800,12 +809,12 @@ fun ReminderCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = if (reminder.type == TransactionType.INCOME) "Receive" else "Pay",
+                            contentDescription = if (reminder.type == TransactionType.INCOME) AppText.get("dashboard.reminders.actions.receive", "Receive") else AppText.get("dashboard.reminders.actions.pay", "Pay"),
                             tint = accentColor,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = if (reminder.type == TransactionType.INCOME) "Receive" else "Pay",
+                            text = if (reminder.type == TransactionType.INCOME) AppText.get("dashboard.reminders.actions.receive", "Receive") else AppText.get("dashboard.reminders.actions.pay", "Pay"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = accentColor
@@ -952,7 +961,7 @@ fun BalanceCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Total Balance",
+                        text = AppText.get("dashboard.balanceCard.title", "Total Balance"),
                         color = Color.White.copy(alpha = 0.75f),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
@@ -969,7 +978,7 @@ fun BalanceCard(
                                 .clickable(
                                     onClick = {
 //                                        context.startActivity(Intent(context, AnalysisActivity::class.java))
-                                        Toast.makeText(context, "Analysis screen coming soon!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, AppText.get("dashboard.balanceCard.analysisComingSoon", "Analysis screen coming soon!"), Toast.LENGTH_SHORT).show()
                                     }
                                 ),
                             contentAlignment = Alignment.Center
@@ -1007,9 +1016,9 @@ fun BalanceCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 val displayBalance = if (totalBalance >= 0) {
-                    "$ ${String.format("%.2f", totalBalance)}"
+                    AppText.get("dashboard.balanceCard.amountFormat", "$ {amount}", "amount" to String.format("%.2f", totalBalance))
                 } else {
-                    "-$ ${String.format("%.2f", Math.abs(totalBalance))}"
+                    AppText.get("dashboard.balanceCard.negativeAmountFormat", "-$ {amount}", "amount" to String.format("%.2f", Math.abs(totalBalance)))
                 }
                 
                 Text(
@@ -1028,13 +1037,13 @@ fun BalanceCard(
                 ) {
                     StatItem(
                         icon = Icons.Default.ArrowDownward,
-                        label = "Income",
+                        label = AppText.get("dashboard.balanceCard.income", "Income"),
                         amount = income,
                         color = ColorIncome
                     )
                     StatItem(
                         icon = Icons.Default.ArrowUpward,
-                        label = "Expense",
+                        label = AppText.get("dashboard.balanceCard.expense", "Expense"),
                         amount = expense,
                         color = ColorExpense
                     )
@@ -1074,7 +1083,7 @@ fun StatItem(
                 style = MaterialTheme.typography.bodySmall
             )
             Text(
-                text = "$ ${String.format("%.2f", amount)}",
+                text = AppText.get("dashboard.balanceCard.statAmountFormat", "$ {amount}", "amount" to String.format("%.2f", amount)),
                 color = Color.White,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold
@@ -1162,9 +1171,9 @@ fun TransactionItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             
-            val paymentMode = transaction.accountName ?: "Cash"
+            val paymentMode = transaction.accountName ?: AppText.get("dashboard.recentTransactions.defaultPaymentMode", "Cash")
             Text(
-                text = "via $paymentMode",
+                text = AppText.get("dashboard.recentTransactions.paymentModeFormat", "via {paymentMode}", "paymentMode" to paymentMode),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 maxLines = 1,
@@ -1191,7 +1200,7 @@ fun TransactionItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Transaction",
+                        contentDescription = AppText.get("dashboard.recentTransactions.actions.deleteContentDescription", "Delete Transaction"),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1203,7 +1212,11 @@ fun TransactionItem(
                 exit = fadeOut()
             ) {
                 Text(
-                    text = if (transaction.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", transaction.amount)}" else "- $ ${String.format("%.2f", Math.abs(transaction.amount))}",
+                    text = if (transaction.type == TransactionType.INCOME) {
+                        AppText.get("dashboard.recentTransactions.amountFormats.income", "+ $ {amount}", "amount" to String.format("%.2f", transaction.amount))
+                    } else {
+                        AppText.get("dashboard.recentTransactions.amountFormats.expense", "- $ {amount}", "amount" to String.format("%.2f", Math.abs(transaction.amount)))
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = if (transaction.type == TransactionType.INCOME) ColorIncome else MaterialTheme.colorScheme.onSurface,
@@ -1268,7 +1281,7 @@ fun SeeMoreButton(
                 label = "SeeMoreTextAnimation"
             ) { expanded ->
                 Text(
-                    text = if (expanded) "See Less" else "See More",
+                    text = if (expanded) AppText.get("dashboard.recentTransactions.actions.seeLess", "See Less") else AppText.get("dashboard.recentTransactions.actions.seeMore", "See More"),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1368,7 +1381,7 @@ fun GlowFloatingActionButton(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_add_expense),
-                contentDescription = "Add Expense",
+                contentDescription = AppText.get("dashboard.floatingActionButton.addExpenseContentDescription", "Add Expense"),
                 tint = Color.White,
                 modifier = Modifier
                     .size(24.dp)
@@ -1495,16 +1508,16 @@ fun AddTransactionBottomSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (finalInputMode == "Smart") "Quick Add" else "Add Transaction",
+                            text = if (finalInputMode == "Smart") AppText.get("dashboard.addTransactionSheet.header.quickAddTitle", "Quick Add") else AppText.get("dashboard.addTransactionSheet.header.manualAddTitle", "Add Transaction"),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = colors.ink
                         )
                         Text(
                             text = when {
-                                finalInputMode == "Smart" -> "Describe it, AI fills in the details"
-                                isIncome -> "Record money coming in"
-                                else -> "Record money going out"
+                                finalInputMode == "Smart" -> AppText.get("dashboard.addTransactionSheet.header.smartSubtitle", "Describe it, AI fills in the details")
+                                isIncome -> AppText.get("dashboard.addTransactionSheet.header.incomeSubtitle", "Record money coming in")
+                                else -> AppText.get("dashboard.addTransactionSheet.header.expenseSubtitle", "Record money going out")
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.muted
@@ -1522,7 +1535,7 @@ fun AddTransactionBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = AppText.get("dashboard.addTransactionSheet.header.closeContentDescription", "Close"),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1579,7 +1592,7 @@ fun AddTransactionBottomSheet(
                                     .padding(vertical = 22.dp, horizontal = 16.dp)
                             ) {
                                 Text(
-                                    text = if (isIncome) "How much did you receive?" else "How much did you spend?",
+                                    text = if (isIncome) AppText.get("dashboard.addTransactionSheet.amount.incomeQuestion", "How much did you receive?") else AppText.get("dashboard.addTransactionSheet.amount.expenseQuestion", "How much did you spend?"),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = colors.muted,
                                     fontWeight = FontWeight.Medium
@@ -1590,7 +1603,7 @@ fun AddTransactionBottomSheet(
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     Text(
-                                        text = "$",
+                                        text = AppText.get("dashboard.addTransactionSheet.amount.currencySymbol", "$"),
                                         fontSize = 32.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = activeColor
@@ -1611,7 +1624,7 @@ fun AddTransactionBottomSheet(
                                             Box(contentAlignment = Alignment.CenterStart) {
                                                 if (amountText.isEmpty()) {
                                                     Text(
-                                                        text = "0.00",
+                                                        text = AppText.get("dashboard.addTransactionSheet.amount.placeholder", "0.00"),
                                                         style = amountTextStyle,
                                                         color = colors.muted.copy(alpha = 0.35f)
                                                     )
@@ -1642,7 +1655,7 @@ fun AddTransactionBottomSheet(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Pre-filled from $selectedCategory, tap to edit",
+                                            text = AppText.get("dashboard.addTransactionSheet.amount.prefilledHint", "Pre-filled from {category}, tap to edit", "category" to selectedCategory),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = activeColor
                                         )
@@ -1655,10 +1668,10 @@ fun AddTransactionBottomSheet(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                SheetSectionLabel(text = "Category")
+                                SheetSectionLabel(text = AppText.get("dashboard.addTransactionSheet.category.title", "Category"))
                                 if (typeCategories.isEmpty()) {
                                     SheetEmptyHint(
-                                        text = if (isIncome) "No income categories yet" else "No expense categories yet"
+                                        text = if (isIncome) AppText.get("dashboard.addTransactionSheet.category.noIncomeCategories", "No income categories yet") else AppText.get("dashboard.addTransactionSheet.category.noExpenseCategories", "No expense categories yet")
                                     )
                                 } else {
                                     // Wrap onto several lines so every category is visible without sideways scrolling
@@ -1686,9 +1699,9 @@ fun AddTransactionBottomSheet(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                SheetSectionLabel(text = if (isIncome) "Received in" else "Paid from")
+                                SheetSectionLabel(text = if (isIncome) AppText.get("dashboard.addTransactionSheet.account.receivedIn", "Received in") else AppText.get("dashboard.addTransactionSheet.account.paidFrom", "Paid from"))
                                 if (filteredAccounts.isEmpty()) {
-                                    SheetEmptyHint(text = "No applicable accounts found")
+                                    SheetEmptyHint(text = AppText.get("dashboard.addTransactionSheet.account.noAccounts", "No applicable accounts found"))
                                 } else {
                                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         items(filteredAccounts) { acc ->
@@ -1738,7 +1751,7 @@ fun AddTransactionBottomSheet(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
-                                        contentDescription = "Date",
+                                        contentDescription = AppText.get("dashboard.addTransactionSheet.date.contentDescription", "Date"),
                                         tint = activeColor,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -1746,7 +1759,7 @@ fun AddTransactionBottomSheet(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Date",
+                                        text = AppText.get("dashboard.addTransactionSheet.date.title", "Date"),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = colors.muted
                                     )
@@ -1758,7 +1771,7 @@ fun AddTransactionBottomSheet(
                                     )
                                 }
                                 Text(
-                                    text = "Change",
+                                    text = AppText.get("dashboard.addTransactionSheet.date.changeButton", "Change"),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
                                     color = activeColor
@@ -1775,9 +1788,13 @@ fun AddTransactionBottomSheet(
                             val isEnabled = resolvedAmount?.let { it > 0 } == true
                             SheetPrimaryButton(
                                 text = if (isEnabled) {
-                                    "Add ${if (isIncome) "Income" else "Expense"} · $$amountText"
+                                    if (isIncome) {
+                                        AppText.get("dashboard.addTransactionSheet.buttons.addIncome", "Add Income · \${amount}", "amount" to amountText)
+                                    } else {
+                                        AppText.get("dashboard.addTransactionSheet.buttons.addExpense", "Add Expense · \${amount}", "amount" to amountText)
+                                    }
                                 } else {
-                                    "Enter an amount to continue"
+                                    AppText.get("dashboard.addTransactionSheet.buttons.invalidAmount", "Enter an amount to continue")
                                 },
                                 icon = if (isEnabled) Icons.Default.Check else null,
                                 gradient = listOf(activeColor, lerp(activeColor, Color.White, 0.25f)),
@@ -1807,11 +1824,15 @@ fun AddTransactionBottomSheet(
     )
 }
 
-private val AiExamples = listOf(
-    "Spent $25 on pizza yesterday using cash",
-    "Got $3000 salary today",
-    "Paid $60 for Uber with card"
-)
+private val AiExamples: List<String>
+    get() = AppText.list(
+        "dashboard.addTransactionSheet.smartInput.examples",
+        listOf(
+            "Spent $25 on pizza yesterday using cash",
+            "Got $3000 salary today",
+            "Paid $60 for Uber with card"
+        )
+    )
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1829,7 +1850,7 @@ private fun SmartTransactionInput(onAiSave: (String) -> Unit) {
             onValueChange = { aiText = it },
             placeholder = {
                 Text(
-                    text = "What did you spend or earn?",
+                    text = AppText.get("dashboard.addTransactionSheet.smartInput.placeholder", "What did you spend or earn?"),
                     color = colors.muted.copy(alpha = 0.7f)
                 )
             },
@@ -1873,7 +1894,7 @@ private fun SmartTransactionInput(onAiSave: (String) -> Unit) {
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "AI detects the amount, category, type, account and date for you.",
+                text = AppText.get("dashboard.addTransactionSheet.smartInput.description", "AI detects the amount, category, type, account and date for you."),
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.ink.copy(alpha = 0.75f)
             )
@@ -1881,7 +1902,7 @@ private fun SmartTransactionInput(onAiSave: (String) -> Unit) {
 
         // Tap an example to fill the input
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SheetSectionLabel(text = "Try an example")
+            SheetSectionLabel(text = AppText.get("dashboard.addTransactionSheet.smartInput.examplesTitle", "Try an example"))
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1906,7 +1927,7 @@ private fun SmartTransactionInput(onAiSave: (String) -> Unit) {
         }
 
         SheetPrimaryButton(
-            text = "Parse & Save",
+            text = AppText.get("dashboard.addTransactionSheet.smartInput.parseAndSaveButton", "Parse & Save"),
             icon = Icons.Default.AutoAwesome,
             gradient = listOf(colors.ai, colors.aiEnd),
             enabled = canSubmit,
@@ -2020,13 +2041,13 @@ private fun TransactionTypeToggle(
 
         Row(modifier = Modifier.fillMaxSize()) {
             TypeToggleOption(
-                label = "Income",
+                label = AppText.get("dashboard.addTransactionSheet.transactionTypes.income", "Income"),
                 icon = Icons.Default.ArrowDownward,
                 selected = !isExpense,
                 onClick = { onTypeSelected(TransactionType.INCOME) }
             )
             TypeToggleOption(
-                label = "Expense",
+                label = AppText.get("dashboard.addTransactionSheet.transactionTypes.expense", "Expense"),
                 icon = Icons.Default.ArrowUpward,
                 selected = isExpense,
                 onClick = { onTypeSelected(TransactionType.EXPENSE) }
@@ -2177,11 +2198,11 @@ fun getDaysLeftInfo(dueDateStr: String): Pair<String, Color> {
         val diffDays = (diffTime / (1000 * 60 * 60 * 24)).toInt()
         
         return when {
-            diffDays < 0 -> Pair("Overdue", Color(0xFFEF5350))
-            diffDays == 0 -> Pair("Due Today", Color(0xFFFF7043))
-            diffDays == 1 -> Pair("Due Tomorrow", Color(0xFFFFB74D))
-            diffDays <= 3 -> Pair("Due in $diffDays days", Color(0xFFFFCA28))
-            else -> Pair("In $diffDays days", EmeraldPrimary)
+            diffDays < 0 -> Pair(AppText.get("dashboard.reminders.dueStatus.overdue", "Overdue"), Color(0xFFEF5350))
+            diffDays == 0 -> Pair(AppText.get("dashboard.reminders.dueStatus.dueToday", "Due Today"), Color(0xFFFF7043))
+            diffDays == 1 -> Pair(AppText.get("dashboard.reminders.dueStatus.dueTomorrow", "Due Tomorrow"), Color(0xFFFFB74D))
+            diffDays <= 3 -> Pair(AppText.get("dashboard.reminders.dueStatus.dueInDays", "Due in {days} days", "days" to diffDays), Color(0xFFFFCA28))
+            else -> Pair(AppText.get("dashboard.reminders.dueStatus.inDays", "In {days} days", "days" to diffDays), EmeraldPrimary)
         }
     } catch (e: Exception) {
         return Pair(dueDateStr, EmeraldPrimary)
@@ -2209,8 +2230,8 @@ fun formatDisplayDate(dateStr: String): String {
             val todayStr = localFormatter.format(Date())
             val yesterdayStr = localFormatter.format(Date(Date().time - 24 * 60 * 60 * 1000))
             
-            if (formattedInput == todayStr) return "Today"
-            if (formattedInput == yesterdayStr) return "Yesterday"
+            if (formattedInput == todayStr) return AppText.get("dashboard.dates.today", "Today")
+            if (formattedInput == yesterdayStr) return AppText.get("dashboard.dates.yesterday", "Yesterday")
             
             val displayFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return displayFormatter.format(date)
@@ -2226,8 +2247,8 @@ fun formatDisplayDate(dateStr: String): String {
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val yesterdayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
             val formattedInput = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
-            if (formattedInput == todayStr) return "Today"
-            if (formattedInput == yesterdayStr) return "Yesterday"
+            if (formattedInput == todayStr) return AppText.get("dashboard.dates.today", "Today")
+            if (formattedInput == yesterdayStr) return AppText.get("dashboard.dates.yesterday", "Yesterday")
 
             val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return formatter.format(date)
@@ -2242,8 +2263,8 @@ fun formatDisplayDate(dateStr: String): String {
         if (date != null) {
             val todayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
             val yesterdayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
-            if (dateStr == todayStr) return "Today"
-            if (dateStr == yesterdayStr) return "Yesterday"
+            if (dateStr == todayStr) return AppText.get("dashboard.dates.today", "Today")
+            if (dateStr == yesterdayStr) return AppText.get("dashboard.dates.yesterday", "Yesterday")
             
             val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return formatter.format(date)

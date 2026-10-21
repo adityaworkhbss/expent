@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.aditya.expent.R
+import com.aditya.expent.config.AppText
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
@@ -102,13 +103,13 @@ class AppUtils {
 
     private fun formatDayWithSuffix(day: Int): String {
         val suffix = when {
-            day in 11..13 -> "th"
-            day % 10 == 1 -> "st"
-            day % 10 == 2 -> "nd"
-            day % 10 == 3 -> "rd"
-            else -> "th"
+            day in 11..13 -> AppText.get("components.dayOfMonth.suffixes.th", "th")
+            day % 10 == 1 -> AppText.get("components.dayOfMonth.suffixes.st", "st")
+            day % 10 == 2 -> AppText.get("components.dayOfMonth.suffixes.nd", "nd")
+            day % 10 == 3 -> AppText.get("components.dayOfMonth.suffixes.rd", "rd")
+            else -> AppText.get("components.dayOfMonth.suffixes.th", "th")
         }
-        return "$day$suffix"
+        return AppText.get("components.dayOfMonth.suffixFormat", "{day}{suffix}", "day" to day, "suffix" to suffix)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

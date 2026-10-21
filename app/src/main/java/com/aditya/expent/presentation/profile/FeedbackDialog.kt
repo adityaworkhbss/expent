@@ -33,12 +33,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.aditya.expent.config.AppText
 
 private val FeedbackAccent = Color(0xFF00ACC1)
 private val StarColor = Color(0xFFFFB300)
 private const val MaxFeedbackLength = 500
 
-private val ratingLabels = listOf("Not great", "Could be better", "It's okay", "Pretty good", "Love it!")
+private val ratingLabels: List<String>
+    get() = AppText.list("profile.feedback.ratingLabels", listOf("Not great", "Could be better", "It's okay", "Pretty good", "Love it!"))
 
 @Composable
 fun FeedbackDialog(
@@ -89,12 +91,12 @@ fun FeedbackDialog(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Help us improve",
+                                    text = AppText.get("profile.feedback.title", "Help us improve"),
                                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "How's Expent working for you?",
+                                    text = AppText.get("profile.feedback.subtitle", "How's Expent working for you?"),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -102,7 +104,7 @@ fun FeedbackDialog(
                             IconButton(onClick = onDismiss) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Close",
+                                    contentDescription = AppText.get("profile.feedback.contentDescriptions.close", "Close"),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -131,7 +133,7 @@ fun FeedbackDialog(
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = if (rating == 0) "Tap a star to rate" else ratingLabels[rating - 1],
+                                    text = if (rating == 0) AppText.get("profile.feedback.ratingPrompt", "Tap a star to rate") else ratingLabels.getOrNull(rating - 1).orEmpty(),
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                     color = if (rating == 0) MaterialTheme.colorScheme.onSurfaceVariant else StarColor
                                 )
@@ -146,17 +148,17 @@ fun FeedbackDialog(
                             label = {
                                 Text(
                                     when {
-                                        rating in 1..2 -> "What went wrong?"
-                                        rating in 3..4 -> "What would make it better?"
-                                        rating == 5 -> "What do you love most?"
-                                        else -> "Tell us more (optional)"
+                                        rating in 1..2 -> AppText.get("profile.feedback.messageLabel.low", "What went wrong?")
+                                        rating in 3..4 -> AppText.get("profile.feedback.messageLabel.medium", "What would make it better?")
+                                        rating == 5 -> AppText.get("profile.feedback.messageLabel.high", "What do you love most?")
+                                        else -> AppText.get("profile.feedback.messageLabel.none", "Tell us more (optional)")
                                     }
                                 )
                             },
-                            placeholder = { Text("Bugs, ideas, anything on your mind...") },
+                            placeholder = { Text(AppText.get("profile.feedback.messageHint", "Bugs, ideas, anything on your mind...")) },
                             supportingText = {
                                 Text(
-                                    text = "${message.length}/$MaxFeedbackLength",
+                                    text = AppText.get("profile.feedback.charCounter", "{count}/{max}", "count" to message.length, "max" to MaxFeedbackLength),
                                     modifier = Modifier.fillMaxWidth(),
                                     textAlign = TextAlign.End
                                 )
@@ -187,7 +189,7 @@ fun FeedbackDialog(
                                 .height(48.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Send feedback", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(AppText.get("profile.feedback.submitButton", "Send feedback"), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -212,7 +214,11 @@ private fun RatingStar(filled: Boolean, index: Int, onClick: () -> Unit) {
     ) {
         Icon(
             imageVector = if (filled) Icons.Default.Star else Icons.Default.StarBorder,
-            contentDescription = "$index star${if (index > 1) "s" else ""}",
+            contentDescription = if (index > 1) {
+                AppText.get("profile.feedback.contentDescriptions.starPlural", "{index} stars", "index" to index)
+            } else {
+                AppText.get("profile.feedback.contentDescriptions.starSingular", "{index} star", "index" to index)
+            },
             tint = if (filled) StarColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             modifier = Modifier
                 .size(34.dp)
@@ -245,7 +251,7 @@ private fun ThankYouContent(rating: Int, onDone: () -> Unit) {
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Thanks for the feedback!",
+            text = AppText.get("profile.feedback.thankYou.title", "Thanks for the feedback!"),
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
@@ -253,9 +259,9 @@ private fun ThankYouContent(rating: Int, onDone: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = if (rating <= 3) {
-                "Sorry it's not quite there yet. We read every note and will use yours to make Expent better."
+                AppText.get("profile.feedback.thankYou.messageLow", "Sorry it's not quite there yet. We read every note and will use yours to make Expent better.")
             } else {
-                "Glad you're enjoying Expent. Every note helps us make it better."
+                AppText.get("profile.feedback.thankYou.messageHigh", "Glad you're enjoying Expent. Every note helps us make it better.")
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -263,7 +269,7 @@ private fun ThankYouContent(rating: Int, onDone: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "It'll be sent automatically, even if you're offline.",
+            text = AppText.get("profile.feedback.thankYou.offlineNote", "It'll be sent automatically, even if you're offline."),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             textAlign = TextAlign.Center
@@ -277,7 +283,7 @@ private fun ThankYouContent(rating: Int, onDone: () -> Unit) {
                 .height(48.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(AppText.get("profile.feedback.thankYou.doneButton", "Done"), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }

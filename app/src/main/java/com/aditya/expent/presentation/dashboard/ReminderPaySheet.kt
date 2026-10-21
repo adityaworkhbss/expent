@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.aditya.expent.config.AppText
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.domain.model.Reminder
 import com.aditya.expent.domain.model.TransactionType
@@ -77,24 +78,30 @@ fun ReminderPaySheet(
         ) {
             Column {
                 Text(
-                    text = if (isIncome) "Mark as received" else "Mark as paid",
+                    text = if (isIncome) AppText.get("dashboard.reminders.paymentSheet.titles.markAsReceived", "Mark as received") else AppText.get("dashboard.reminders.paymentSheet.titles.markAsPaid", "Mark as paid"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${reminder.title} • ${reminder.description} • due ${reminder.dueDate}",
+                    text = AppText.get(
+                        "dashboard.reminders.paymentSheet.descriptionFormat",
+                        "{title} • {description} • due {dueDate}",
+                        "title" to reminder.title,
+                        "description" to reminder.description,
+                        "dueDate" to reminder.dueDate
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            ReadOnlyRow(label = "Category", value = reminder.category)
+            ReadOnlyRow(label = AppText.get("dashboard.reminders.paymentSheet.fields.category", "Category"), value = reminder.category)
 
             OutlinedTextField(
                 value = amountText,
                 onValueChange = { if (it.isEmpty() || it.matches(Regex("^\\d*\\.?\\d{0,2}$"))) amountText = it },
-                label = { Text("Amount") },
-                prefix = { Text("$ ", fontWeight = FontWeight.Bold, color = accent) },
+                label = { Text(AppText.get("dashboard.reminders.paymentSheet.fields.amount", "Amount")) },
+                prefix = { Text(AppText.get("dashboard.reminders.paymentSheet.fields.amountPrefix", "$ "), fontWeight = FontWeight.Bold, color = accent) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -102,10 +109,10 @@ fun ReminderPaySheet(
                 colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accent, focusedLabelColor = accent)
             )
 
-            Text("Account", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text(AppText.get("dashboard.reminders.paymentSheet.fields.account", "Account"), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             if (usableAccounts.isEmpty()) {
                 Text(
-                    text = if (isIncome) "Add a Pay Now account in Profile first." else "Add a payment mode in Profile first.",
+                    text = if (isIncome) AppText.get("dashboard.reminders.paymentSheet.emptyStates.noIncomeAccount", "Add a Pay Now account in Profile first.") else AppText.get("dashboard.reminders.paymentSheet.emptyStates.noPaymentAccount", "Add a payment mode in Profile first."),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -144,7 +151,7 @@ fun ReminderPaySheet(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = accent)
             ) {
-                Text("Save", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(AppText.get("dashboard.reminders.paymentSheet.buttons.save", "Save"), color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

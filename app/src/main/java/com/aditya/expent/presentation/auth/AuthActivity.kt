@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.aditya.expent.R
+import com.aditya.expent.config.AppText
 import com.aditya.expent.presentation.theme.ExpentTheme
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
@@ -202,7 +203,7 @@ fun AuthScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.AccountBalanceWallet,
-                        contentDescription = "App Logo",
+                        contentDescription = AppText.get("auth.logoContentDescription", "App Logo"),
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -212,7 +213,7 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             Text(
-                text = "Expent",
+                text = AppText.get("auth.appName", "Expent"),
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Bold
                 ),
@@ -222,7 +223,7 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Master your finances with elegance and ease.",
+                text = AppText.get("auth.subtitle", "Master your finances with elegance and ease."),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
@@ -260,7 +261,7 @@ fun AuthScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Continue with Google",
+                        text = AppText.get("auth.signInButton", "Continue with Google"),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
@@ -271,14 +272,14 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(40.dp))
 
             Text(
-                text = "By continuing, you agree to our",
+                text = AppText.get("auth.legalNotice", "By continuing, you agree to our"),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp
             )
             Text(
-                text = "Terms of Service and Privacy Policy",
+                text = AppText.get("auth.termsAndPrivacyLink", "Terms of Service and Privacy Policy"),
                 style = MaterialTheme.typography.labelMedium.copy(
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
@@ -307,14 +308,14 @@ fun AuthScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = "Terms of Service & Privacy Policy",
+                        text = AppText.get("auth.legalSheet.title", "Terms of Service & Privacy Policy"),
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                     Text(
-                        text = "1. Terms\nBy accessing this application, you agree to be bound by these terms of service and agree that you are responsible for compliance with any applicable local laws.\n\n2. Privacy Policy\nYour privacy is important to us. It is our policy to respect your privacy regarding any information we may collect from you across our application.\n\n3. Data Collection\nWe only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent.\n\n4. Security\nWe value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it.",
+                        text = AppText.get("auth.legalSheet.content", "1. Terms\nBy accessing this application, you agree to be bound by these terms of service and agree that you are responsible for compliance with any applicable local laws.\n\n2. Privacy Policy\nYour privacy is important to us. It is our policy to respect your privacy regarding any information we may collect from you across our application.\n\n3. Data Collection\nWe only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent.\n\n4. Security\nWe value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 20.sp
@@ -326,7 +327,7 @@ fun AuthScreen(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "I Understand",
+                            text = AppText.get("auth.legalSheet.acceptButton", "I Understand"),
                             modifier = Modifier.padding(vertical = 4.dp),
                             style = MaterialTheme.typography.titleMedium
                         )

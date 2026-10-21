@@ -1,6 +1,7 @@
 package com.aditya.expent.presentation.onboard
 
 import android.util.Log
+import com.aditya.expent.config.AppText
 import com.aditya.expent.utils.AppLogger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -164,7 +165,7 @@ class OnboardViewModel @Inject constructor(
                 updateOnboardingStep()
             }
             .onFailure {
-                _state.update { it.copy(isLoading = false, error = "Failed to save categories") }
+                _state.update { it.copy(isLoading = false, error = AppText.get("onboarding.errors.saveCategoriesFailed", "Failed to save categories")) }
             }
             .isSuccess
     }
@@ -177,7 +178,7 @@ class OnboardViewModel @Inject constructor(
                 updateOnboardingStep()
             }
             .onFailure {
-                _state.update { it.copy(isLoading = false, error = "Failed to save payment methods") }
+                _state.update { it.copy(isLoading = false, error = AppText.get("onboarding.errors.savePaymentMethodsFailed", "Failed to save payment methods")) }
             }
             .isSuccess
     }
@@ -195,7 +196,7 @@ class OnboardViewModel @Inject constructor(
                 updateOnboardingStep()
             }
             .onFailure {
-                _state.update { it.copy(isLoading = false, error = "Failed to save income and budget") }
+                _state.update { it.copy(isLoading = false, error = AppText.get("onboarding.errors.saveIncomeFailed", "Failed to save income and budget")) }
             }
             .isSuccess
     }
@@ -213,7 +214,7 @@ class OnboardViewModel @Inject constructor(
                 updateOnboardingStep()
             }
             .onFailure {
-                _state.update { it.copy(isLoading = false, error = "Failed to save expenses and subscriptions") }
+                _state.update { it.copy(isLoading = false, error = AppText.get("onboarding.errors.saveExpensesFailed", "Failed to save expenses and subscriptions")) }
             }
             .isSuccess
     }

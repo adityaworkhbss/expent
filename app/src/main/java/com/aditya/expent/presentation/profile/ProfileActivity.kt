@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.aditya.expent.config.AppText
 import com.aditya.expent.domain.model.User
 import com.aditya.expent.presentation.auth.AuthActivity
 import com.aditya.expent.presentation.theme.ExpentTheme
@@ -144,14 +145,14 @@ fun ProfileScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = AppText.get("profile.contentDescriptions.back", "Back"),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "Profile Settings",
+                    text = AppText.get("profile.title", "Profile Settings"),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -275,7 +276,7 @@ fun ProfileScreen(
         // Section: Account Management Options Panel
         item {
             Text(
-                text = "Account Management",
+                text = AppText.get("profile.sections.accountManagement", "Account Management"),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
@@ -291,16 +292,16 @@ fun ProfileScreen(
             ) {
                 Column {
                     ProfileOptionRow(
-                        title = "Payment Modes",
-                        subtitle = "Manage credit cards, banks & cash wallets",
+                        title = AppText.get("profile.options.paymentModes.title", "Payment Modes"),
+                        subtitle = AppText.get("profile.options.paymentModes.subtitle", "Manage credit cards, banks & cash wallets"),
                         icon = Icons.Default.CreditCard,
                         iconColor = Color(0xFF0288D1),
                         onClick = { showPaymentModes = true }
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
                     ProfileOptionRow(
-                        title = "Categories Manager",
-                        subtitle = "Customise expense & income categories",
+                        title = AppText.get("profile.options.categoryManager.title", "Categories Manager"),
+                        subtitle = AppText.get("profile.options.categoryManager.subtitle", "Customise expense & income categories"),
                         icon = Icons.Default.Category,
                         iconColor = Color(0xFFAB47BC),
                         onClick = { showCategoriesManager = true }
@@ -314,7 +315,7 @@ fun ProfileScreen(
         // Section: Preferences Options Panel
         item {
             Text(
-                text = "Preferences",
+                text = AppText.get("profile.sections.preferences", "Preferences"),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
@@ -353,13 +354,13 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Daily Reminders",
+                                text = AppText.get("profile.options.dailyReminders.title", "Daily Reminders"),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Daily notifications to log expenses",
+                                text = AppText.get("profile.options.dailyReminders.subtitle", "Daily notifications to log expenses"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -402,13 +403,13 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "AI Based Transaction",
+                                text = AppText.get("profile.options.aiTransaction.title", "AI Based Transaction"),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Add transaction with AI",
+                                text = AppText.get("profile.options.aiTransaction.subtitle", "Add transaction with AI"),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -429,8 +430,8 @@ fun ProfileScreen(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
 
                     ProfileOptionRow(
-                        title = "Help us improve",
-                        subtitle = "Share your feedback & suggest features",
+                        title = AppText.get("profile.options.feedback.title", "Help us improve"),
+                        subtitle = AppText.get("profile.options.feedback.subtitle", "Share your feedback & suggest features"),
                         icon = Icons.Default.Feedback,
                         iconColor = Color(0xFF00ACC1),
                         onClick = { showFeedbackDialog = true }
@@ -450,8 +451,8 @@ fun ProfileScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
                 ProfileOptionRow(
-                    title = "Log Out",
-                    subtitle = "Safely exit your account",
+                    title = AppText.get("profile.options.logout.title", "Log Out"),
+                    subtitle = AppText.get("profile.options.logout.subtitle", "Safely exit your account"),
                     icon = Icons.AutoMirrored.Filled.ExitToApp,
                     iconColor = ColorExpense,
                     textColor = ColorExpense,
@@ -484,7 +485,7 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Edit Profile Info",
+                        text = AppText.get("profile.editProfile.title", "Edit Profile Info"),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -493,7 +494,7 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = tempName,
                         onValueChange = { tempName = it },
-                        label = { Text("Full Name") },
+                        label = { Text(AppText.get("profile.editProfile.nameLabel", "Full Name")) },
                         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = EmeraldPrimary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -509,7 +510,7 @@ fun ProfileScreen(
                     OutlinedTextField(
                         value = tempEmail,
                         onValueChange = { tempEmail = it },
-                        label = { Text("Email Address") },
+                        label = { Text(AppText.get("profile.editProfile.emailLabel", "Email Address")) },
                         leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = EmeraldPrimary) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -534,7 +535,7 @@ fun ProfileScreen(
                                 .height(46.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                            Text(AppText.get("profile.editProfile.cancelButton", "Cancel"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                         }
 
                         Button(
@@ -552,7 +553,7 @@ fun ProfileScreen(
                                 .height(46.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            Text("Save Changes", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(AppText.get("profile.editProfile.saveButton", "Save Changes"), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -563,16 +564,16 @@ fun ProfileScreen(
     // 2. PAYMENT MODES MANAGER BOTTOM SHEET
     if (showPaymentModes) {
         ManagerSheet(
-            title = "Payment Modes",
-            subtitle = "Cards, banks & wallets you pay with",
+            title = AppText.get("profile.paymentModes.title", "Payment Modes"),
+            subtitle = AppText.get("profile.paymentModes.subtitle", "Cards, banks & wallets you pay with"),
             icon = Icons.Default.CreditCard,
             accent = Color(0xFF0288D1),
-            itemNoun = "payment mode",
-            itemNounPlural = "payment modes",
-            placeholder = "e.g. UPI, ICICI Card...",
+            itemNoun = AppText.get("profile.paymentModes.itemNoun", "payment mode"),
+            itemNounPlural = AppText.get("profile.paymentModes.itemNounPlural", "payment modes"),
+            placeholder = AppText.get("profile.paymentModes.placeholder", "e.g. UPI, ICICI Card..."),
             types = listOf(
-                ManagerType("PAY_NOW", "Pay Now", Icons.Default.AccountBalanceWallet, Color(0xFF0288D1)),
-                ManagerType("PAY_LATER", "Pay Later", Icons.Default.CreditCard, Color(0xFFE91E63))
+                ManagerType("PAY_NOW", AppText.get("profile.paymentModes.types.payNow", "Pay Now"), Icons.Default.AccountBalanceWallet, Color(0xFF0288D1)),
+                ManagerType("PAY_LATER", AppText.get("profile.paymentModes.types.payLater", "Pay Later"), Icons.Default.CreditCard, Color(0xFFE91E63))
             ),
             items = paymentModes.map { ManagerItem(it.id, it.name, it.type) },
             onAdd = { name, type -> viewModel?.savePaymentMode(name, type) },
@@ -584,16 +585,16 @@ fun ProfileScreen(
     // 3. CATEGORIES MANAGER BOTTOM SHEET
     if (showCategoriesManager) {
         ManagerSheet(
-            title = "Categories",
-            subtitle = "Organise your expenses & income",
+            title = AppText.get("profile.categoryManager.title", "Categories"),
+            subtitle = AppText.get("profile.categoryManager.subtitle", "Organise your expenses & income"),
             icon = Icons.Default.Category,
             accent = Color(0xFFAB47BC),
-            itemNoun = "category",
-            itemNounPlural = "categories",
-            placeholder = "e.g. Gift, Fuel...",
+            itemNoun = AppText.get("profile.categoryManager.itemNoun", "category"),
+            itemNounPlural = AppText.get("profile.categoryManager.itemNounPlural", "categories"),
+            placeholder = AppText.get("profile.categoryManager.placeholder", "e.g. Gift, Fuel..."),
             types = listOf(
-                ManagerType("EXPENSE", "Expense", Icons.AutoMirrored.Filled.TrendingDown, ColorExpense),
-                ManagerType("INCOME", "Income", Icons.AutoMirrored.Filled.TrendingUp, ColorIncome)
+                ManagerType("EXPENSE", AppText.get("profile.categoryManager.types.expense", "Expense"), Icons.AutoMirrored.Filled.TrendingDown, ColorExpense),
+                ManagerType("INCOME", AppText.get("profile.categoryManager.types.income", "Income"), Icons.AutoMirrored.Filled.TrendingUp, ColorIncome)
             ),
             items = categories.map { ManagerItem(it.id, it.name, it.type) },
             onAdd = { name, type -> viewModel?.saveCategory(name, type) },
@@ -620,7 +621,7 @@ fun ProfileScreen(
                     modifier = Modifier.padding(24.dp)
                 ) {
                     Text(
-                        text = "App Settings",
+                        text = AppText.get("profile.appSettings.title", "App Settings"),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
@@ -639,7 +640,7 @@ fun ProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.DarkMode, contentDescription = null, tint = Color(0xFF558B2F))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Dark Theme", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(AppText.get("profile.appSettings.darkThemeLabel", "Dark Theme"), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Switch(
                             checked = isDarkModeEnabled,
@@ -655,7 +656,7 @@ fun ProfileScreen(
 
                     // Currency Selector Row
                     Text(
-                        text = "Preferred Currency:",
+                        text = AppText.get("profile.appSettings.currencyLabel", "Preferred Currency:"),
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp
@@ -663,11 +664,13 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     val currencies = listOf("USD ($)", "INR (₹)", "EUR (€)", "GBP (£)")
+                    // Display labels only; selection logic keeps using the fixed values above
+                    val currencyLabels = AppText.list("profile.appSettings.currencies", listOf("USD ($)", "INR (₹)", "EUR (€)", "GBP (£)"))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        currencies.forEach { cur ->
+                        currencies.forEachIndexed { index, cur ->
                             val isSel = selectedCurrency == cur
                             Surface(
                                 modifier = Modifier
@@ -678,7 +681,7 @@ fun ProfileScreen(
                                 border = BorderStroke(1.dp, if (isSel) Color(0xFF558B2F) else Color.Transparent)
                             ) {
                                 Text(
-                                    text = cur,
+                                    text = currencyLabels.getOrElse(index) { cur },
                                     modifier = Modifier.padding(vertical = 10.dp),
                                     textAlign = TextAlign.Center,
                                     fontWeight = FontWeight.Bold,
@@ -699,7 +702,7 @@ fun ProfileScreen(
                             .height(46.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Save & Close", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(AppText.get("profile.appSettings.saveButton", "Save & Close"), color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -742,7 +745,7 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
-                        text = "Are you sure?",
+                        text = AppText.get("profile.logout.title", "Are you sure?"),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -750,7 +753,7 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "Logging out will securely exit your profile. Your local sessions will be cleared.",
+                        text = AppText.get("profile.logout.message", "Logging out will securely exit your profile. Your local sessions will be cleared."),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -770,7 +773,7 @@ fun ProfileScreen(
                                 .height(46.dp),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                            Text(AppText.get("profile.logout.cancelButton", "Cancel"), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
                         }
 
                         Button(
@@ -784,7 +787,7 @@ fun ProfileScreen(
                                 .height(46.dp),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Log Out", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(AppText.get("profile.logout.confirmButton", "Log Out"), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

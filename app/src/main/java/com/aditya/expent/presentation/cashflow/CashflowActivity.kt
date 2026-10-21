@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.config.AppText
 import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.domain.model.Budget
 import com.aditya.expent.domain.model.Expense
@@ -247,7 +248,7 @@ fun CashflowContentScreen(
     val incomes = income.map { item ->
         val resolvedName = item.categoryName?.takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
             ?: item.categoryId?.let { catId -> allCategories.firstOrNull { it.id == catId }?.name }
-            ?: "Income"
+            ?: AppText.get("cashflow.incomeList.defaultIncomeName", "Income")
         Subscription(
             name = resolvedName,
             amount = item.amount.toPlainAmount(),
@@ -295,9 +296,19 @@ fun CashflowContentScreen(
                     totalAmount = if (isIncoming) totalIncome else totalOutgoing,
                     itemCount = activeCount,
                     secondaryInfo = if (isIncoming) {
-                        "$activeCount active incoming flow${if (activeCount == 1) "" else "s"}"
+                        AppText.get(
+                            "cashflow.summary.incomingSecondaryInfo",
+                            "{count} active incoming flow{pluralSuffix}",
+                            "count" to activeCount,
+                            "pluralSuffix" to (if (activeCount == 1) "" else AppText.get("cashflow.summary.pluralSuffix", "s"))
+                        )
                     } else {
-                        "$activeCount active outgoing flow${if (activeCount == 1) "" else "s"}"
+                        AppText.get(
+                            "cashflow.summary.outgoingSecondaryInfo",
+                            "{count} active outgoing flow{pluralSuffix}",
+                            "count" to activeCount,
+                            "pluralSuffix" to (if (activeCount == 1) "" else AppText.get("cashflow.summary.pluralSuffix", "s"))
+                        )
                     }
                 )
             }
@@ -307,7 +318,7 @@ fun CashflowContentScreen(
                     Spacer(modifier = Modifier.height(18.dp))
 
                     SectionHeader(
-                        title = "Recurring EMIs & Loans",
+                        title = AppText.get("cashflow.sections.recurringEmisLoans", "Recurring EMIs & Loans"),
                         count = recurringExpenses.size,
                         themeColor = ColorExpense,
                         onAddClick = {
@@ -321,10 +332,10 @@ fun CashflowContentScreen(
                 if (recurringExpenses.isEmpty()) {
                     item {
                         EmptyStateCard(
-                            title = "No EMIs or Loans",
-                            subtitle = "You haven't added any recurring EMIs or loans yet.",
+                            title = AppText.get("cashflow.emptyStates.emisLoans.title", "No EMIs or Loans"),
+                            subtitle = AppText.get("cashflow.emptyStates.emisLoans.subtitle", "You haven't added any recurring EMIs or loans yet."),
                             icon = Icons.Default.CreditCard,
-                            buttonText = "Add EMI / Loan",
+                            buttonText = AppText.get("cashflow.emptyStates.emisLoans.button", "Add EMI / Loan"),
                             onButtonClick = {
                                 sheetMode = CashflowBottomSheetMode.AddEmi
                             }
@@ -352,7 +363,7 @@ fun CashflowContentScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 SectionHeader(
-                    title = if (isIncoming) "Active Incomes" else "Active Subscriptions",
+                    title = if (isIncoming) AppText.get("cashflow.sections.activeIncomes", "Active Incomes") else AppText.get("cashflow.sections.activeSubscriptions", "Active Subscriptions"),
                     count = activeList.size,
                     themeColor = if (isIncoming) ColorIncome else ColorExpense,
                     onAddClick = {
@@ -366,10 +377,10 @@ fun CashflowContentScreen(
             if (activeList.isEmpty()) {
                 item {
                     EmptyStateCard(
-                        title = if (isIncoming) "No Active Incomes" else "No Active Subscriptions",
-                        subtitle = if (isIncoming) "You haven't added any recurring income sources yet." else "You haven't added any recurring subscriptions yet.",
+                        title = if (isIncoming) AppText.get("cashflow.emptyStates.incomes.title", "No Active Incomes") else AppText.get("cashflow.emptyStates.subscriptions.title", "No Active Subscriptions"),
+                        subtitle = if (isIncoming) AppText.get("cashflow.emptyStates.incomes.subtitle", "You haven't added any recurring income sources yet.") else AppText.get("cashflow.emptyStates.subscriptions.subtitle", "You haven't added any recurring subscriptions yet."),
                         icon = if (isIncoming) Icons.AutoMirrored.Filled.TrendingUp else Icons.Default.Subscriptions,
-                        buttonText = if (isIncoming) "Add Income" else "Add Subscription",
+                        buttonText = if (isIncoming) AppText.get("cashflow.emptyStates.incomes.button", "Add Income") else AppText.get("cashflow.emptyStates.subscriptions.button", "Add Subscription"),
                         onButtonClick = {
                             sheetMode = if (isIncoming) CashflowBottomSheetMode.AddIncome else CashflowBottomSheetMode.AddSubscription
                         }
@@ -495,12 +506,12 @@ fun CashflowBottomSheet(
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
     val title = when (mode) {
-        is CashflowBottomSheetMode.AddIncome -> "Add Recurring Income"
-        is CashflowBottomSheetMode.EditIncome -> "Edit Recurring Income"
-        is CashflowBottomSheetMode.AddSubscription -> "Add Active Subscription"
-        is CashflowBottomSheetMode.EditSubscription -> "Edit Subscription"
-        is CashflowBottomSheetMode.AddEmi -> "Add Recurring EMI / Loan"
-        is CashflowBottomSheetMode.EditEmi -> "Edit EMI / Loan"
+        is CashflowBottomSheetMode.AddIncome -> AppText.get("cashflow.bottomSheet.titles.addIncome", "Add Recurring Income")
+        is CashflowBottomSheetMode.EditIncome -> AppText.get("cashflow.bottomSheet.titles.editIncome", "Edit Recurring Income")
+        is CashflowBottomSheetMode.AddSubscription -> AppText.get("cashflow.bottomSheet.titles.addSubscription", "Add Active Subscription")
+        is CashflowBottomSheetMode.EditSubscription -> AppText.get("cashflow.bottomSheet.titles.editSubscription", "Edit Subscription")
+        is CashflowBottomSheetMode.AddEmi -> AppText.get("cashflow.bottomSheet.titles.addEmi", "Add Recurring EMI / Loan")
+        is CashflowBottomSheetMode.EditEmi -> AppText.get("cashflow.bottomSheet.titles.editEmi", "Edit EMI / Loan")
     }
 
     val isEdit = mode is CashflowBottomSheetMode.EditIncome ||
@@ -550,7 +561,7 @@ fun CashflowBottomSheet(
                 OutlinedTextField(
                     value = nameText,
                     onValueChange = { nameText = it },
-                    label = { Text(if (isEmi) "Name the EMI / Loan" else "Subscription Name (e.g. Netflix)") },
+                    label = { Text(if (isEmi) AppText.get("cashflow.bottomSheet.fields.emiName", "Name the EMI / Loan") else AppText.get("cashflow.bottomSheet.fields.subscriptionName", "Subscription Name (e.g. Netflix)")) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = textFieldColors
@@ -570,10 +581,10 @@ fun CashflowBottomSheet(
                     onExpandedChange = { categoryDropdownExpanded = !categoryDropdownExpanded }
                 ) {
                     OutlinedTextField(
-                        value = if (effectiveCategories.isEmpty()) "No Categories Found" else if (selectedCategoryName.isBlank()) "Select Category" else selectedCategoryName,
+                        value = if (effectiveCategories.isEmpty()) AppText.get("cashflow.bottomSheet.fields.noCategoriesFound", "No Categories Found") else if (selectedCategoryName.isBlank()) AppText.get("cashflow.bottomSheet.fields.selectCategory", "Select Category") else selectedCategoryName,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Category") },
+                        label = { Text(AppText.get("cashflow.bottomSheet.fields.category", "Category")) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
@@ -593,7 +604,7 @@ fun CashflowBottomSheet(
                         trailingIcon = {
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Select Category",
+                                contentDescription = AppText.get("cashflow.bottomSheet.contentDescriptions.selectCategory", "Select Category"),
                                 tint = EmeraldPrimary,
                                 modifier = Modifier.graphicsLayer { rotationZ = arrowRotation }
                             )
@@ -619,7 +630,7 @@ fun CashflowBottomSheet(
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = "No Categories Found",
+                                            text = AppText.get("cashflow.bottomSheet.fields.noCategoriesFound", "No Categories Found"),
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -665,7 +676,7 @@ fun CashflowBottomSheet(
                                             if (isSelected) {
                                                 Icon(
                                                     imageVector = Icons.Default.Check,
-                                                    contentDescription = "Selected",
+                                                    contentDescription = AppText.get("cashflow.bottomSheet.contentDescriptions.selected", "Selected"),
                                                     tint = EmeraldPrimary,
                                                     modifier = Modifier.size(18.dp)
                                                 )
@@ -695,7 +706,7 @@ fun CashflowBottomSheet(
             OutlinedTextField(
                 value = amountText,
                 onValueChange = { amountText = it },
-                label = { Text("Amount ($)") },
+                label = { Text(AppText.get("cashflow.bottomSheet.fields.amount", "Amount ($)")) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = textFieldColors
@@ -710,9 +721,9 @@ fun CashflowBottomSheet(
                 label = {
                     Text(
                         when {
-                            isEmi -> "Due on"
-                            isSubscription -> "Billing on"
-                            else -> "Credited on"
+                            isEmi -> AppText.get("cashflow.bottomSheet.fields.dueOn", "Due on")
+                            isSubscription -> AppText.get("cashflow.bottomSheet.fields.billingOn", "Billing on")
+                            else -> AppText.get("cashflow.bottomSheet.fields.creditedOn", "Credited on")
                         }
                     )
                 },
@@ -722,7 +733,7 @@ fun CashflowBottomSheet(
                 colors = textFieldColors,
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date", tint = EmeraldPrimary)
+                        Icon(Icons.Default.DateRange, contentDescription = AppText.get("cashflow.bottomSheet.contentDescriptions.selectDate", "Select Date"), tint = EmeraldPrimary)
                     }
                 }
             )
@@ -740,7 +751,7 @@ fun CashflowBottomSheet(
                         onValueChange = { input ->
                             if (input.all { it.isDigit() }) tenureText = input
                         },
-                        label = { Text("Tenure (Months)") },
+                        label = { Text(AppText.get("cashflow.bottomSheet.fields.tenure", "Tenure (Months)")) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = textFieldColors,
@@ -751,7 +762,7 @@ fun CashflowBottomSheet(
                         onValueChange = { input ->
                             if (input.all { it.isDigit() }) monthsPaidText = input
                         },
-                        label = { Text("Months Paid") },
+                        label = { Text(AppText.get("cashflow.bottomSheet.fields.monthsPaid", "Months Paid")) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
                         colors = if (isPaidInvalid) {
@@ -768,7 +779,7 @@ fun CashflowBottomSheet(
                         } else textFieldColors,
                         isError = isPaidInvalid,
                         supportingText = if (isPaidInvalid) {
-                            { Text("Must be < $tenureVal", color = ColorExpense) }
+                            { Text(AppText.get("cashflow.bottomSheet.validation.monthsPaidMustBeLessThanTenure", "Must be < {tenureMonths}", "tenureMonths" to tenureVal), color = ColorExpense) }
                         } else null,
                         singleLine = true
                     )
@@ -831,7 +842,7 @@ fun CashflowBottomSheet(
                         disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )
                 ) {
-                    Text("Update Flow", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(AppText.get("cashflow.bottomSheet.buttons.updateFlow", "Update Flow"), color = Color.White, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -861,7 +872,7 @@ fun CashflowBottomSheet(
                         tint = ColorExpense
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete Flow", fontWeight = FontWeight.Bold, color = ColorExpense)
+                    Text(AppText.get("cashflow.bottomSheet.buttons.deleteFlow", "Delete Flow"), fontWeight = FontWeight.Bold, color = ColorExpense)
                 }
             } else {
                 Button(
@@ -879,7 +890,7 @@ fun CashflowBottomSheet(
                         disabledContainerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                     )
                 ) {
-                    Text("Add Flow", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(AppText.get("cashflow.bottomSheet.buttons.addFlow", "Add Flow"), color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -910,7 +921,7 @@ fun HeaderSection(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = AppText.get("cashflow.header.backContentDescription", "Back"),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -920,12 +931,12 @@ fun HeaderSection(
 
             Column {
                 Text(
-                    text = "Cashflow",
+                    text = AppText.get("cashflow.header.title", "Cashflow"),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Recurring incomes, loans & subscriptions",
+                    text = AppText.get("cashflow.header.subtitle", "Recurring incomes, loans & subscriptions"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                 )
@@ -966,7 +977,7 @@ fun HeaderSection(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Incoming",
+                            text = AppText.get("cashflow.tabs.incoming", "Incoming"),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (isIncoming) FontWeight.Bold else FontWeight.Medium,
                             color = if (isIncoming) ColorIncome else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -996,7 +1007,7 @@ fun HeaderSection(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Outgoing",
+                            text = AppText.get("cashflow.tabs.outgoing", "Outgoing"),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (isOutgoing) FontWeight.Bold else FontWeight.Medium,
                             color = if (isOutgoing) ColorExpense else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
@@ -1047,7 +1058,7 @@ fun CashflowSummaryCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isIncoming) "Total Monthly Inflow" else "Total Monthly Outflow",
+                    text = if (isIncoming) AppText.get("cashflow.summary.totalMonthlyInflow", "Total Monthly Inflow") else AppText.get("cashflow.summary.totalMonthlyOutflow", "Total Monthly Outflow"),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     color = Color.White.copy(alpha = 0.75f)
@@ -1062,7 +1073,7 @@ fun CashflowSummaryCard(
                     String.format("%.2f", totalAmount)
                 }
                 Text(
-                    text = if (isIncoming) "+$$formatted / mo" else "-$$formatted / mo",
+                    text = if (isIncoming) AppText.get("cashflow.summary.incomingAmountFormat", "+\${amount} / mo", "amount" to formatted) else AppText.get("cashflow.summary.outgoingAmountFormat", "-\${amount} / mo", "amount" to formatted),
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White
                 )
@@ -1150,12 +1161,12 @@ fun SectionHeader(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add",
+                    contentDescription = AppText.get("cashflow.sections.addContentDescription", "Add"),
                     tint = themeColor,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Add",
+                    text = AppText.get("cashflow.sections.addButton", "Add"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = themeColor
@@ -1248,7 +1259,7 @@ fun EnhancedEmiCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.AccountBalance,
-                        contentDescription = "EMI",
+                        contentDescription = AppText.get("cashflow.emiCard.contentDescriptions.emi", "EMI"),
                         tint = emiColor,
                         modifier = Modifier.size(22.dp)
                     )
@@ -1275,7 +1286,7 @@ fun EnhancedEmiCard(
                         color = emiColor.copy(alpha = 0.08f)
                     ) {
                         Text(
-                            text = "EMI / Loan",
+                            text = AppText.get("cashflow.emiCard.typeLabel", "EMI / Loan"),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = emiColor,
@@ -1288,7 +1299,7 @@ fun EnhancedEmiCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "-$$formattedAmount",
+                        text = AppText.get("cashflow.emiCard.amountFormat", "-\${amount}", "amount" to formattedAmount),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.1.sp
@@ -1296,7 +1307,7 @@ fun EnhancedEmiCard(
                         color = emiColor
                     )
                     Text(
-                        text = "/ month",
+                        text = AppText.get("cashflow.emiCard.monthlySuffix", "/ month"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                     )
@@ -1329,8 +1340,8 @@ fun EnhancedEmiCard(
                         modifier = Modifier.size(15.dp)
                     )
                     val dueText = emi.date?.let { day ->
-                        "Due on ${DayOfMonth.withSuffix(day)} of every month"
-                    } ?: "Recurring monthly payment"
+                        AppText.get("cashflow.emiCard.dueDateFormat", "Due on {dayWithSuffix} of every month", "dayWithSuffix" to DayOfMonth.withSuffix(day))
+                    } ?: AppText.get("cashflow.emiCard.recurringPayment", "Recurring monthly payment")
 
                     Text(
                         text = dueText,
@@ -1357,12 +1368,12 @@ fun EnhancedEmiCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit",
+                            contentDescription = AppText.get("cashflow.emiCard.editContentDescription", "Edit"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = "Edit",
+                            text = AppText.get("cashflow.emiCard.editButton", "Edit"),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1379,12 +1390,18 @@ fun EnhancedEmiCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Repayment Progress",
+                    text = AppText.get("cashflow.emiCard.repaymentProgress", "Repayment Progress"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                 )
                 Text(
-                    text = "${emi.monthsPaid} of ${emi.totalMonths} months paid (${(progress * 100).toInt()}%)",
+                    text = AppText.get(
+                        "cashflow.emiCard.progressFormat",
+                        "{monthsPaid} of {totalMonths} months paid ({percentage}%)",
+                        "monthsPaid" to emi.monthsPaid,
+                        "totalMonths" to emi.totalMonths,
+                        "percentage" to (progress * 100).toInt()
+                    ),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = emiColor
                 )
@@ -1522,7 +1539,7 @@ fun EnhancedSubscriptionCard(
                         color = iconColor.copy(alpha = 0.08f)
                     ) {
                         Text(
-                            text = if (isIncome) "Income" else "Subscription",
+                            text = if (isIncome) AppText.get("cashflow.subscriptionCard.incomeTypeLabel", "Income") else AppText.get("cashflow.subscriptionCard.subscriptionTypeLabel", "Subscription"),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = iconColor,
@@ -1535,7 +1552,7 @@ fun EnhancedSubscriptionCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = if (isIncome) "+$$formattedAmount" else "-$$formattedAmount",
+                        text = if (isIncome) AppText.get("cashflow.subscriptionCard.incomeAmountFormat", "+\${amount}", "amount" to formattedAmount) else AppText.get("cashflow.subscriptionCard.subscriptionAmountFormat", "-\${amount}", "amount" to formattedAmount),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.1.sp
@@ -1543,7 +1560,7 @@ fun EnhancedSubscriptionCard(
                         color = itemColor
                     )
                     Text(
-                        text = "/ month",
+                        text = AppText.get("cashflow.subscriptionCard.monthlySuffix", "/ month"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                     )
@@ -1576,8 +1593,12 @@ fun EnhancedSubscriptionCard(
                         modifier = Modifier.size(15.dp)
                     )
                     val scheduleText = subscription.date?.let { day ->
-                        (if (isIncome) "Credited on " else "Billing on ") + "${DayOfMonth.withSuffix(day)} of every month"
-                    } ?: if (isIncome) "Recurring monthly credit" else "Recurring monthly auto-pay"
+                        if (isIncome) {
+                            AppText.get("cashflow.subscriptionCard.creditedDateFormat", "Credited on {dayWithSuffix} of every month", "dayWithSuffix" to DayOfMonth.withSuffix(day))
+                        } else {
+                            AppText.get("cashflow.subscriptionCard.billingDateFormat", "Billing on {dayWithSuffix} of every month", "dayWithSuffix" to DayOfMonth.withSuffix(day))
+                        }
+                    } ?: if (isIncome) AppText.get("cashflow.subscriptionCard.recurringMonthlyCredit", "Recurring monthly credit") else AppText.get("cashflow.subscriptionCard.recurringMonthlyAutoPay", "Recurring monthly auto-pay")
 
                     Text(
                         text = scheduleText,
@@ -1604,12 +1625,12 @@ fun EnhancedSubscriptionCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit",
+                            contentDescription = AppText.get("cashflow.subscriptionCard.editContentDescription", "Edit"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            text = "Edit",
+                            text = AppText.get("cashflow.subscriptionCard.editButton", "Edit"),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

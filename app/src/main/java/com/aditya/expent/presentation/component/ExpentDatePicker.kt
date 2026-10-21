@@ -13,6 +13,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.aditya.expent.config.AppText
 import com.aditya.expent.presentation.onboard.OutgoingStep
 import com.aditya.expent.presentation.onboard.RecurringExpense
 import com.aditya.expent.presentation.onboard.Subscription
@@ -63,12 +64,12 @@ fun ExpentDatePicker(
                         onDismiss()
                     }
                 }) {
-                    Text("OK")
+                    Text(AppText.get("components.datePicker.okButton", "OK"))
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(AppText.get("components.datePicker.cancelButton", "Cancel"))
                 }
             }
         ) {

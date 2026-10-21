@@ -38,6 +38,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.config.AppText
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
 import com.aditya.expent.presentation.component.DayOfMonthPicker
@@ -161,7 +162,7 @@ fun OnboardRoute(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Warning,
-                            contentDescription = "Error",
+                            contentDescription = AppText.get("onboarding.common.errorContentDescription", "Error"),
                             tint = colors.expense,
                             modifier = Modifier.size(16.dp)
                         )
@@ -217,13 +218,18 @@ private fun StepProgressHeader(step: OnboardStep) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Step ${step.index.coerceAtLeast(1)} of $TOTAL_SETUP_STEPS",
+                    text = AppText.get(
+                        "onboarding.progress.stepLabel",
+                        "Step {currentStep} of {totalSteps}",
+                        "currentStep" to step.index.coerceAtLeast(1),
+                        "totalSteps" to TOTAL_SETUP_STEPS
+                    ),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.primary
                 )
                 Text(
-                    text = "Setup",
+                    text = AppText.get("onboarding.progress.setupLabel", "Setup"),
                     style = MaterialTheme.typography.labelLarge,
                     color = colors.muted
                 )
@@ -346,8 +352,8 @@ fun WelcomeStep(onNext: () -> Unit) {
 
         Text(
             text = buildAnnotatedString {
-                append("Welcome to ")
-                withStyle(SpanStyle(color = colors.primary)) { append("Expent") }
+                append(AppText.get("onboarding.welcome.titlePrefix", "Welcome to "))
+                withStyle(SpanStyle(color = colors.primary)) { append(AppText.get("onboarding.welcome.titleBrand", "Expent")) }
             },
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontWeight = FontWeight.Bold,
@@ -360,7 +366,7 @@ fun WelcomeStep(onNext: () -> Unit) {
         Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "Let's set up your money space in four quick steps.",
+            text = AppText.get("onboarding.welcome.subtitle", "Let's set up your money space in four quick steps."),
             style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
             color = colors.muted,
             textAlign = TextAlign.Center,
@@ -370,22 +376,26 @@ fun WelcomeStep(onNext: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         SoftCard(contentSpacing = 12.dp) {
-            WelcomeFeatureRow(Icons.Default.Category, colors.primary, "Pick the categories you use")
-            WelcomeFeatureRow(Icons.Default.CreditCard, colors.sky, "Add your accounts and cards")
-            WelcomeFeatureRow(Icons.Default.DateRange, colors.expense, "Map income, bills and subscriptions")
+            val features = AppText.list(
+                "onboarding.welcome.features",
+                listOf("Pick the categories you use", "Add your accounts and cards", "Map income, bills and subscriptions")
+            )
+            WelcomeFeatureRow(Icons.Default.Category, colors.primary, features.getOrElse(0) { "Pick the categories you use" })
+            WelcomeFeatureRow(Icons.Default.CreditCard, colors.sky, features.getOrElse(1) { "Add your accounts and cards" })
+            WelcomeFeatureRow(Icons.Default.DateRange, colors.expense, features.getOrElse(2) { "Map income, bills and subscriptions" })
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
         OnboardPrimaryButton(
-            text = "Get Started",
+            text = AppText.get("onboarding.welcome.getStartedButton", "Get Started"),
             enabled = true,
             onClick = onNext,
             trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Takes about 2 minutes",
+            text = AppText.get("onboarding.welcome.durationHint", "Takes about 2 minutes"),
             style = MaterialTheme.typography.labelMedium,
             color = colors.muted
         )
@@ -464,11 +474,15 @@ fun CategoriesStep(
     StepLayout(
         icon = Icons.Default.Category,
         accent = colors.primary,
-        title = "Pick your categories",
-        subtitle = "Choose what you spend on and earn from. You can change these later.",
+        title = AppText.get("onboarding.categories.title", "Pick your categories"),
+        subtitle = AppText.get("onboarding.categories.subtitle", "Choose what you spend on and earn from. You can change these later."),
         bottomBar = {
             OnboardPrimaryButton(
-                text = if (selectedCategories.isEmpty()) "Select at least one category" else "Continue · ${selectedCategories.size} selected",
+                text = if (selectedCategories.isEmpty()) {
+                    AppText.get("onboarding.categories.selectCategoryButton", "Select at least one category")
+                } else {
+                    AppText.get("onboarding.categories.selectedCountButton", "Continue · {count} selected", "count" to selectedCategories.size)
+                },
                 enabled = canContinue,
                 onClick = onNext,
                 trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
@@ -476,8 +490,8 @@ fun CategoriesStep(
         }
     ) {
         listOf(
-            Triple("EXPENSE", "Expenses", colors.expense),
-            Triple("INCOME", "Income", colors.income)
+            Triple("EXPENSE", AppText.get("onboarding.categories.expensesSection", "Expenses"), colors.expense),
+            Triple("INCOME", AppText.get("onboarding.categories.incomeSection", "Income"), colors.income)
         ).forEach { (type, label, accent) ->
             val sectionCategories = allCategories.filter { it.type.equals(type, ignoreCase = true) }
             if (sectionCategories.isNotEmpty()) {
@@ -487,7 +501,11 @@ fun CategoriesStep(
                         title = label,
                         accent = accent,
                         icon = if (type == "INCOME") Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                        actionLabel = if (allSelected) "Clear" else "Select all",
+                        actionLabel = if (allSelected) {
+                            AppText.get("onboarding.categories.clearButton", "Clear")
+                        } else {
+                            AppText.get("onboarding.categories.selectAllButton", "Select all")
+                        },
                         onAction = {
                             onCategoriesChange(
                                 if (allSelected) {
@@ -520,7 +538,7 @@ fun CategoriesStep(
 
         // Custom category form
         SoftCard {
-            FormTitle(icon = Icons.Default.Add, accent = colors.primary, title = "Add your own")
+            FormTitle(icon = Icons.Default.Add, accent = colors.primary, title = AppText.get("onboarding.categories.addOwnTitle", "Add your own"))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -528,7 +546,7 @@ fun CategoriesStep(
                 SoftTextField(
                     value = newCategoryText,
                     onValueChange = { newCategoryText = it },
-                    placeholder = "e.g. Books, Gym, Pets",
+                    placeholder = AppText.get("onboarding.categories.inputHint", "e.g. Books, Gym, Pets"),
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -546,15 +564,15 @@ fun CategoriesStep(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
+                        contentDescription = AppText.get("onboarding.categories.addButton", "Add"),
                         tint = if (canAdd) Color.White else colors.muted
                     )
                 }
             }
             SegmentedChoice(
                 options = listOf(
-                    ChoiceOption("EXPENSE", "Expense", Icons.AutoMirrored.Filled.TrendingDown, colors.expense),
-                    ChoiceOption("INCOME", "Income", Icons.AutoMirrored.Filled.TrendingUp, colors.income)
+                    ChoiceOption("EXPENSE", AppText.get("onboarding.categories.expenseOption", "Expense"), Icons.AutoMirrored.Filled.TrendingDown, colors.expense),
+                    ChoiceOption("INCOME", AppText.get("onboarding.categories.incomeOption", "Income"), Icons.AutoMirrored.Filled.TrendingUp, colors.income)
                 ),
                 selected = newCategoryType,
                 onSelect = { newCategoryType = it }
@@ -577,11 +595,15 @@ fun PaymentModesStep(
     StepLayout(
         icon = Icons.Default.AccountBalanceWallet,
         accent = colors.sky,
-        title = "Your accounts",
-        subtitle = "Add the wallets, bank accounts and cards you pay with.",
+        title = AppText.get("onboarding.paymentModes.title", "Your accounts"),
+        subtitle = AppText.get("onboarding.paymentModes.subtitle", "Add the wallets, bank accounts and cards you pay with."),
         bottomBar = {
             OnboardPrimaryButton(
-                text = if (paymentModes.isEmpty()) "Add at least one account" else "Continue",
+                text = if (paymentModes.isEmpty()) {
+                    AppText.get("onboarding.paymentModes.addAccountToContinueButton", "Add at least one account")
+                } else {
+                    AppText.get("onboarding.paymentModes.continueButton", "Continue")
+                },
                 enabled = paymentModes.isNotEmpty() && !isLoading,
                 onClick = onNext,
                 trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
@@ -592,7 +614,7 @@ fun PaymentModesStep(
             EmptyStateCard(
                 icon = Icons.Default.CreditCard,
                 accent = colors.sky,
-                text = "No accounts yet. Add your first one below."
+                text = AppText.get("onboarding.paymentModes.emptyState", "No accounts yet. Add your first one below.")
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -606,32 +628,32 @@ fun PaymentModesStep(
         }
 
         SoftCard {
-            FormTitle(icon = Icons.Default.Add, accent = colors.sky, title = "Add an account")
+            FormTitle(icon = Icons.Default.Add, accent = colors.sky, title = AppText.get("onboarding.paymentModes.addAccountTitle", "Add an account"))
             SoftTextField(
                 value = name,
                 onValueChange = { name = it },
-                placeholder = "e.g. SBI Savings, Amex Card",
+                placeholder = AppText.get("onboarding.paymentModes.inputHint", "e.g. SBI Savings, Amex Card"),
                 accent = colors.sky
             )
             SegmentedChoice(
                 options = listOf(
-                    ChoiceOption("PAY_NOW", "Pay Now", Icons.Default.AccountBalance, colors.income),
-                    ChoiceOption("PAY_LATER", "Pay Later", Icons.Default.CreditCard, colors.ai)
+                    ChoiceOption("PAY_NOW", AppText.get("onboarding.paymentModes.payNowOption", "Pay Now"), Icons.Default.AccountBalance, colors.income),
+                    ChoiceOption("PAY_LATER", AppText.get("onboarding.paymentModes.payLaterOption", "Pay Later"), Icons.Default.CreditCard, colors.ai)
                 ),
                 selected = selectedType,
                 onSelect = { selectedType = it }
             )
             Text(
                 text = if (selectedType == "PAY_NOW") {
-                    "Money leaves right away: bank account, UPI, cash."
+                    AppText.get("onboarding.paymentModes.payNowDescription", "Money leaves right away: bank account, UPI, cash.")
                 } else {
-                    "Paid off later: credit cards and buy-now-pay-later."
+                    AppText.get("onboarding.paymentModes.payLaterDescription", "Paid off later: credit cards and buy-now-pay-later.")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.muted
             )
             OnboardAddButton(
-                text = "Add account",
+                text = AppText.get("onboarding.paymentModes.addAccountButton", "Add account"),
                 accent = colors.sky,
                 enabled = name.isNotBlank(),
                 onClick = {
@@ -696,7 +718,7 @@ private fun PaymentModeCard(mode: OnboardPaymentMode, onDelete: () -> Unit) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = AppText.get("onboarding.paymentModes.deleteButtonContentDescription", "Delete"),
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
@@ -712,7 +734,11 @@ private fun PaymentModeCard(mode: OnboardPaymentMode, onDelete: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (isCredit) "PAY LATER" else "PAY NOW",
+                text = if (isCredit) {
+                    AppText.get("onboarding.paymentModes.payLaterBadge", "PAY LATER")
+                } else {
+                    AppText.get("onboarding.paymentModes.payNowBadge", "PAY NOW")
+                },
                 color = Color.White,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
@@ -758,14 +784,14 @@ fun IncomingStep(
     StepLayout(
         icon = Icons.AutoMirrored.Filled.TrendingUp,
         accent = colors.income,
-        title = "Money coming in",
-        subtitle = "Tell us about your regular income so we can plan your month.",
+        title = AppText.get("onboarding.income.title", "Money coming in"),
+        subtitle = AppText.get("onboarding.income.subtitle", "Tell us about your regular income so we can plan your month."),
         bottomBar = {
             OnboardPrimaryButton(
                 text = when {
-                    salary.amount.isBlank() -> "Enter your salary to continue"
-                    salary.date == null -> "Pick the day your salary arrives"
-                    else -> "Continue"
+                    salary.amount.isBlank() -> AppText.get("onboarding.income.enterSalaryButton", "Enter your salary to continue")
+                    salary.date == null -> AppText.get("onboarding.income.pickSalaryDateButton", "Pick the day your salary arrives")
+                    else -> AppText.get("onboarding.income.continueButton", "Continue")
                 },
                 enabled = salary.amount.isNotBlank() && salary.date != null,
                 onClick = onNext,
@@ -775,18 +801,18 @@ fun IncomingStep(
     ) {
         // Main salary card
         SoftCard {
-            FormTitle(icon = Icons.Default.Work, accent = colors.income, title = "Monthly salary")
+            FormTitle(icon = Icons.Default.Work, accent = colors.income, title = AppText.get("onboarding.income.monthlySalaryTitle", "Monthly salary"))
             SoftTextField(
                 value = salary.amount,
                 onValueChange = onSalaryAmountChange,
-                placeholder = "0",
-                prefix = "$",
+                placeholder = AppText.get("onboarding.income.salaryAmountHint", "0"),
+                prefix = AppText.get("onboarding.income.currencyPrefix", "$"),
                 keyboardType = KeyboardType.Number,
                 accent = colors.income,
                 large = true
             )
             if (incomeCategories.isNotEmpty()) {
-                FieldLabel("Category")
+                FieldLabel(AppText.get("onboarding.income.categoryLabel", "Category"))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -811,7 +837,7 @@ fun IncomingStep(
                 }
             }
             DayPickerField(
-                label = "Credited on",
+                label = AppText.get("onboarding.income.salaryDateLabel", "Credited on"),
                 day = salary.date,
                 accent = colors.income,
                 onClick = { showSalaryDatePicker = true }
@@ -830,8 +856,8 @@ fun IncomingStep(
         )
 
         SectionHeader(
-            title = "Other income",
-            subtitle = "Freelance, rent, interest and more",
+            title = AppText.get("onboarding.income.otherIncomeTitle", "Other income"),
+            subtitle = AppText.get("onboarding.income.otherIncomeSubtitle", "Freelance, rent, interest and more"),
             accent = colors.income,
             icon = Icons.Default.Savings
         )
@@ -843,9 +869,10 @@ fun IncomingStep(
                         icon = getCategoryIconAndColor(customIncome.name).first,
                         accent = colors.income,
                         title = customIncome.name,
-                        subtitle = "Credited on ${dayOfMonthLabel(customIncome.date)}",
-                        amount = "$${customIncome.amount}",
-                        onRemove = { onCustomIncomesChange(customIncomes - customIncome) }
+                        subtitle = AppText.get("onboarding.income.creditedOnLabel", "Credited on {day}", "day" to dayOfMonthLabel(customIncome.date)),
+                        amount = AppText.get("onboarding.income.incomeAmount", "\${amount}", "amount" to customIncome.amount),
+                        onRemove = { onCustomIncomesChange(customIncomes - customIncome) },
+                        removeContentDescription = AppText.get("onboarding.income.removeButtonContentDescription", "Remove")
                     )
                 }
             }
@@ -853,18 +880,18 @@ fun IncomingStep(
 
         // Add custom income form
         SoftCard {
-            FormTitle(icon = Icons.Default.Add, accent = colors.income, title = "Add another income")
+            FormTitle(icon = Icons.Default.Add, accent = colors.income, title = AppText.get("onboarding.income.addIncomeTitle", "Add another income"))
             // The category is the income's name, so there is no separate name field
             SoftTextField(
                 value = newIncomeAmount,
                 onValueChange = { newIncomeAmount = it },
-                placeholder = "Amount",
-                prefix = "$",
+                placeholder = AppText.get("onboarding.income.amountHint", "Amount"),
+                prefix = AppText.get("onboarding.income.currencyPrefix", "$"),
                 keyboardType = KeyboardType.Number,
                 accent = colors.income
             )
             if (incomeCategories.isNotEmpty()) {
-                FieldLabel("Category")
+                FieldLabel(AppText.get("onboarding.income.categoryLabel", "Category"))
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -889,7 +916,7 @@ fun IncomingStep(
                 }
             }
             DayPickerField(
-                label = "Credited on",
+                label = AppText.get("onboarding.income.salaryDateLabel", "Credited on"),
                 day = newIncomeDate,
                 accent = colors.income,
                 onClick = { showNewIncomeDatePicker = true }
@@ -898,7 +925,7 @@ fun IncomingStep(
             val newIncomeCategoryItem = incomeCategories.firstOrNull { it.id == newIncomeCategory }
             val canAddIncome = newIncomeCategoryItem != null && newIncomeAmount.isNotBlank() && newIncomeDate != null
             OnboardAddButton(
-                text = "Add income source",
+                text = AppText.get("onboarding.income.addIncomeButton", "Add income source"),
                 accent = colors.income,
                 enabled = canAddIncome,
                 onClick = {
@@ -963,11 +990,11 @@ fun OutgoingStep(
     StepLayout(
         icon = Icons.AutoMirrored.Filled.TrendingDown,
         accent = colors.expense,
-        title = "Money going out",
-        subtitle = "Add loans and subscriptions that repeat every month. You can skip this.",
+        title = AppText.get("onboarding.expenses.title", "Money going out"),
+        subtitle = AppText.get("onboarding.expenses.subtitle", "Add loans and subscriptions that repeat every month. You can skip this."),
         bottomBar = {
             OnboardPrimaryButton(
-                text = "Complete Setup",
+                text = AppText.get("onboarding.expenses.completeSetupButton", "Complete Setup"),
                 enabled = true,
                 onClick = onNext,
                 trailingIcon = Icons.Default.Check
@@ -975,7 +1002,7 @@ fun OutgoingStep(
         }
     ) {
         SectionHeader(
-            title = "Loans & EMIs",
+            title = AppText.get("onboarding.expenses.loansSection", "Loans & EMIs"),
             accent = colors.expense,
             icon = Icons.Default.Percent
         )
@@ -993,11 +1020,12 @@ fun OutgoingStep(
                         accent = colors.expense,
                         title = emi.name,
                         subtitle = listOfNotNull(
-                            "Due ${emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty()}",
+                            AppText.get("onboarding.expenses.loanDueLabel", "Due {day}", "day" to emi.date?.let { DayOfMonth.withSuffix(it) }.orEmpty()),
                             expenseCategories.firstOrNull { it.id == emi.categoryId }?.name
-                        ).joinToString(" • "),
-                        amount = "$${emi.amount}/mo",
-                        onRemove = { onRecurringExpensesChange(recurringExpenses - emi) }
+                        ).joinToString(AppText.get("onboarding.expenses.subtitleSeparator", " • ")),
+                        amount = AppText.get("onboarding.expenses.amountPerMonth", "\${amount}/mo", "amount" to emi.amount),
+                        onRemove = { onRecurringExpensesChange(recurringExpenses - emi) },
+                        removeContentDescription = AppText.get("onboarding.expenses.removeButtonContentDescription", "Remove")
                     ) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Box(
@@ -1017,7 +1045,12 @@ fun OutgoingStep(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "${emi.monthsPaid} of ${emi.totalMonths} months paid",
+                            text = AppText.get(
+                                "onboarding.expenses.loanProgress",
+                                "{monthsPaid} of {totalMonths} months paid",
+                                "monthsPaid" to emi.monthsPaid,
+                                "totalMonths" to emi.totalMonths
+                            ),
                             style = MaterialTheme.typography.labelMedium,
                             color = colors.muted
                         )
@@ -1028,18 +1061,18 @@ fun OutgoingStep(
 
         // Add loan form
         SoftCard {
-            FormTitle(icon = Icons.Default.Add, accent = colors.expense, title = "Add a loan or EMI")
+            FormTitle(icon = Icons.Default.Add, accent = colors.expense, title = AppText.get("onboarding.expenses.addLoanTitle", "Add a loan or EMI"))
             SoftTextField(
                 value = emiName,
                 onValueChange = { emiName = it },
-                placeholder = "Name, e.g. Car Loan",
+                placeholder = AppText.get("onboarding.expenses.loanNameHint", "Name, e.g. Car Loan"),
                 accent = colors.expense
             )
             SoftTextField(
                 value = emiAmount,
                 onValueChange = { emiAmount = it },
-                placeholder = "Monthly amount",
-                prefix = "$",
+                placeholder = AppText.get("onboarding.expenses.monthlyAmountHint", "Monthly amount"),
+                prefix = AppText.get("onboarding.expenses.currencyPrefix", "$"),
                 keyboardType = KeyboardType.Number,
                 accent = colors.expense
             )
@@ -1052,7 +1085,7 @@ fun OutgoingStep(
                 SoftTextField(
                     value = emiTotalMonths,
                     onValueChange = { emiTotalMonths = it },
-                    placeholder = "Total months",
+                    placeholder = AppText.get("onboarding.expenses.totalMonthsHint", "Total months"),
                     keyboardType = KeyboardType.Number,
                     accent = colors.expense,
                     modifier = Modifier.weight(1f)
@@ -1061,17 +1094,21 @@ fun OutgoingStep(
                 SoftTextField(
                     value = emiMonthsPaid,
                     onValueChange = { emiMonthsPaid = it },
-                    placeholder = "Months paid",
+                    placeholder = AppText.get("onboarding.expenses.monthsPaidHint", "Months paid"),
                     keyboardType = KeyboardType.Number,
                     accent = colors.expense,
                     isError = isPaidExceeded,
-                    supportingText = if (isPaidExceeded) "Must be less than $totalMonthsVal" else null,
+                    supportingText = if (isPaidExceeded) {
+                        AppText.get("onboarding.expenses.monthsPaidValidation", "Must be less than {totalMonths}", "totalMonths" to totalMonthsVal)
+                    } else {
+                        null
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
 
             DayPickerField(
-                label = "Due on",
+                label = AppText.get("onboarding.expenses.dueDateLabel", "Due on"),
                 day = emiDate,
                 accent = colors.expense,
                 onClick = { showEmiDatePicker = true }
@@ -1089,7 +1126,7 @@ fun OutgoingStep(
                 totalMonthsVal > 0 && emiMonthsPaid.isNotBlank() && !isPaidExceeded && emiDate != null &&
                 (expenseCategories.isEmpty() || emiCategory != null)
             OnboardAddButton(
-                text = "Add loan",
+                text = AppText.get("onboarding.expenses.addLoanButton", "Add loan"),
                 accent = colors.expense,
                 enabled = canAddEmi,
                 onClick = {
@@ -1127,7 +1164,7 @@ fun OutgoingStep(
         )
 
         SectionHeader(
-            title = "Subscriptions",
+            title = AppText.get("onboarding.expenses.subscriptionsSection", "Subscriptions"),
             accent = colors.ai,
             icon = Icons.Default.Subscriptions
         )
@@ -1140,11 +1177,12 @@ fun OutgoingStep(
                         accent = colors.ai,
                         title = sub.name,
                         subtitle = listOfNotNull(
-                            "Billing on ${dayOfMonthLabel(sub.date)}",
+                            AppText.get("onboarding.expenses.billingOnLabel", "Billing on {day}", "day" to dayOfMonthLabel(sub.date)),
                             expenseCategories.firstOrNull { it.id == sub.categoryId }?.name
-                        ).joinToString(" • "),
-                        amount = "$${sub.amount}/mo",
-                        onRemove = { onSubscriptionsChange(subscriptions - sub) }
+                        ).joinToString(AppText.get("onboarding.expenses.subtitleSeparator", " • ")),
+                        amount = AppText.get("onboarding.expenses.amountPerMonth", "\${amount}/mo", "amount" to sub.amount),
+                        onRemove = { onSubscriptionsChange(subscriptions - sub) },
+                        removeContentDescription = AppText.get("onboarding.expenses.removeButtonContentDescription", "Remove")
                     )
                 }
             }
@@ -1152,23 +1190,23 @@ fun OutgoingStep(
 
         // Add subscription form
         SoftCard {
-            FormTitle(icon = Icons.Default.Add, accent = colors.ai, title = "Add a subscription")
+            FormTitle(icon = Icons.Default.Add, accent = colors.ai, title = AppText.get("onboarding.expenses.addSubscriptionTitle", "Add a subscription"))
             SoftTextField(
                 value = subName,
                 onValueChange = { subName = it },
-                placeholder = "Service, e.g. Netflix",
+                placeholder = AppText.get("onboarding.expenses.subscriptionNameHint", "Service, e.g. Netflix"),
                 accent = colors.ai
             )
             SoftTextField(
                 value = subAmount,
                 onValueChange = { subAmount = it },
-                placeholder = "Amount per month",
-                prefix = "$",
+                placeholder = AppText.get("onboarding.expenses.subscriptionAmountHint", "Amount per month"),
+                prefix = AppText.get("onboarding.expenses.currencyPrefix", "$"),
                 keyboardType = KeyboardType.Number,
                 accent = colors.ai
             )
             DayPickerField(
-                label = "Billing day",
+                label = AppText.get("onboarding.expenses.billingDayLabel", "Billing day"),
                 day = subDate,
                 accent = colors.ai,
                 onClick = { showSubDatePicker = true }
@@ -1184,7 +1222,7 @@ fun OutgoingStep(
             val canAddSubscription = subName.isNotBlank() && subAmount.isNotBlank() && subDate != null &&
                 (expenseCategories.isEmpty() || subCategory != null)
             OnboardAddButton(
-                text = "Add subscription",
+                text = AppText.get("onboarding.expenses.addSubscriptionButton", "Add subscription"),
                 accent = colors.ai,
                 enabled = canAddSubscription,
                 onClick = {
@@ -1231,7 +1269,7 @@ private fun ExpenseCategoryChips(
     if (categories.isEmpty()) return
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FieldLabel("Category")
+        FieldLabel(AppText.get("onboarding.expenses.categoryLabel", "Category"))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1339,7 +1377,7 @@ fun FinishStep(onFinish: () -> Unit) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "You're all set!",
+                    text = AppText.get("onboarding.finishScreen.title", "You're all set!"),
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = (-0.5).sp
@@ -1350,7 +1388,7 @@ fun FinishStep(onFinish: () -> Unit) {
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Your money space is ready. Start tracking and watch your budget come to life.",
+                    text = AppText.get("onboarding.finishScreen.subtitle", "Your money space is ready. Start tracking and watch your budget come to life."),
                     style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
                     color = colors.muted,
                     textAlign = TextAlign.Center,
@@ -1369,7 +1407,7 @@ fun FinishStep(onFinish: () -> Unit) {
             ) + fadeIn(animationSpec = tween(600, delayMillis = 600))
         ) {
             OnboardPrimaryButton(
-                text = "Go to Dashboard",
+                text = AppText.get("onboarding.finishScreen.dashboardButton", "Go to Dashboard"),
                 enabled = true,
                 onClick = onFinish,
                 trailingIcon = Icons.AutoMirrored.Filled.ArrowForward
@@ -1619,14 +1657,14 @@ private fun DayPickerField(
                 color = colors.muted
             )
             Text(
-                text = if (day != null) dayOfMonthLabel(day) else "Pick a day",
+                text = if (day != null) dayOfMonthLabel(day) else AppText.get("onboarding.income.pickDayHint", "Pick a day"),
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (day != null) FontWeight.SemiBold else FontWeight.Normal),
                 color = if (day != null) colors.ink else colors.muted.copy(alpha = 0.8f)
             )
         }
         Icon(
             imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Select day",
+            contentDescription = AppText.get("onboarding.common.selectDayContentDescription", "Select day"),
             tint = accent
         )
     }
@@ -1768,6 +1806,7 @@ private fun RecurringItemCard(
     subtitle: String,
     amount: String,
     onRemove: () -> Unit,
+    removeContentDescription: String,
     extraContent: @Composable ColumnScope.() -> Unit = {}
 ) {
     val colors = LocalSoftColors.current
@@ -1802,7 +1841,7 @@ private fun RecurringItemCard(
             IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Remove",
+                    contentDescription = removeContentDescription,
                     tint = colors.muted,
                     modifier = Modifier.size(16.dp)
                 )

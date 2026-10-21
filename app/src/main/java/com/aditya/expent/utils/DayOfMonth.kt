@@ -1,5 +1,6 @@
 package com.aditya.expent.utils
 
+import com.aditya.expent.config.AppText
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -52,13 +53,13 @@ object DayOfMonth {
 
     fun withSuffix(day: Int): String {
         val suffix = when {
-            day in 11..13 -> "th"
-            day % 10 == 1 -> "st"
-            day % 10 == 2 -> "nd"
-            day % 10 == 3 -> "rd"
-            else -> "th"
+            day in 11..13 -> AppText.get("components.dayOfMonth.suffixes.th", "th")
+            day % 10 == 1 -> AppText.get("components.dayOfMonth.suffixes.st", "st")
+            day % 10 == 2 -> AppText.get("components.dayOfMonth.suffixes.nd", "nd")
+            day % 10 == 3 -> AppText.get("components.dayOfMonth.suffixes.rd", "rd")
+            else -> AppText.get("components.dayOfMonth.suffixes.th", "th")
         }
-        return "$day$suffix"
+        return AppText.get("components.dayOfMonth.suffixFormat", "{day}{suffix}", "day" to day, "suffix" to suffix)
     }
 
     fun today(): Int = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)

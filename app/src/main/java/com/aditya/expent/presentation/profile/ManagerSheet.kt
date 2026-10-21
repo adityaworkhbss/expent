@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.config.AppText
 import com.aditya.expent.presentation.theme.ColorExpense
 
 // A type an item can belong to, e.g. Pay Now / Pay Later or Expense / Income
@@ -124,7 +125,7 @@ fun ManagerSheet(
                     )
                 }
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.Close, contentDescription = AppText.get("profile.managerSheet.contentDescriptions.close", "Close"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -141,7 +142,7 @@ fun ManagerSheet(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "ADD NEW ${itemNoun.uppercase()}",
+                        text = AppText.get("profile.managerSheet.addNewLabel", "ADD NEW {itemNoun}", "itemNoun" to itemNoun.uppercase()),
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -167,7 +168,7 @@ fun ManagerSheet(
                             },
                             isError = isDuplicate,
                             supportingText = if (isDuplicate) {
-                                { Text("\"$trimmed\" already exists as ${selectedType.label}") }
+                                { Text(AppText.get("profile.managerSheet.duplicateError", "\"{name}\" already exists as {label}", "label" to selectedType.label, "name" to trimmed)) }
                             } else null,
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
@@ -196,7 +197,7 @@ fun ManagerSheet(
                                 .padding(top = 4.dp)
                                 .size(52.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add $itemNoun")
+                            Icon(Icons.Default.Add, contentDescription = AppText.get("profile.managerSheet.contentDescriptions.add", "Add {itemNoun}", "itemNoun" to itemNoun))
                         }
                     }
                 }
@@ -210,7 +211,7 @@ fun ManagerSheet(
                     FilterChip(
                         selected = filter == null,
                         onClick = { filter = null },
-                        label = { Text("All · ${items.size}") },
+                        label = { Text(AppText.get("profile.managerSheet.filterAll", "All · {count}", "count" to items.size)) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = accent.copy(alpha = 0.14f),
                             selectedLabelColor = accent
@@ -221,7 +222,7 @@ fun ManagerSheet(
                     FilterChip(
                         selected = filter == type.key,
                         onClick = { filter = if (filter == type.key) null else type.key },
-                        label = { Text("${type.label} · ${items.count { it.type == type.key }}") },
+                        label = { Text(AppText.get("profile.managerSheet.filterType", "{label} · {count}", "count" to items.count { it.type == type.key }, "label" to type.label)) },
                         leadingIcon = {
                             Icon(type.icon, contentDescription = null, modifier = Modifier.size(16.dp))
                         },
@@ -254,15 +255,19 @@ fun ManagerSheet(
                     item {
                         EmptyState(
                             accent = accent,
-                            text = if (items.isEmpty()) "No $itemNounPlural yet" else "Nothing here yet",
-                            hint = "Add one above to get started"
+                            text = if (items.isEmpty()) {
+                                AppText.get("profile.managerSheet.emptyState.noItems", "No {itemNounPlural} yet", "itemNounPlural" to itemNounPlural)
+                            } else {
+                                AppText.get("profile.managerSheet.emptyState.nothingHere", "Nothing here yet")
+                            },
+                            hint = AppText.get("profile.managerSheet.emptyState.hint", "Add one above to get started")
                         )
                     }
                 }
                 groups.forEach { (type, groupItems) ->
                     item(key = "header_${type.key}") {
                         Text(
-                            text = "${type.label.uppercase()} · ${groupItems.size}",
+                            text = AppText.get("profile.managerSheet.groupHeader", "{label} · {count}", "count" to groupItems.size, "label" to type.label.uppercase()),
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
@@ -291,7 +296,7 @@ fun ManagerSheet(
                     .height(48.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(AppText.get("profile.managerSheet.doneButton", "Done"), color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -300,18 +305,18 @@ fun ManagerSheet(
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
             icon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = ColorExpense) },
-            title = { Text("Delete $itemNoun?") },
-            text = { Text("\"${item.name}\" will be removed from your list.") },
+            title = { Text(AppText.get("profile.managerSheet.deleteDialog.title", "Delete {itemNoun}?", "itemNoun" to itemNoun)) },
+            text = { Text(AppText.get("profile.managerSheet.deleteDialog.message", "\"{name}\" will be removed from your list.", "name" to item.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     onDelete(item.id)
                     pendingDelete = null
                 }) {
-                    Text("Delete", color = ColorExpense, fontWeight = FontWeight.Bold)
+                    Text(AppText.get("profile.managerSheet.deleteDialog.deleteButton", "Delete"), color = ColorExpense, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+                TextButton(onClick = { pendingDelete = null }) { Text(AppText.get("profile.managerSheet.deleteDialog.cancelButton", "Cancel")) }
             }
         )
     }
@@ -395,7 +400,7 @@ private fun ManagerRow(
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Outlined.DeleteOutline,
-                    contentDescription = "Delete ${item.name}",
+                    contentDescription = AppText.get("profile.managerSheet.contentDescriptions.delete", "Delete {name}", "name" to item.name),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

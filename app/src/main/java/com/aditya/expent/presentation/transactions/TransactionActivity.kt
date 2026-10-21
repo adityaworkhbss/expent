@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aditya.expent.config.AppText
 import com.aditya.expent.domain.model.Transaction
 import com.aditya.expent.domain.model.TransactionType
 import com.aditya.expent.presentation.theme.ExpentTheme
@@ -166,14 +167,14 @@ fun TransactionScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = AppText.get("transactions.header.backContentDescription", "Back"),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "Transaction History",
+                text = AppText.get("transactions.header.title", "Transaction History"),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -186,7 +187,7 @@ fun TransactionScreen(
             onValueChange = { searchText = it },
             placeholder = {
                 Text(
-                    "Search transactions...",
+                    AppText.get("transactions.search.placeholder", "Search transactions..."),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
@@ -202,7 +203,7 @@ fun TransactionScreen(
                     IconButton(onClick = { searchText = "" }) {
                         Icon(
                             Icons.Default.Clear,
-                            contentDescription = "Clear",
+                            contentDescription = AppText.get("transactions.search.clearContentDescription", "Clear"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -274,7 +275,11 @@ fun TransactionScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = opt,
+                        text = when (opt) {
+                            "Income" -> AppText.get("transactions.typeFilters.income", "Income")
+                            "Expense" -> AppText.get("transactions.typeFilters.expense", "Expense")
+                            else -> AppText.get("transactions.typeFilters.all", "All")
+                        },
                         color = textColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -296,6 +301,7 @@ fun TransactionScreen(
 
             items(categories) { (catName, icon) ->
                 val isSelected = selectedCategory == catName
+                val catLabel = if (catName == "All") AppText.get("transactions.categoryFilters.all", "All") else catName
                 val containerColor by animateColorAsState(
                     targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(
                         alpha = 0.5f
@@ -328,13 +334,13 @@ fun TransactionScreen(
                     ) {
                         Icon(
                             imageVector = icon,
-                            contentDescription = catName,
+                            contentDescription = catLabel,
                             modifier = Modifier.size(16.dp),
                             tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = catName,
+                            text = catLabel,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                             color = contentColor
@@ -370,14 +376,14 @@ fun TransactionScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "No matching transactions!",
+                            text = AppText.get("transactions.emptyState.title", "No matching transactions!"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Try adjusting your filters or search keywords.",
+                            text = AppText.get("transactions.emptyState.subtitle", "Try adjusting your filters or search keywords."),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             textAlign = TextAlign.Center
@@ -403,10 +409,14 @@ fun TransactionScreen(
                             )
                             val isPositive = netTotal >= 0
                             val totalColor = if (isPositive) ColorIncome else ColorExpense
-                            val sign = if (isPositive) "+" else "-"
+                            val formattedTotal = String.format("%.2f", Math.abs(netTotal))
 
                             Text(
-                                text = "$sign $ ${String.format("%.2f", Math.abs(netTotal))}",
+                                text = if (isPositive) {
+                                    AppText.get("transactions.dailySummary.positiveAmountFormat", "+ $ {amount}", "amount" to formattedTotal)
+                                } else {
+                                    AppText.get("transactions.dailySummary.negativeAmountFormat", "- $ {amount}", "amount" to formattedTotal)
+                                },
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                                 color = totalColor,
                                 modifier = Modifier
@@ -487,7 +497,7 @@ fun TransactionScreen(
                                 ) { targetExpanded ->
 
                                     Text(
-                                        text = if (targetExpanded) "See Less" else "See More",
+                                        text = if (targetExpanded) AppText.get("transactions.expand.seeLess", "See Less") else AppText.get("transactions.expand.seeMore", "See More"),
 
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
@@ -603,9 +613,9 @@ fun HistoryTransactionItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             
-            val paymentMode = transaction.accountName ?: "Cash"
+            val paymentMode = transaction.accountName ?: AppText.get("transactions.transactionItem.defaultPaymentMode", "Cash")
             Text(
-                text = "via $paymentMode",
+                text = AppText.get("transactions.transactionItem.paymentModeFormat", "via {paymentMode}", "paymentMode" to paymentMode),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 maxLines = 1,
@@ -632,7 +642,7 @@ fun HistoryTransactionItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = AppText.get("transactions.transactionItem.deleteContentDescription", "Delete"),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -644,7 +654,7 @@ fun HistoryTransactionItem(
                 exit = fadeOut()
             ) {
                 Text(
-                    text = if (transaction.type == TransactionType.INCOME) "+ $ ${String.format("%.2f", transaction.amount)}" else "- $ ${String.format("%.2f", Math.abs(transaction.amount))}",
+                    text = if (transaction.type == TransactionType.INCOME) AppText.get("transactions.transactionItem.amountFormats.income", "+ $ {amount}", "amount" to String.format("%.2f", transaction.amount)) else AppText.get("transactions.transactionItem.amountFormats.expense", "- $ {amount}", "amount" to String.format("%.2f", Math.abs(transaction.amount))),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = if (transaction.type == TransactionType.INCOME) ColorIncome else MaterialTheme.colorScheme.onSurface,
@@ -672,8 +682,8 @@ private fun formatDisplayDate(dateStr: String): String {
             val todayStr = localFormatter.format(Date())
             val yesterdayStr = localFormatter.format(Date(Date().time - 24 * 60 * 60 * 1000))
             
-            if (formattedInput == todayStr) return "Today"
-            if (formattedInput == yesterdayStr) return "Yesterday"
+            if (formattedInput == todayStr) return AppText.get("transactions.dates.today", "Today")
+            if (formattedInput == yesterdayStr) return AppText.get("transactions.dates.yesterday", "Yesterday")
             
             val displayFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return displayFormatter.format(date)
@@ -689,8 +699,8 @@ private fun formatDisplayDate(dateStr: String): String {
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val yesterdayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
             val formattedInput = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
-            if (formattedInput == todayStr) return "Today"
-            if (formattedInput == yesterdayStr) return "Yesterday"
+            if (formattedInput == todayStr) return AppText.get("transactions.dates.today", "Today")
+            if (formattedInput == yesterdayStr) return AppText.get("transactions.dates.yesterday", "Yesterday")
 
             val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return formatter.format(date)
@@ -705,8 +715,8 @@ private fun formatDisplayDate(dateStr: String): String {
         if (date != null) {
             val todayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
             val yesterdayStr = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(Date().time - 24 * 60 * 60 * 1000))
-            if (dateStr == todayStr) return "Today"
-            if (dateStr == yesterdayStr) return "Yesterday"
+            if (dateStr == todayStr) return AppText.get("transactions.dates.today", "Today")
+            if (dateStr == yesterdayStr) return AppText.get("transactions.dates.yesterday", "Yesterday")
             
             val formatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             return formatter.format(date)

@@ -2,6 +2,7 @@ package com.aditya.expent.presentation.dashboard
 
 import android.os.Build
 import android.util.Log
+import com.aditya.expent.config.AppText
 import com.aditya.expent.utils.AppLogger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -48,10 +49,10 @@ data class DashboardState(
     val categories: List<CategoryResponseDto> = emptyList(),
     val accounts: List<PaymentModeResponseDto> = emptyList(),
     val incomeSources: List<Budget> = emptyList(),
-    val userName: String = "User",
+    val userName: String = AppText.get("dashboard.header.defaultUserName", "User"),
     val aiTransaction: Boolean = false,
     val reminder: Boolean = false,
-    val greetingMessage: String = "Welcome",
+    val greetingMessage: String = AppText.get("dashboard.header.greetings.default", "Welcome"),
     val isLoading: Boolean = false,
     val aiMessage: String? = null,
     val reminders: List<Reminder> = emptyList(),
@@ -99,17 +100,17 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun loadInfos() {
-        _state.value = _state.value.copy(userName = sessionManager.getUser()?.name ?: "User")
+        _state.value = _state.value.copy(userName = sessionManager.getUser()?.name ?: AppText.get("dashboard.header.defaultUserName", "User"))
         val hour = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             now().atStartOfDay().hour
         } else {
             0
         }
         val greeting = when (hour) {
-            in 5..11 -> "Good Morning"
-            in 12..16 -> "Good Afternoon"
-            in 17..21 -> "Good Evening"
-            else -> "Welcome"
+            in 5..11 -> AppText.get("dashboard.header.greetings.morning", "Good Morning")
+            in 12..16 -> AppText.get("dashboard.header.greetings.afternoon", "Good Afternoon")
+            in 17..21 -> AppText.get("dashboard.header.greetings.evening", "Good Evening")
+            else -> AppText.get("dashboard.header.greetings.default", "Welcome")
         }
         _state.value = _state.value.copy(greetingMessage = greeting)
     }
@@ -309,15 +310,21 @@ class DashboardViewModel @Inject constructor(
                     AppLogger.error("DashboardViewModel", "AI parse failed: $response")
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        aiMessage = response.message ?: "Couldn't understand that transaction. Please try again."
+                        aiMessage = response.message ?: AppText.get("dashboard.addTransactionSheet.aiMessages.parseFailed", "Couldn't understand that transaction. Please try again.")
                     )
                     return@runCatching
                 }
                 if (response.requiresUserInput) {
-                    val missing = response.missingRequiredFields.joinToString(" and ").ifBlank { "some details" }
+                    val missing = response.missingRequiredFields
+                        .joinToString(AppText.get("dashboard.addTransactionSheet.aiMessages.missingFieldsJoiner", " and "))
+                        .ifBlank { AppText.get("dashboard.addTransactionSheet.aiMessages.missingFieldsFallback", "some details") }
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        aiMessage = "Couldn't find the $missing. Try e.g. \"Spent 250 on Uber today\"."
+                        aiMessage = AppText.get(
+                            "dashboard.addTransactionSheet.aiMessages.missingFields",
+                            "Couldn't find the {missing}. Try e.g. \"Spent 250 on Uber today\".",
+                            "missing" to missing
+                        )
                     )
                     return@runCatching
                 }
@@ -343,7 +350,7 @@ class DashboardViewModel @Inject constructor(
                 if (accountId == null) {
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        aiMessage = "Add a payment mode in Profile before adding transactions."
+                        aiMessage = AppText.get("dashboard.addTransactionSheet.aiMessages.noPaymentMode", "Add a payment mode in Profile before adding transactions.")
                     )
                     return@runCatching
                 }
@@ -364,12 +371,12 @@ class DashboardViewModel @Inject constructor(
 
                 // Saved to Room first (PENDING_CREATE), then the sync worker posts it to /transactions
                 addTransactionsUseCase(newTransaction)
-                _state.value = _state.value.copy(isLoading = false, aiMessage = "Added: ${newTransaction.title}")
+                _state.value = _state.value.copy(isLoading = false, aiMessage = AppText.get("dashboard.addTransactionSheet.aiMessages.added", "Added: {title}", "title" to newTransaction.title))
             }.onFailure { error ->
                 AppLogger.error("DashboardViewModel", "Failed to parse AI transaction", error)
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    aiMessage = "Couldn't reach the server to read that. Check your connection and try again."
+                    aiMessage = AppText.get("dashboard.addTransactionSheet.aiMessages.networkError", "Couldn't reach the server to read that. Check your connection and try again.")
                 )
             }
         }

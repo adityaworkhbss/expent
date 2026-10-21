@@ -1,6 +1,7 @@
 package com.aditya.expent
 
 import android.app.Application
+import com.aditya.expent.config.AppConfigStore
 import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.usecase.RegisterDeviceTokenUseCase
 import com.aditya.expent.presentation.widget.AddTransactionWidget
@@ -26,10 +27,15 @@ class ExpentApplication : Application() {
     @Inject
     lateinit var registerDeviceTokenUseCase: RegisterDeviceTokenUseCase
 
+    @Inject
+    lateinit var appConfigStore: AppConfigStore
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
+
+        appConfigStore.init()
         val user = sessionManager.getUser()
         AppLogger.setUser(user?.id)
         if (user != null) {

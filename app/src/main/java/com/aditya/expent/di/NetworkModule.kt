@@ -2,6 +2,7 @@ package com.aditya.expent.di
 
 import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.AuthInterceptor
+import com.aditya.expent.data.remote.ServerUrlInterceptor
 import com.aditya.expent.data.remote.TokenAuthenticator
 import dagger.Module
 import dagger.Provides
@@ -18,6 +19,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    private const val API_PATH = "/api/v1/"
+
     @Provides
     @Singleton
     fun provideGson(): Gson = Gson()
@@ -25,6 +28,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
+        serverUrlInterceptor: ServerUrlInterceptor,
         authInterceptor: AuthInterceptor,
         tokenAuthenticator: TokenAuthenticator,
         apiLoggingInterceptor: com.aditya.expent.data.remote.ApiLoggingInterceptor
@@ -33,6 +37,7 @@ object NetworkModule {
             level = HttpLoggingInterceptor.Level.HEADERS
         }
         return OkHttpClient.Builder()
+            .addInterceptor(serverUrlInterceptor)
             .addInterceptor(authInterceptor)
             .addInterceptor(apiLoggingInterceptor)
             .addInterceptor(loggingInterceptor)
@@ -43,8 +48,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        // Placeholder host only: ServerUrlInterceptor sends every call to the serverUrl from remote config
         return Retrofit.Builder()
-            .baseUrl("https://expent-backend.onrender.com/api/v1/")
+            .baseUrl("http://localhost$API_PATH")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

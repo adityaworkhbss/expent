@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.aditya.expent.config.AppConfigStore
 import com.aditya.expent.data.local.dao.AccountDao
 import com.aditya.expent.data.local.dao.BudgetDao
 import com.aditya.expent.data.local.dao.CategoryDao
@@ -70,6 +71,7 @@ class SyncWorker(
         fun sessionManager(): SessionManager
         fun apiService(): ApiService
         fun gson(): Gson
+        fun appConfigStore(): AppConfigStore
     }
 
     override suspend fun doWork(): Result {
@@ -79,6 +81,9 @@ class SyncWorker(
                 applicationContext,
                 SyncWorkerEntryPoint::class.java
             )
+
+            // Keep text and server URL current (throttled, cheap when unchanged thanks to the ETag)
+            entryPoint.appConfigStore().refresh()
 
             val sessionManager = entryPoint.sessionManager()
             if (sessionManager.getUser() == null) {

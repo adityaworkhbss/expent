@@ -2,6 +2,7 @@ package com.aditya.expent.presentation.auth
 
 import android.content.Context
 import android.util.Log
+import com.aditya.expent.config.AppText
 import com.aditya.expent.utils.AppLogger
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -86,7 +87,7 @@ class AuthViewModel @Inject constructor(
                     }
                     _authState.value = AuthState(isSuccess = true)
                 } else {
-                    val errorMsg = loginResult.exceptionOrNull()?.message ?: "Backend verification failed"
+                    val errorMsg = loginResult.exceptionOrNull()?.message ?: AppText.get("auth.errors.backendVerificationFailed", "Backend verification failed")
 
                     AppLogger.error("AuthViewModel", "BACKEND AUTH FAILED", loginResult.exceptionOrNull(), reportToCrashlytics = false)
                     _authState.value = AuthState(error = errorMsg)
@@ -96,7 +97,7 @@ class AuthViewModel @Inject constructor(
                 // User dismissing the sheet / having no Google account isn't a bug
                 val isExpected = e is GetCredentialCancellationException || e is NoCredentialException
                 AppLogger.error("AuthViewModel", "GOOGLE AUTH FAILED", e, reportToCrashlytics = !isExpected)
-                _authState.value = AuthState(error = e.localizedMessage ?: "Authentication failed")
+                _authState.value = AuthState(error = e.localizedMessage ?: AppText.get("auth.errors.authenticationFailed", "Authentication failed"))
             }
         }
     }
@@ -121,13 +122,13 @@ class AuthViewModel @Inject constructor(
                     }
                     _authState.value = AuthState(isSuccess = true)
                 } else {
-                    val errorMsg = loginResult.exceptionOrNull()?.message ?: "Test login failed"
+                    val errorMsg = loginResult.exceptionOrNull()?.message ?: AppText.get("auth.errors.testLoginFailed", "Test login failed")
                     Log.e("AuthViewModel", "TEST LOGIN FAILED", loginResult.exceptionOrNull())
                     _authState.value = AuthState(error = errorMsg)
                 }
             } catch (e: Exception) {
                 AppLogger.error("AuthViewModel", "TEST LOGIN EXCEPTION", e)
-                _authState.value = AuthState(error = e.localizedMessage ?: "Test login failed")
+                _authState.value = AuthState(error = e.localizedMessage ?: AppText.get("auth.errors.testLoginFailed", "Test login failed"))
             }
         }
     }
