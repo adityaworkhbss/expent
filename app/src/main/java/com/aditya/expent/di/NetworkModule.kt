@@ -48,7 +48,6 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        // Placeholder host only: ServerUrlInterceptor sends every call to the serverUrl from remote config
         return Retrofit.Builder()
             .baseUrl("http://localhost$API_PATH")
             .client(okHttpClient)

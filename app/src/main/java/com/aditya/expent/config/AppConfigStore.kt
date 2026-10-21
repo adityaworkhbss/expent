@@ -48,6 +48,10 @@ class AppConfigStore @Inject constructor(
     @Volatile
     private var currentServerUrl: HttpUrl? = null
 
+    // True once a config from the worker (cached or freshly fetched) is applied in this process
+    @Volatile
+    private var hasWorkerConfig = false
+
     @Volatile
     private var lastFetchAt = 0L
     private var networkCallbackRegistered = false
@@ -67,10 +71,14 @@ class AppConfigStore @Inject constructor(
             val cached = runCatching { prefs.getString(KEY_CONFIG_JSON, null) }.getOrNull()?.let(::parse)
 
             if (cached == null) runCatching { prefs.edit(commit = true) { remove(KEY_ETAG) } }
-            when {
-                cached != null -> apply(cached, source = "cache")
-                refresh(force = true) -> Unit
-                else -> loadBundled()?.let { apply(it, source = "assets (offline first launch)") }
+            if (cached != null) {
+                apply(cached, source = "cache")
+            } else {
+                refresh(force = true)
+
+                if (!hasWorkerConfig) {
+                    loadBundled()?.let { apply(it, source = "assets (offline first launch)", fromWorker = false) }
+                }
             }
             loaded = true
         }
@@ -125,7 +133,9 @@ class AppConfigStore @Inject constructor(
         }
     }
 
-    private fun apply(root: JsonObject, source: String) {
+    private fun apply(root: JsonObject, source: String, fromWorker: Boolean = true) {
+        if (!fromWorker && hasWorkerConfig) return
+        if (fromWorker) hasWorkerConfig = true
         serverUrlOf(root)?.let { currentServerUrl = it }
         AppText.update(root.getAsJsonObject("content"))
         AppLogger.debug(TAG, "Config applied from $source (serverUrl=$currentServerUrl)")

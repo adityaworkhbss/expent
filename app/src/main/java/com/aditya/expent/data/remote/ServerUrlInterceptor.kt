@@ -11,7 +11,6 @@ class ServerUrlInterceptor @Inject constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
 
-        // Runs on OkHttp's thread, so it can wait for the first config fetch
         val server = appConfigStore.awaitServerUrl()
         if (request.url.host == server.host && request.url.scheme == server.scheme && request.url.port == server.port) {
             return chain.proceed(request)
