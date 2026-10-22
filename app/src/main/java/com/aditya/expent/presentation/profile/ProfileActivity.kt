@@ -3,6 +3,7 @@ package com.aditya.expent.presentation.profile
 import android.util.Log
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -84,6 +85,18 @@ class ProfileActivity : ComponentActivity() {
                                 startActivity(intent)
                                 finish()
                             }
+                        },
+                        onAccountDeleted = {
+                            Toast.makeText(
+                                this,
+                                AppText.get("profile.deleteAccount.deletedToast", "Your account has been deleted"),
+                                Toast.LENGTH_LONG
+                            ).show()
+                            val intent = Intent(this, AuthActivity::class.java).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            }
+                            startActivity(intent)
+                            finish()
                         }
                     )
                 }
@@ -100,7 +113,8 @@ fun ProfileScreen(
     sessionManager: SessionManager? = null,
     currentUser: User? = null,
     onBack: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    onAccountDeleted: () -> Unit = {}
 ) {
 
     var currentUserState by remember { mutableStateOf(currentUser ?: sessionManager?.getUser()) }
@@ -114,6 +128,7 @@ fun ProfileScreen(
     var showAppSettings by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
+    var showDeleteAccount by remember { mutableStateOf(false) }
 
     // Shared preferences states (handled via state)
     var isDarkModeEnabled by remember { mutableStateOf(false) }
@@ -450,15 +465,30 @@ fun ProfileScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             ) {
-                ProfileOptionRow(
-                    title = AppText.get("profile.options.logout.title", "Log Out"),
-                    subtitle = AppText.get("profile.options.logout.subtitle", "Safely exit your account"),
-                    icon = Icons.AutoMirrored.Filled.ExitToApp,
-                    iconColor = ColorExpense,
-                    textColor = ColorExpense,
-                    showArrow = false,
-                    onClick = { showLogoutConfirm = true }
-                )
+                Column {
+                    ProfileOptionRow(
+                        title = AppText.get("profile.options.logout.title", "Log Out"),
+                        subtitle = AppText.get("profile.options.logout.subtitle", "Safely exit your account"),
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
+                        iconColor = ColorExpense,
+                        textColor = ColorExpense,
+                        showArrow = false,
+                        onClick = { showLogoutConfirm = true }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                    ProfileOptionRow(
+                        title = AppText.get("profile.options.deleteAccount.title", "Delete account"),
+                        subtitle = AppText.get("profile.options.deleteAccount.subtitle", "Permanently erase your account and all data"),
+                        icon = Icons.Default.DeleteForever,
+                        iconColor = ColorExpense,
+                        textColor = ColorExpense,
+                        showArrow = false,
+                        onClick = {
+                            viewModel?.clearDeleteAccountError()
+                            showDeleteAccount = true
+                        }
+                    )
+                }
             }
         }
     }
@@ -800,6 +830,16 @@ fun ProfileScreen(
         FeedbackDialog(
             onSubmit = { rating, message -> viewModel?.submitFeedback(rating, message) },
             onDismiss = { showFeedbackDialog = false }
+        )
+    }
+
+    // 7. DELETE ACCOUNT CONFIRMATION
+    if (showDeleteAccount) {
+        DeleteAccountDialog(
+            isDeleting = state.isDeletingAccount,
+            error = state.deleteAccountError,
+            onConfirm = { viewModel?.deleteAccount(onDeleted = onAccountDeleted) },
+            onDismiss = { showDeleteAccount = false }
         )
     }
 

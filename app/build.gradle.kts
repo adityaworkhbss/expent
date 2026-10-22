@@ -34,7 +34,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: shrinks, optimizes and obfuscates the release build; keep rules in proguard-rules.pro
+            isMinifyEnabled = true
+            isShrinkResources = true
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -62,7 +64,7 @@ android {
         }
         create("prod") {
             dimension = "mode"
-            buildConfigField("Boolean", "USE_TEST_LOGIN", "true")
+            buildConfigField("Boolean", "USE_TEST_LOGIN", "false")
         }
     }
 

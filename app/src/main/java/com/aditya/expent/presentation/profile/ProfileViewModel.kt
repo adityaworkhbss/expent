@@ -8,6 +8,8 @@ import com.aditya.expent.data.remote.dto.CategoryResponseDto
 import com.aditya.expent.data.remote.dto.PaymentModeResponseDto
 import com.aditya.expent.domain.model.OnboardCategory
 import com.aditya.expent.domain.model.OnboardPaymentMode
+import com.aditya.expent.config.AppText
+import com.aditya.expent.domain.usecase.DeleteAccountUseCase
 import com.aditya.expent.domain.usecase.DeleteCategoriesUseCase
 import com.aditya.expent.domain.usecase.DeletePaymentModeUseCase
 import com.aditya.expent.domain.usecase.GetAccountsUseCase
@@ -20,6 +22,7 @@ import com.aditya.expent.domain.usecase.SubmitFeedbackUseCase
 import com.aditya.expent.domain.usecase.UpdateCustomizationUseCase
 import com.aditya.expent.utils.SessionManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +37,9 @@ data class ProfileState(
     val email: String = "",
     val aiTransaction: Boolean = false,
     val reminder: Boolean = false,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isDeletingAccount: Boolean = false,
+    val deleteAccountError: String? = null
 )
 
 @HiltViewModel
@@ -49,6 +54,7 @@ class ProfileViewModel @Inject constructor(
     private val updateCustomizationUseCase: UpdateCustomizationUseCase,
     private val removeDeviceTokenUseCase: RemoveDeviceTokenUseCase,
     private val submitFeedbackUseCase: SubmitFeedbackUseCase,
+    private val deleteAccountUseCase: DeleteAccountUseCase,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
@@ -158,6 +164,36 @@ class ProfileViewModel @Inject constructor(
                 loadCustomization()
             }
         }
+    }
+
+    fun deleteAccount(onDeleted: () -> Unit) {
+        if (_state.value.isDeletingAccount) return
+        _state.value = _state.value.copy(isDeletingAccount = true, deleteAccountError = null)
+        viewModelScope.launch {
+            deleteAccountUseCase()
+                .onSuccess {
+                    _state.value = _state.value.copy(isDeletingAccount = false)
+                    onDeleted()
+                }
+                .onFailure { error ->
+                    val message = if (error is IOException) {
+                        AppText.get(
+                            "profile.deleteAccount.errors.offline",
+                            "You're offline. Connect to the internet to delete your account."
+                        )
+                    } else {
+                        AppText.get(
+                            "profile.deleteAccount.errors.generic",
+                            "Couldn't delete your account. Please try again."
+                        )
+                    }
+                    _state.value = _state.value.copy(isDeletingAccount = false, deleteAccountError = message)
+                }
+        }
+    }
+
+    fun clearDeleteAccountError() {
+        _state.value = _state.value.copy(deleteAccountError = null)
     }
 
     fun logout(onComplete: () -> Unit) {

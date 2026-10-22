@@ -7,12 +7,36 @@ import com.aditya.expent.data.remote.ApiService
 import com.aditya.expent.data.remote.dto.AuthRequestDto
 import com.aditya.expent.data.remote.dto.AuthTestRequestDto
 import com.aditya.expent.domain.model.User
+import com.aditya.expent.data.local.database.ExpentDatabase
+import com.aditya.expent.data.sync.SyncScheduler
 import com.aditya.expent.domain.repository.AuthRepository
+import com.aditya.expent.utils.SessionManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val database: ExpentDatabase,
+    private val syncScheduler: SyncScheduler,
+    private val sessionManager: SessionManager
 ) : AuthRepository {
+
+    override suspend fun deleteAccount(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // Server first: if this fails nothing local is touched, so the user can retry
+            apiService.deleteAccount()
+            AppLogger.debug("AuthRepo", "Account deleted on server, wiping local data")
+
+            syncScheduler.cancelAllWork()
+            database.clearAllTables()
+            sessionManager.logout()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            AppLogger.error("AuthRepo", "Error deleteAccount: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
 
     override suspend fun loginWithGoogle(idToken: String): Result<User> {
         val request = AuthRequestDto(idToken)

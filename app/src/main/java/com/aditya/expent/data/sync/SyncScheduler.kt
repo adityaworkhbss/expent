@@ -83,6 +83,12 @@ class SyncScheduler @Inject constructor(
         workManager.cancelUniqueWork(PUSH_SYNC_WORK_NAME)
     }
 
+    // On account deletion: nothing should sync for a user that no longer exists, periodic work included
+    fun cancelAllWork() {
+        cancelAllSync()
+        workManager.cancelUniqueWork(PERIODIC_SYNC_WORK_NAME)
+    }
+
     companion object {
         const val KEY_FULL_REFRESH = "key_full_refresh"
         const val INITIAL_SYNC_WORK_NAME = "expent_initial_sync"

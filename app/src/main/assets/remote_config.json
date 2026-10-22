@@ -52,6 +52,10 @@
         "logout": {
           "title": "Log Out",
           "subtitle": "Safely exit your account"
+        },
+        "deleteAccount": {
+          "title": "Delete account",
+          "subtitle": "Permanently erase your account and all data"
         }
       },
       "editProfile": {
@@ -157,6 +161,30 @@
           "starSingular": "{index} star",
           "starPlural": "{index} stars"
         }
+      },
+      "deleteAccount": {
+        "dialog": {
+          "title": "Delete your account?",
+          "closeContentDescription": "Close",
+          "message": "This permanently deletes your Expent account and everything in it, on this phone and on our servers. This can't be undone.",
+          "itemsTitle": "What gets deleted",
+          "items": [
+            "All transactions and history",
+            "Accounts, cards and categories",
+            "EMIs, subscriptions, budgets and reminders",
+            "Your profile, settings and feedback"
+          ],
+          "confirmWord": "DELETE",
+          "confirmLabel": "Type {word} to confirm",
+          "confirmButton": "Delete account permanently",
+          "deletingButton": "Deleting…",
+          "cancelButton": "Keep my account"
+        },
+        "errors": {
+          "offline": "You're offline. Connect to the internet to delete your account.",
+          "generic": "Couldn't delete your account. Please try again."
+        },
+        "deletedToast": "Your account has been deleted"
       }
     },
     "onboarding": {

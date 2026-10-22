@@ -119,6 +119,9 @@ interface ApiService {
     @HTTP(method = "DELETE", path = "device-tokens", hasBody = true)
     suspend fun removeDeviceToken(@Body request: RemoveDeviceTokenRequestDto): ApiResponse<Any?>
 
+    @DELETE("auth/account")
+    suspend fun deleteAccount(): ApiResponse<Any?>
+
     @POST("feedback")
     suspend fun submitFeedback(@Body request: FeedbackRequestDto): ApiResponse<Any?>
 
