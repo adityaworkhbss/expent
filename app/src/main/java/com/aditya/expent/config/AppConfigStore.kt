@@ -7,6 +7,7 @@ import android.net.Network
 import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
+import com.aditya.expent.BuildConfig
 import com.aditya.expent.utils.AppLogger
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -48,7 +49,6 @@ class AppConfigStore @Inject constructor(
     @Volatile
     private var currentServerUrl: HttpUrl? = null
 
-    // True once a config from the worker (cached or freshly fetched) is applied in this process
     @Volatile
     private var hasWorkerConfig = false
 
@@ -101,6 +101,7 @@ class AppConfigStore @Inject constructor(
             val request = Request.Builder()
                 .url(CONFIG_URL)
                 .apply { if (etag != null) header("If-None-Match", etag) }
+                .apply { if (BuildConfig.CONFIG_API_KEY.isNotEmpty()) header(CONFIG_KEY_HEADER, BuildConfig.CONFIG_API_KEY) }
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
@@ -188,6 +189,7 @@ class AppConfigStore @Inject constructor(
     companion object {
         private const val TAG = "AppConfigStore"
         const val CONFIG_URL = "https://expent-config.adityaworkhbss.workers.dev/"
+        private const val CONFIG_KEY_HEADER = "X-Config-Key"
         private const val ASSET_FILE = "remote_config.json"
         private const val PREFS_FILE_NAME = "expent_config_prefs"
         private const val KEY_CONFIG_JSON = "config_json"

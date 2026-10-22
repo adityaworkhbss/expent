@@ -1,3 +1,10 @@
+import java.util.Properties
+
+// Machine-local values that must not be committed (local.properties is gitignored)
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -20,6 +27,9 @@ android {
         versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val configApiKey = localProperties.getProperty("CONFIG_API_KEY") ?: System.getenv("CONFIG_API_KEY") ?: ""
+        buildConfigField("String", "CONFIG_API_KEY", "\"$configApiKey\"")
     }
 
     buildTypes {

@@ -6,14 +6,6 @@ import androidx.compose.runtime.setValue
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 
-/**
- * UI text from the remote config's "content" section, looked up by dotted path,
- * e.g. AppText.get("profile.feedback.title", "Help us improve").
- *
- * The fallback is the built-in text, used when the key is missing or the config hasn't loaded.
- * Placeholders like "{count}" are filled from [args]: get("…", "All · {count}", "count" to 3).
- * Backed by Compose state, so composables re-read the text when a new config is applied.
- */
 object AppText {
 
     private var content by mutableStateOf<JsonObject?>(null)
