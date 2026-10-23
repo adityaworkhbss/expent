@@ -1,6 +1,7 @@
 package com.aditya.expent.presentation.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -48,13 +50,15 @@ fun DeleteAccountDialog(
             dismissOnClickOutside = !isDeleting
         )
     ) {
+        // Same look as the Logout dialog: plain surface (no tonal tint), shadow and a soft red border
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
-                .imePadding(),
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
+                .imePadding()
+                .shadow(16.dp, RoundedCornerShape(24.dp))
+                .border(1.dp, ColorExpense.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
