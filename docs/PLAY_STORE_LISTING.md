@@ -18,10 +18,14 @@ These either break Play policy or look unfinished to reviewers:
      `DELETE /auth/account`, which removes the user and all their data, and the app wipes local data.
    - ⏳ a **web link** where users can request deletion without the app. This link goes in the Data
      safety form. A simple page with a support email and the steps is enough.
-3. **Privacy policy URL.** Play requires a public privacy policy page. The in-app "Terms of Service &
-   Privacy Policy" sheet is placeholder text. Write a real policy covering the data in the
-   [Data safety](#data-safety-form) section, host it (e.g. GitHub Pages or a Notion page), and link it
-   in the app and the listing.
+3. **Privacy policy URL.** Play requires a public privacy policy page.
+   - ✅ Written: [legal/PRIVACY_POLICY.md](legal/PRIVACY_POLICY.md) and
+     [legal/TERMS_OF_SERVICE.md](legal/TERMS_OF_SERVICE.md). The in-app sheet shows a short summary
+     of both (remote config key `auth.legalSheet.content`).
+   - ⏳ Fill in `[DEVELOPER NAME]`, `[SUPPORT EMAIL]` and the governing-law placeholders, host both
+     pages (e.g. GitHub Pages or a Notion page), and paste the privacy URL into Play Console. The
+     privacy policy's "Delete without the app" section can also serve as the account-deletion web
+     link (#2).
 4. **Version code.** `versionCode = 1` / `versionName = "1.0.1"`. Fine for the first upload, but
    increase `versionCode` for every upload after that.
 5. **Release build hygiene.**
